@@ -456,6 +456,18 @@
   }
   function placeAll() { const used = new Set(); npcs.list.forEach(n => place(n, used)); npcs.list.forEach(n => { n.R.root.position.copy(n.pos); n.R.root.rotation.y = n.yawNow = n.home; }); }
 
+  // ── Sculpted heroines (heroines.js); the primitive rigs stay as the fallback ──
+  function heroRig(id) {
+    const H = CT.heroines; if (!H || typeof H.build !== 'function' || !(H.IDS || []).includes(id)) return null;
+    let g; try { g = H.build(id); } catch (e) { console.warn('[npcs] heroine build failed, using rig', id, e); return null; }
+    if (!g) return null;
+    // A PointLight that comes and goes with visibility changes the scene light count and recompiles every shader: drop it, keep the emissive orb.
+    g.children.filter(c => c.isLight).forEach(l => g.remove(l));
+    // Heroines keep their own colours in the swamp and dusk fog (they hide beyond 150 m anyway).
+    g.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(m => { if (m.fog) { m.fog = false; m.needsUpdate = true; } }); });
+    return { root: g, hero: true, hair: [], ik: [], ph: 0 };
+  }
+
   // ── Shadow blob ────────────────────────────────────────────────────────────
   function blob(R) {
     const m = new T.Mesh(G.geo.disc, basic('#000000', 0.38)); m.rotation.x = -PI / 2; m.position.y = 0.03; m.scale.setScalar(0.42);
@@ -469,11 +481,11 @@
     core = c; shared();
     group = new T.Group(); group.name = 'npcs'; c.scene.add(group);
     const mk = (d, R, extra) => {
-      blob(R); compact(R.root); group.add(R.root);
+      blob(R); if (!R.hero) compact(R.root); group.add(R.root);
       R.ph = (hash(d.id) % 1000) / 159;
       return Object.assign({ id: d.id, name: d.name, kind: d.kind || 'villager', poi: d.poi, tags: d.tags, off: d.off, yaw: d.yaw, pos: new T.Vector3(), R, portrait: d.id, dlg: d.id, invulnerable: true, npc: true, barkT: 0 }, extra || {});
     };
-    CAST.forEach(d => npcs.list.push(mk(d, BUILD[d.id]())));
+    CAST.forEach(d => npcs.list.push(mk(d, heroRig(d.id) || BUILD[d.id]())));
     VILLAGERS.forEach((v, i) => {
       v.seed = hash(v.id); v.scale = v.scale || (v.fem ? 0.93 : 1.0) + (v.seed % 5) * 0.012;
       npcs.list.push(mk(Object.assign({ kind: 'villager', tags: v.task === 'spear' ? ['guard', 'villager'] : ['villager', 'merchant', 'guard'] }, v), buildVillager(v), { dlg: 'villager', lines: v.lines, task: v.task, portrait: v.id }));
@@ -495,14 +507,15 @@
     npcs.list.forEach(n => {
       const R = n.R, dx = pp.x - n.pos.x, dz = pp.z - n.pos.z, d = Math.hypot(dx, dz);
       n.dist = d;
-      R.root.visible = d < 170;
+      R.root.visible = d < (R.hero ? 150 : 170);
       if (!R.root.visible) return;
       n.pos.y = H(n.pos.x, n.pos.z); R.root.position.copy(n.pos);
       // face the player within 8 m, else turn back home
       const want = d < 8 ? Math.atan2(dx, dz) : n.home;
       let da = want - n.yawNow; while (da > PI) da -= TAU; while (da < -PI) da += TAU;
       n.yawNow += da * Math.min(1, dt * (d < 8 ? 3 : 1.2)); R.root.rotation.y = n.yawNow;
-      if (d < 90) animate(n, time + R.ph, dt, d < 8 ? clamp(Math.atan2(dx, dz) - n.yawNow, -0.7, 0.7) : 0, d);
+      if (R.hero) { if (R.root.userData.update) R.root.userData.update(dt, time); }
+      else if (d < 90) animate(n, time + R.ph, dt, d < 8 ? clamp(Math.atan2(dx, dz) - n.yawNow, -0.7, 0.7) : 0, d);
       if (live) barks(n, d);
     });
   };
@@ -641,7 +654,7 @@
       sell: () => {
         const R = RPG(), inv = R ? R.inventory.filter(e => { const it = C.ITEMS[e.id]; return it && it.price && sellKinds.includes(it.kind) && !(Object.values(R.equipped).includes(e.id) && e.count <= 1); }) : [];
         return node([inv.length ? 'Show me what you carry. I pay fair. Fairly low, but fair.' : 'You have nothing I want. Come back with more than lint.', `Your purse: ${gold()} gold.`],
-          inv.slice(0, 4).map(e => ch('sell_' + e.id, `Sell ${iname(e.id)}${e.count > 1 ? ' x' + e.count : ''}  (+${R.sellPrice(e.id)} gold)`, 'sell', () => R.sell(e.id))).concat([ch('back', 'Back.', '@start')]));
+          inv.slice().sort((a, b) => R.sellPrice(b.id) * b.count - R.sellPrice(a.id) * a.count).slice(0, 7).map(e => ch('sell_' + e.id, `Sell ${iname(e.id)}${e.count > 1 ? ' x' + e.count : ''}  (+${R.sellPrice(e.id)} gold)`, 'sell', () => R.sell(e.id))).concat([ch('back', 'Back.', '@start')]));
       },
     };
   }

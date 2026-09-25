@@ -38,16 +38,20 @@
   const rt = new T.WebGLRenderTarget(C.PIX_W, C.PIX_H, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, type: T.HalfFloatType });
   const postScene = new T.Scene(), postCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const postMat = new T.ShaderMaterial({
-    uniforms: { tDiffuse: { value: rt.texture }, uFade: { value: 0 }, uHurt: { value: 0 }, uLow: { value: 0 }, uTime: { value: 0 } },
+    uniforms: { tDiffuse: { value: rt.texture }, uFade: { value: 0 }, uHurt: { value: 0 }, uLow: { value: 0 }, uTime: { value: 0 }, uDizzy: { value: 0 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tDiffuse; uniform float uFade, uHurt, uLow, uTime; varying vec2 vUv;
+      uniform sampler2D tDiffuse; uniform float uFade, uHurt, uLow, uTime, uDizzy; varying vec2 vUv;
       float bayer(vec2 p){ int x=int(mod(p.x,4.0)), y=int(mod(p.y,4.0)); int i=x+y*4;
         float m[16]=float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
         for(int k=0;k<16;k++) if(k==i) return m[k]/16.0-0.5; return 0.0; }
       vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); }
       void main(){
-        vec3 c = texture2D(tDiffuse, vUv).rgb;
+        // dizzy: slow wavy warp + a drifting double image
+        vec2 uv = vUv;
+        uv += uDizzy * 0.012 * vec2(sin(uv.y * 9.0 + uTime * 2.1), cos(uv.x * 7.0 + uTime * 1.7));
+        vec2 ghost = uDizzy * 0.018 * vec2(sin(uTime * 1.3), cos(uTime * 0.9));
+        vec3 c = mix(texture2D(tDiffuse, uv).rgb, texture2D(tDiffuse, uv + ghost).rgb, uDizzy * 0.45);
         c = aces(c * 1.1);
         c = pow(c, vec3(1.0/2.2));
         // Frazetta grade: warm, crushed shadows; rich reds; muted greens
@@ -78,7 +82,7 @@
 
   const core = CT.core = {
     THREE: T, scene, camera, renderer, time: 0, dt: 0, state: 'GATE', input: null,
-    hurtFlash: 0, isTouch, quality: isTouch ? 'low' : 'high', torchLight,
+    hurtFlash: 0, dizzy: 0, isTouch, quality: isTouch ? 'low' : 'high', torchLight,
     shake(amount, seconds) { S.shakeA = Math.max(S.shakeA, amount); S.shakeT = Math.max(S.shakeT, seconds || 0.25); },
     hitStop(seconds) { S.stopT = Math.max(S.stopT, Math.min(0.12, seconds)); },
   };
@@ -124,13 +128,14 @@
   function newGame() {
     // A fresh page gives every module a clean state (garrisons, uniques, gore, found places).
     if (S.started) {
-      try { ['crimsonThrone.save', POS_KEY, 'crimsonThrone.pois', 'crimsonThrone.rest'].forEach(k => localStorage.removeItem(k)); sessionStorage.setItem('crimsonThrone.autostart', 'new'); } catch (e) {}
+      try { ['crimsonThrone.save', POS_KEY, 'crimsonThrone.pois', 'crimsonThrone.rest', 'crimsonThrone.sites', 'crimsonThrone.chests'].forEach(k => localStorage.removeItem(k)); sessionStorage.setItem('crimsonThrone.autostart', 'new'); } catch (e) {}
       location.reload(); return;
     }
     S.started = true;
     call('rpg', 'reset');
-    try { ['crimsonThrone.save', POS_KEY, 'crimsonThrone.pois', 'crimsonThrone.rest'].forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    try { ['crimsonThrone.save', POS_KEY, 'crimsonThrone.pois', 'crimsonThrone.rest', 'crimsonThrone.sites', 'crimsonThrone.chests'].forEach(k => localStorage.removeItem(k)); } catch (e) {}
     if (CT.world && CT.world.pois) CT.world.pois.forEach(o => { o.found = false; });
+    call('world', 'resetSites');
     placePlayer(C.START.x, C.START.z, 0);
     enterPlay();
     notify('You wash ashore on the cursed isle of Vael.', 'story');
@@ -295,9 +300,23 @@
     // music director
     if (core.state === 'PLAY') {
       const boss = has('monsters', 'bossInfo') && CT.monsters.bossInfo();
-      const fight = CT.monsters && CT.monsters.inCombat;
+      // combat music only when something is actually on you (the world is dense; inCombat alone is too broad)
+      let fight = false;
+      if (CT.monsters && CT.monsters.list && CT.player && CT.player.pos) {
+        const P = CT.player.pos;
+        for (const m of CT.monsters.list) if (!m.dead && (m.state === 'chase' || m.state === 'attack' || m.state === 'circle') && Math.hypot(m.pos.x - P.x, m.pos.z - P.z) < 20) { fight = true; break; }
+      }
+      if (fight) S.fightT = core.time; else if (core.time - (S.fightT || -99) < 6) fight = true; // hold combat music a moment after the fight
       const night = has('sky', 'isNight') && CT.sky.isNight();
-      music(boss ? 'boss' : fight ? 'combat' : night ? 'night' : 'explore');
+      let calm = night ? 'night' : 'explore';
+      const P = CT.player && CT.player.pos;
+      if (P && CT.world) {
+        const spots = CT.world.spots || {};
+        const nearTavern = ['harrowby', 'crossing'].some(id => (spots[id] || []).some(s => s.tag === 'tavern' && Math.hypot(s.x - P.x, s.z - P.z) < 35));
+        if (nearTavern) calm = 'tavern';
+        else if (!night && has('world', 'biomeAt') && CT.world.biomeAt(P.x, P.z) === 'forest') calm = 'wolves';
+      }
+      music(boss ? 'boss' : fight ? 'combat' : calm);
     }
 
     // post
@@ -306,6 +325,7 @@
     postMat.uniforms.uHurt.value = core.hurtFlash;
     postMat.uniforms.uLow.value = p && p.alive !== false && p.hp < hpMax * 0.3 && simulate ? 1 - p.hp / (hpMax * 0.3) : 0;
     postMat.uniforms.uTime.value = core.time;
+    postMat.uniforms.uDizzy.value = Math.max(0, Math.min(1, core.dizzy || 0));
     if (core.state === 'DEAD') S.fadeTarget = 0.35;
     S.fade += (S.fadeTarget - S.fade) * Math.min(1, realDt * 2.5);
     if (core.state !== 'DEAD' && S.fadeTarget < 1) S.fadeTarget = 1;

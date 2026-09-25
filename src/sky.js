@@ -36,10 +36,10 @@
     { t: 0.66, zen: 0x344c80, mid: 0x8a88a0, hor: 0xecb480, glow: 0xffd098, sun: 0xfff0c8, cDark: 0x6a5670, cLight: 0xf0ccaa, rim: 0xffe4a8,
       fog: 0xb89470, hemiSky: 0xf0c8a0, dirCol: 0xffd8a0, dirI: 2.2, hemiI: 1.2, glowAmt: 0.6, lum: 0.9, towerH: 0.26 },
     { t: 0.735, zen: 0x1c1242, mid: 0x6e2a58, hor: 0xff7418, glow: 0xffb030, sun: 0xffe070, cDark: 0x3a1640, cLight: 0x943c64, rim: 0xffc848,
-      fog: 0x7a3024, hemiSky: 0xff9860, hemiGnd: 0x2a1010, dirCol: 0xff8a38, amb: 0x3a1a2a,
+      fog: 0x4a2c34, hemiSky: 0xff9860, hemiGnd: 0x2a1010, dirCol: 0xff8a38, amb: 0x3a1a2a,
       dirI: 2.2, hemiI: 1.1, ambI: 0.35, cover: 0.5, tower: 1, towerH: 0.3, rays: 1, glowAmt: 1, lum: 0.7, sunAmt: 1 },
     { t: 0.775, zen: 0x0e0826, mid: 0x3a1236, hor: 0xc82a10, glow: 0xff5010, sun: 0xff8030, cDark: 0x1e0a26, cLight: 0x5e1a3a, rim: 0xff6420,
-      fog: 0x3e1418, hemiSky: 0xa04040, hemiGnd: 0x1a0808, dirCol: 0xff5028, amb: 0x2a1020,
+      fog: 0x261620, hemiSky: 0xa04040, hemiGnd: 0x1a0808, dirCol: 0xff5028, amb: 0x2a1020,
       dirI: 1.1, hemiI: 0.8, rays: 0.7, glowAmt: 1, lum: 0.4, sunAmt: 1, stars: 0.1 },
     { t: 0.82, zen: 0x04051a, mid: 0x121640, hor: 0x3a2850, glow: 0x5a3860, cDark: 0x0a0a1a, cLight: 0x282448, rim: 0x5a5484,
       fog: 0x12122a, hemiSky: 0x50548a, hemiGnd: 0x0c0a0c, dirCol: 0x9aa8e8, amb: 0x1a1a38,
@@ -502,7 +502,7 @@
       setWeather('bloodmoon', 25);
       CT.bus.emit('notify', { text: 'The Blood Moon rises...', kind: 'omen' });
     }
-    if (nat && S.prevT < 0.21 && t >= 0.21 && API.weather === 'bloodmoon') setWeather('clear', 40);
+    if (API.weather === 'bloodmoon' && ((nat && S.prevT < 0.21 && t >= 0.21) || (t > 0.3 && t < 0.7))) setWeather('clear', 40);
     S.nextWx -= dt;
     if (S.nextWx <= 0 && API.weather !== 'bloodmoon') {
       const r = rnd(), fogP = 0.15 + S.swamp * 0.45;
@@ -566,7 +566,7 @@
     const external = API.timeOfDay !== S.written;          // set from outside (debug): no event triggers
     if (external) S.prevT = -1;
     // a new journey starts in the late afternoon, an hour of gold before the first dusk
-    if (!external && c.state === 'PLAY' && (S.lastState === 'TITLE' || S.lastState === 'GATE')) API.timeOfDay = 0.66;
+    if (!external && c.state === 'PLAY' && (S.lastState === 'TITLE' || S.lastState === 'GATE')) { API.timeOfDay = 0.66; setWeather('clear', 0); }
     S.lastState = c.state;
     if (c.state === 'PLAY' || c.state === 'DEAD') API.timeOfDay = (API.timeOfDay + dt / DAY_SECONDS) % 1;
     if (API.timeOfDay < 0) API.timeOfDay += 1;

@@ -474,7 +474,7 @@
     r += (1 - r) * warm; g += (0.62 - g) * warm; b += (0.3 - b) * warm;
     const R = Math.round(r * 15), G = Math.round(g * 15), B = Math.round(b * 15), key = R * 256 + G * 16 + B;
     if (key !== rimKey) { rimKey = key; rimCol = 'rgb(' + R * 17 + ',' + G * 17 + ',' + B * 17 + ')'; }
-    rimA = 0.3 + 0.4 * Math.max(k, warm);
+    rimA = 0.3 + 0.4 * Math.max(k, warm) + (rushT > 0 ? 0.25 * (0.5 + 0.5 * Math.sin(clock * 7)) : 0);
   }
   function indexBlood(A, hq) {                                // the finger blood clipped to the index + thumb overlay
     if (A.iblood[hq]) return A.iblood[hq];
@@ -903,7 +903,7 @@
   let hurtT = 0, grounded = true, sprinting = false, exhausted = false, stIdle = 9, hspeed = 0, inWater = 0, wasWater = false;
   let bobPh = 0, bobAmp = 0, dip = 0, kbx = 0, kbz = 0, lean = 0, deathT = 0, deathSide = 1, lastSave = null, poiT = 0;
   let ownBlade = 0, ownHands = 0, splashT = 0;
-  let dragT = -1, dragCD = 0, exhaleT = -1, exhaleBurst = false, calmT = 0, turnV = 0, emberK = 0.7;
+  let dragT = -1, dragCD = 0, exhaleT = -1, exhaleBurst = false, rushT = 0, crashT = -1, dizzy = 0, turnV = 0, emberK = 0.7;
   const OFF_KEY = 'crimsonThrone.offhand';
   try { PL.offhand = localStorage.getItem(OFF_KEY) === 'torch' ? 'torch' : 'cig'; } catch (e) { PL.offhand = 'cig'; }
   const FWD = new THREE.Vector3(), RGT = new THREE.Vector3(), TMP = new THREE.Vector3();
@@ -933,7 +933,8 @@
   }
 
   // ── Stamina ────────────────────────────────────────────────────────────────
-  function useStamina(c) { PL.stamina = Math.max(0, PL.stamina - c); stIdle = 0; if (PL.stamina <= 0) exhausted = true; }
+  function clearRush() { rushT = 0; crashT = -1; dizzy = 0; if (CORE) CORE.dizzy = 0; }
+  function useStamina(c) { PL.stamina = Math.max(0, PL.stamina - c * (rushT > 0 ? 0.7 : 1)); stIdle = 0; if (PL.stamina <= 0) exhausted = true; }
 
   // ── Combat ─────────────────────────────────────────────────────────────────
   function camVectors() {
@@ -1009,6 +1010,7 @@
     return (sx * -Math.sin(PL.yaw) + sz * -Math.cos(PL.yaw)) / l > 0.15;
   }
   function die() {
+    clearRush();
     PL.alive = false; PL.hp = 0; PL.blocking = false; PL.dodging = false; charging = false; atk = 0; drinkT = -1; deathT = 0;
     deathSide = Math.random() < 0.5 ? -1 : 1;
     sfx('death'); emit('playerDeath', {});
@@ -1070,7 +1072,7 @@
     if (has('world', 'collide')) { const r = CT.world.collide(PL.pos, P.radius); if (r && r !== PL.pos && typeof r.x === 'number') { PL.pos.x = r.x; PL.pos.z = r.z; } PL.pos.y = hAt(PL.pos.x, PL.pos.z) + 0.05; }
     PL.vel.set(0, 0, 0); PL.hp = hpMax(); PL.stamina = stMax(); PL.alive = true; PL.pitch = 0; PL.roll = 0;
     atk = 0; charging = false; dodgeT = -1; drinkT = -1; hurtT = 0; exhausted = false; guardBreakT = 0; deathT = 0; kbx = kbz = 0; dip = 0;
-    PL.blocking = false; PL.dodging = false; ownBlade = ownHands = 0; dragT = exhaleT = -1; calmT = 0;
+    PL.blocking = false; PL.dodging = false; ownBlade = ownHands = 0; dragT = exhaleT = -1; clearRush();
     if (has('gore', 'clear')) CT.gore.clear();
   };
 
@@ -1121,13 +1123,18 @@
     else if (I.torch) { if (PL.offhand === 'cig') setOffhand('torch'); else { PL.torchLit = !PL.torchLit; sfx('torch', { on: PL.torchLit }); } }
     turnV += (I.lookDX / Math.max(dt, 0.001) - turnV) * Math.min(1, dt * 10);
     // a drag on the cigarette (Space): raise 0.35 s, ember flare to 1.25 s, lower, exhale at 1.6 s
-    calmT = Math.max(0, calmT - dt); dragCD = Math.max(0, dragCD - dt);
+    dragCD = Math.max(0, dragCD - dt);
+    // RUSH (5 s after a drag) then CRASH: dizzy ramps to 0.8 over 1 s and fades over 14 s; a new drag clears it in 0.6 s
+    if (rushT > 0) { rushT -= dt; if (rushT <= 0) { rushT = 0; crashT = 0; } }
+    if (crashT >= 0) { crashT += dt; dizzy = crashT < 1 ? 0.8 * crashT : 0.8 * Math.max(0, 1 - (crashT - 1) / 14); if (crashT >= 15) { crashT = -1; dizzy = 0; } }
+    else if (dizzy > 0) dizzy = Math.max(0, dizzy - dt * 0.8 / 0.6);
+    core.dizzy = dizzy;
     if (dragT >= 0 && (I.attack || I.block || I.dodge || I.heavy > 0.15 || I.usePotion)) dragT = -1;
     if (PL.offhand === 'cig' && I.jump && dragT < 0 && dragCD <= 0 && !atk && !PL.blocking && dodgeT < 0 && !charging && drinkT < 0) dragT = 0;
     if (dragT >= 0) {
       const d0 = dragT; dragT += dt;
       if (d0 < 0.35 && dragT >= 0.35) sfx('drag');
-      if (d0 < 1.25 && dragT >= 1.25) { PL.stamina = Math.min(sm, PL.stamina + 15); if (PL.stamina >= sm * 0.2) exhausted = false; calmT = 20; emit('notify', { text: 'Calm', kind: 'bark' }); }
+      if (d0 < 1.25 && dragT >= 1.25) { PL.stamina = Math.min(sm, PL.stamina + 15); if (PL.stamina >= sm * 0.2) exhausted = false; rushT = 5; crashT = -1; emit('notify', { text: 'Rush', kind: 'bark' }); }
       if (dragT >= 1.6) { dragT = -1; dragCD = 1.5; exhaleT = 0; exhaleBurst = true; sfx('exhale'); }
     }
     if (exhaleT >= 0) { exhaleT += dt; if (exhaleT >= 2.5) exhaleT = -1; }
@@ -1209,7 +1216,7 @@
       const acc = grounded ? (wl > 0.1 ? 9 : 11) : 1.6, k = 1 - Math.exp(-acc * dt);
       v.x += (wx * speed - v.x) * k; v.z += (wz * speed - v.z) * k;
     }
-    if (sprinting && wl > 0.1) { PL.stamina = Math.max(0, PL.stamina - P.sprintCost * dt); stIdle = 0; if (PL.stamina <= 0) exhausted = true; }
+    if (sprinting && wl > 0.1) { PL.stamina = Math.max(0, PL.stamina - P.sprintCost * dt * (rushT > 0 ? 0.7 : 1)); stIdle = 0; if (PL.stamina <= 0) exhausted = true; }
 
     // jump + gravity
     if (I.jump && PL.offhand !== 'cig' && grounded && drinkT < 0 && !PL.blocking) { v.y = P.jump; grounded = false; useStamina(6); sfx('jump'); }
@@ -1229,7 +1236,7 @@
 
     // stamina regen
     stIdle += dt;
-    if (stIdle > 0.8) PL.stamina = Math.min(sm, PL.stamina + P.staminaRegen * dt * (PL.blocking ? 0.4 : 1) * (calmT > 0 ? 1.4 : 1));
+    if (stIdle > 0.8) PL.stamina = Math.min(sm, PL.stamina + P.staminaRegen * dt * (PL.blocking ? 0.4 : 1) * (rushT > 0 ? 2.5 : dizzy > 0.05 ? 0.35 : 1));
     if (exhausted && PL.stamina >= sm * 0.2) exhausted = false;
 
     // bob, steps, camera
@@ -1243,10 +1250,10 @@
     if (atk) { const kw = atk === 2 ? HW : LW, ke = atk === 2 ? HSE : LSE; if (atkK > kw && atkK < ke) leanT = (atk === 2 ? -1 : LK[comboIdx][8]) * (atk === 2 ? 0.06 : 0.035) * Math.sin(Math.PI * (atkK - kw) / (ke - kw)); }
     if (dodgeT >= 0) leanT += dodgeSide * 0.07 * Math.sin(Math.PI * dodgeT / 0.42);
     lean += (leanT - lean) * Math.min(1, dt * 14);
-    PL.roll = Math.sin(bobPh) * 0.008 * bobAmp + lean;
+    PL.roll = Math.sin(bobPh) * 0.008 * bobAmp + lean + Math.sin(core.time * 0.7) * 0.0436 * dizzy;
     cam.position.set(PL.pos.x, PL.pos.y + P.eye + (Math.abs(Math.sin(bobPh)) - 0.5) * 0.07 * bobAmp - dip - (charging ? charge * 0.05 : 0), PL.pos.z);
     if (exhaleT >= 0) { const k = Math.sin(Math.PI * exhaleT / 2.5); PL.roll += Math.sin(core.time * 1.3) * 0.016 * k; }
-    cam.rotation.set(PL.pitch + hurtT * 0.05 + (exhaleT >= 0 ? Math.sin(core.time * 0.9) * 0.012 * Math.sin(Math.PI * exhaleT / 2.5) : 0), PL.yaw, PL.roll);
+    cam.rotation.set(PL.pitch + hurtT * 0.05 + Math.sin(core.time * 0.45) * 0.03 * dizzy + (exhaleT >= 0 ? Math.sin(core.time * 0.9) * 0.012 * Math.sin(Math.PI * exhaleT / 2.5) : 0), PL.yaw, PL.roll);
     torch(dt, core);
 
     // save point tracking
@@ -1376,6 +1383,7 @@
     let ry = bRy + Math.cos(2 * bobPh) * 4 * wk + Math.sin(clock * 1.7) * 1.8 * idle;
     let ra = bRa + Math.sin(clock * 0.7) * 0.8 * idle;
     if (sprinting) { ry += Math.sin(bobPh) * 9; ra += Math.sin(bobPh) * 6; }
+    if (dizzy > 0) { rx += Math.sin(clock * 0.8) * 8 * dizzy; ry += Math.cos(clock * 0.6) * 6 * dizzy; ra += Math.sin(clock * 0.7) * 4 * dizzy; }
     if (charging) { const tr = charge * (charge >= 1 ? 3.2 : 2); rx += (rnd() - 0.5) * tr * 2; ry += (rnd() - 0.5) * tr * 2; ra += (rnd() - 0.5) * tr; }
 
     // swing overrides the base pose
@@ -1548,7 +1556,7 @@
   };
 
   // Debug snapshot for tests.
-  PL.debugState = function () { return { atk, atkK, comboIdx, charging, charge, blockT, dodgeT, drinkT, kind: K && K.id, stamina: PL.stamina, exhausted, blade: bladeLevel(), hands: handLevel(), ms: PL.drawMs, lastSave: lastSave && lastSave.id, offhand: PL.offhand, dragT, dragCD, exhaleT, calmT }; };
+  PL.debugState = function () { return { atk, atkK, comboIdx, charging, charge, blockT, dodgeT, drinkT, kind: K && K.id, stamina: PL.stamina, exhausted, blade: bladeLevel(), hands: handLevel(), ms: PL.drawMs, lastSave: lastSave && lastSave.id, offhand: PL.offhand, dragT, dragCD, exhaleT, rushT, crashT, dizzy }; };
   PL.debugBlood = function (b, h) { bloodOv = b; handsOv = h == null ? b : h; };
   // Freeze a pose for screenshots: type 1 light (idx 0..2), 2 heavy, k = normalised swing time; charge/block/drink via opts.
   PL.debugPose = function (type, idx, k, o) {

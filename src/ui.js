@@ -1265,6 +1265,13 @@ window.CT = window.CT || {};
     const m = v.map || {}, pois = m.pois || (CT.config && CT.config.POIS) || [];
     if (MB.sheet) {
       g.save(); g.beginPath(); g.rect(MS.mx - 6, MS.my - 6, MS.ms + 12, MS.ms + 12); g.clip();
+      // minor landmarks: found ones as small ink diamonds with a name, unknown ones hidden
+      ((CT.world && CT.world.sites) || []).forEach(s => {
+        if (!s.found) return;
+        const [x, y] = w2m(s.x, s.z);
+        g.fillStyle = '#3a1a08'; g.beginPath(); g.moveTo(x, y - 5); g.lineTo(x + 5, y); g.lineTo(x, y + 5); g.lineTo(x - 5, y); g.closePath(); g.fill();
+        txt(g, s.name, x, y + 15, 11, '#3a1a08', { italic: true, weight: 'normal', stroke: 'rgba(240,226,190,0.7)', lw: 2, sy: 0 });
+      });
       pois.forEach(p => {
         const [x, y] = w2m(p.x, p.z);
         if (p.found) {

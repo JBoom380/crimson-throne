@@ -1010,6 +1010,10 @@ window.CT = window.CT || {};
     E.musicIn.connect(E.musicVol); E.musicVol.connect(pre);
     const ms = G(); ms.gain.value = 0.45; E.musicVol.connect(ms); ms.connect(conv);
     E.sfxIn = G(); E.sfxVol = G(); E.sfxIn.connect(E.sfxVol); E.sfxVol.connect(pre);
+    // The score (music2.js) plays into its own bus on the same master chain: master volume, the music
+    // volume setting and the limiter still apply. The legacy themes below stay only as a fallback.
+    E.m2 = !offline && CT.music2 && typeof CT.music2.init === 'function' ? CT.music2 : null;
+    if (E.m2) { E.m2In = G(); E.m2In.gain.value = 0.7; E.m2In.connect(pre); try { E.m2.init(ctx, E.m2In); } catch (e) { console.error('[CT.audio] music2', e); E.m2 = null; } }
     const ss = G(); ss.gain.value = 0.22; E.sfxVol.connect(ss); ss.connect(conv);
 
     E.q = [];   // offline test runs replay the disconnect timers from tick()
@@ -1020,6 +1024,7 @@ window.CT = window.CT || {};
       list.push(end); E.stats.notes++; return true;
     };
     E.music = name => {
+      if (E.m2) { E.m2.setMusic(E.m2.tracks.indexOf(name) >= 0 ? name : null); return; }
       name = THEMES[name] ? name : null;
       const prev = E.cur ? E.cur.name : null;
       if (prev === name && !(E.cur && E.cur.done)) return;
@@ -1091,6 +1096,7 @@ window.CT = window.CT || {};
     E.volume = (m, mu, s) => {
       const now = ctx.currentTime, set = (p, v) => { p.cancelScheduledValues(now); p.setTargetAtTime(v, now, 0.05); };
       set(E.master.gain, clamp(m, 0, 1)); set(E.musicVol.gain, 0.45 * clamp(mu, 0, 1)); set(E.sfxVol.gain, clamp(s, 0, 1));
+      if (E.m2In) set(E.m2In.gain, 0.7 * clamp(mu, 0, 1));
     };
     return E;
   }
@@ -1160,7 +1166,7 @@ window.CT = window.CT || {};
     _engine: makeEngine, _T: THEMES, _sfx: Object.keys(SFX), _loops: Object.keys(LOOPS), _spatial: spatial,
     _bake: { ks: ksBuf, str: strBuf, bell: bellBuf, drum: drumBuf, gore: goreBuf, step: stepBuf, fire: fireBuf, rain: rainBuf, ir: impulse },
     _build: buildSection,
-    _state() { return E ? { ctx: E.ctx.state, music: E.cur && E.cur.name, done: E.cur && E.cur.done, mv: E.mv.length, sv: E.sv.length, loops: Object.keys(E.loops), fires: Object.keys(E.fires), stats: E.stats } : { pending }; },
+    _state() { return E ? { ctx: E.ctx.state, music: E.m2 ? (E.m2._stats() || {}).cur : E.cur && E.cur.name, score: E.m2 ? E.m2._stats() : null, done: E.cur && E.cur.done, mv: E.mv.length, sv: E.sv.length, loops: Object.keys(E.loops), fires: Object.keys(E.fires), stats: E.stats } : { pending }; },
   };
   // Browsers need a gesture to start audio: the first gesture inits (title music if the gate was skipped).
   const wake = () => {

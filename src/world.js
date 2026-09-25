@@ -1,4 +1,4 @@
-// ─── WORLD: the cursed isle of Vael ──────────────────────────────────────────
+// â”€â”€â”€ WORLD: the cursed isle of Vael â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // A cached 4 m heightfield (+ analytic detail), a warped far LOD so the peaks and
 // the citadel show from anywhere, a sea to the horizon, a road network, streamed
 // 64 m terrain chunks with instanced vegetation, and hand-built points of interest.
@@ -11,7 +11,7 @@ window.CT = window.CT || {};
   const POIS = C.POIS, P = {};
   POIS.forEach(p => (P[p.id] = p));
 
-  // ── Math + noise ───────────────────────────────────────────────────────────
+  // â”€â”€ Math + noise â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -43,7 +43,7 @@ window.CT = window.CT || {};
   const bell = (x, z, cx, cz, R, A) => { const d2 = ((x - cx) * (x - cx) + (z - cz) * (z - cz)) / (R * R); return d2 < 1 ? A * (1 - d2) * (1 - d2) : 0; };
   const terr = (h, s) => { const k = h / s, f = k - Math.floor(k); return (Math.floor(k) + sstep(0.5, 0.92, f)) * s; };
 
-  // ── Island shape + regions ─────────────────────────────────────────────────
+  // â”€â”€ Island shape + regions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // coastline radius and cliffiness depend only on the direction: tabulate them
   const CT_N = 4096, COAST_R = new Float32Array(CT_N + 1), COAST_K = new Float32Array(CT_N + 1);
   for (let i = 0; i <= CT_N; i++) {
@@ -75,7 +75,7 @@ window.CT = window.CT || {};
   }
   const cragMask = (x, z) => sstep(0.56, 0.72, vnoise(x * 0.0045 + 91, z * 0.0045 + 17));
 
-  // ── Raw height by biome ────────────────────────────────────────────────────
+  // â”€â”€ Raw height by biome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const hMeadow = (x, z) => 3 + 18 * (fbm(x * 0.0042 + 11, z * 0.0042 + 3, 4) - 0.25) + 2.5 * vnoise(x * 0.025, z * 0.025);
   const hForest = (x, z) => 10 + 52 * (fbm(x * 0.0038 + 7, z * 0.0038 + 1, 4) - 0.25) + 26 * Math.pow(ridged(x * 0.008, z * 0.008, 2), 2);
   const hHills = (x, z) => 12 + 58 * (fbm(x * 0.0036 + 3, z * 0.0036 + 5, 5) - 0.28) + 50 * Math.pow(ridged(x * 0.0062 + 2, z * 0.0062 + 9, 3), 3);
@@ -132,7 +132,7 @@ window.CT = window.CT || {};
     return lerp(-1.6 + c * 0.045, h, sstep(0, L, c));
   }
 
-  // ── Cached heightfield (4 m) ───────────────────────────────────────────────
+  // â”€â”€ Cached heightfield (4 m) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const GS = 4, GN = 801, G0 = -1600;
   let HG = null, FL = null, RD = null;
   function samp(A, x, z) {
@@ -183,7 +183,7 @@ window.CT = window.CT || {};
     buildRoads();
   }
 
-  // ── Roads ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Roads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Control points: POI ids or [x, z]. m = meander amplitude.
   const ROADDEF = [
     { p: ['shore', [30, 1130], 'harrowby'], m: 6 },
@@ -262,7 +262,7 @@ window.CT = window.CT || {};
     return false;
   }
 
-  // ── Canvas textures ────────────────────────────────────────────────────────
+  // â”€â”€ Canvas textures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
   function tex(c, rep, nearest) {
     const t = new T.CanvasTexture(c);
@@ -338,7 +338,7 @@ window.CT = window.CT || {};
     const t = tex(c, false, true); t.generateMipmaps = false; return t;
   }
 
-  // ── Geometry batching ──────────────────────────────────────────────────────
+  // â”€â”€ Geometry batching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const _M = new T.Matrix4(), _Q = new T.Quaternion(), _E = new T.Euler(0, 0, 0, 'YXZ'), _P = new T.Vector3(), _S = new T.Vector3();
   const _a = new T.Vector3(), _b = new T.Vector3(), _n = new T.Vector3(), _col = new T.Color(), UP = new T.Vector3(0, 1, 0);
   let rnd = CT.rng(1);
@@ -421,12 +421,12 @@ window.CT = window.CT || {};
   // shorthand box on the batch: centre x,y,z
   const bx = (b, x, y, z, w, h, d, col, ry = 0, rx = 0, rz = 0, jit = 0.1) => b.add(BOX, M(x, y, z, ry, w, h, d, rx, rz), col, jit);
 
-  // ── Palette ────────────────────────────────────────────────────────────────
+  // â”€â”€ Palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const WOOD = 0x3e2a1a, WOOD2 = 0x55392a, DWOOD = 0x21160e, PLASTER = 0x8a7a60, STONE = 0x5f5a54, STONE2 = 0x47433f;
   const THATCH = 0x4a3a20, SLATE = 0x2c2a30, TILE = 0x5a2a1c, IRON = 0x28282c, BONE = 0xd6ccb4, HIDE = 0x6e5238;
   const BLACK = 0x1f1c22, BLACK2 = 0x2b2630, WHITE = 0xbfb8a8, MOSS = 0x4e5a34, CLOTH = 0x5e1a14;
 
-  // ── Materials with wind / fire / warp shaders ─────────────────────────────
+  // â”€â”€ Materials with wind / fire / warp shaders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function sway(mat, amp, y0, key) {
     mat.onBeforeCompile = sh => {
       sh.uniforms.uTime = U.time; sh.uniforms.uAmp = { value: amp }; sh.uniforms.uY0 = { value: y0 };
@@ -526,7 +526,7 @@ window.CT = window.CT || {};
     });
   }
 
-  // ── Vegetation + prop prototypes ───────────────────────────────────────────
+  // â”€â”€ Vegetation + prop prototypes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function geoPine(snow, far) {
     const b = new Batch(), R = CT.rng(snow ? 77 : 55);
     b.add(cyl(0.16, 0.32, 3.4, far ? 4 : 5, far), M(0, 1.5, 0), 0x3a2a1c);
@@ -648,7 +648,7 @@ window.CT = window.CT || {};
     return g;
   }
 
-  // ── Instance pools (one draw call per kind; chunks keep their own lists) ──
+  // â”€â”€ Instance pools (one draw call per kind; chunks keep their own lists) â”€â”€
   const pools = {}, poolNames = [];
   const _m = new T.Matrix4(), _p = new T.Vector3(), _q = new T.Quaternion(), _s = new T.Vector3(), _e = new T.Euler(0, 0, 0, 'YXZ');
   function pool(name, geo, mat, per, cap) {
@@ -683,7 +683,7 @@ window.CT = window.CT || {};
     }
   }
 
-  // ── Static colliders (POIs) in an 8 m hash ────────────────────────────────
+  // â”€â”€ Static colliders (POIs) in an 8 m hash â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const SH = new Map(), QM = 2.5, interiors = [];
   const skey = (ix, iz) => (ix + 500) * 2000 + (iz + 500);
   function addStatic(o, ext) {
@@ -698,14 +698,14 @@ window.CT = window.CT || {};
   }
   const inBox = (o, x, z) => { const dx = x - o.x, dz = z - o.z, lx = dx * o.c - dz * o.s, lz = dx * o.s + dz * o.c; return Math.abs(lx) <= o.hw && Math.abs(lz) <= o.hd; };
 
-  // ── Fires (instanced flames + halos + a few real lights) ───────────────────
+  // â”€â”€ Fires (instanced flames + halos + a few real lights) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fires = [];
   const FIRE_TINT = [[1, 1, 1], [1.2, 0.2, 0.12], [0.55, 1, 0.8], [0.7, 0.85, 1.2]];
   function fire(x, y, z, s, tint, light) { fires.push({ x, y, z, s, tint: tint || 0, light: !!light }); }
   let lights = [];
   const LCOL = [new T.Color(0xff8a30), new T.Color(0xff3018), new T.Color(0x80ffb0), new T.Color(0x9ab8ff)];
 
-  // ── Common props ───────────────────────────────────────────────────────────
+  // â”€â”€ Common props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function skull(b, x, y, z, ry, s = 1) {
     b.add(ico(0.16 * s, 1), M(x, y, z, ry, 1, 0.92, 1.15), BONE);
     bx(b, x + Math.sin(ry) * 0.1 * s, y - 0.12 * s, z + Math.cos(ry) * 0.1 * s, 0.2 * s, 0.08 * s, 0.14 * s, 0xc4b89c, ry, 0, 0, 0);
@@ -769,7 +769,7 @@ window.CT = window.CT || {};
   const flags = []; // {pool, x, y, z, ry, s, r, g, b}
   function flag(pool, x, y, z, ry, s = 1, tint) { flags.push({ pool, x, y, z, ry, s, t: tint || 1 }); }
 
-  // ── Houses ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Houses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Built at the origin: front faces +z, sits on y = 0 (a stone plinth sinks below).
   function house(R, o) {
     const k = kit(), Wd = o.W, D = o.D, H = o.H, RH = o.RH || D * 0.85;
@@ -849,7 +849,7 @@ window.CT = window.CT || {};
   }
   const angFar = (a, list, m) => list.every(g => Math.abs(Math.atan2(Math.sin(a - g), Math.cos(a - g))) > m);
 
-  // ── POI builders ───────────────────────────────────────────────────────────
+  // â”€â”€ POI builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const spots = {}, avoid = [];
   const smokes = [];
   function spot(id, x, z, yaw, tag) { (spots[id] = spots[id] || []).push({ x: +x.toFixed(1), z: +z.toFixed(1), yaw: +yaw.toFixed(2), tag }); }
@@ -1507,7 +1507,7 @@ window.CT = window.CT || {};
     }
   }
 
-  // ── Road ribbon (one mesh) ─────────────────────────────────────────────────
+  // â”€â”€ Road ribbon (one mesh) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function roadMesh() {
     const P2 = [], UV = [], N = [], I = [];
     let base = 0;
@@ -1532,7 +1532,7 @@ window.CT = window.CT || {};
     const m = new T.Mesh(g, mats.road); m.frustumCulled = false; return m;
   }
 
-  // ── Terrain colour ─────────────────────────────────────────────────────────
+  // â”€â”€ Terrain colour â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const COL = {};
   function colors() {
     const hex = { grassA: 0x4c5424, grassB: 0x6e6a30, grassD: 0x353c1c, floor: 0x2c2e1a, needles: 0x3e3020, hillA: 0x4e5028, hillB: 0x64563a,
@@ -1580,7 +1580,7 @@ window.CT = window.CT || {};
     return _tc;
   }
 
-  // ── Terrain chunks ─────────────────────────────────────────────────────────
+  // â”€â”€ Terrain chunks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const CH = 64, NF = 33, NCs = 17;
   const chunks = new Map(), active = [], spare = [];
   let idxFine = null, idxCoarse = null;
@@ -1604,7 +1604,7 @@ window.CT = window.CT || {};
     g.boundingSphere = new T.Sphere(new T.Vector3(), 50);
     const mesh = new T.Mesh(g, mats.terrain); mesh.matrixAutoUpdate = false; mesh.visible = false; scene.add(mesh);
     const cells = []; for (let i = 0; i < 100; i++) cells.push([]);
-    return { mesh, g, cx: 0, cz: 0, key: -1, lod: -1, inst: {}, cX: new Float32Array(2000), cZ: new Float32Array(2000), cR: new Float32Array(2000), cT: new Float32Array(2000), nc: 0, cells };
+    return { mesh, g, cx: 0, cz: 0, key: -1, lod: -1, inst: {}, loot: [], cX:new Float32Array(2000), cZ: new Float32Array(2000), cR: new Float32Array(2000), cT: new Float32Array(2000), nc: 0, cells };
   }
   function addCol(ch, x, z, r, top) {
     if (ch.nc >= 2000) return;
@@ -1646,7 +1646,7 @@ window.CT = window.CT || {};
   function cleared(x, z) {
     for (const p of POIS) { const r = CLEAR[p.id]; if (r && (x - p.x) * (x - p.x) + (z - p.z) * (z - p.z) < r * r) return true; }
     for (const q of extraClear) if ((x - q[0]) * (x - q[0]) + (z - q[1]) * (z - q[1]) < q[2] * q[2]) return true;
-    return false;
+    return clearedSite(x, z);
   }
   function populate(ch) {
     const x0 = ch.cx * CH, z0 = ch.cz * CH, fine = ch.lod === 1, R = CT.rng((Math.imul(ch.cx + 99, 73856093) ^ Math.imul(ch.cz + 99, 19349663)) >>> 0);
@@ -1738,9 +1738,10 @@ window.CT = window.CT || {};
     ch.nc = 0; for (const c of ch.cells) c.length = 0;
     const hmax = buildTerrain(ch);
     if (hmax > -6) populate(ch);
+    lootChunk(ch);
   }
 
-  // ── Streaming ──────────────────────────────────────────────────────────────
+  // â”€â”€ Streaming â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function stream(budgetMs) {
     const cam = core.camera.position, ccx = Math.floor(cam.x / CH), ccz = Math.floor(cam.z / CH), nr = Math.ceil((viewR + 45) / CH);
     // unload far chunks
@@ -1748,6 +1749,7 @@ window.CT = window.CT || {};
       const ch = active[i], d = Math.hypot(ch.cx * CH + 32 - cam.x, ch.cz * CH + 32 - cam.z);
       if (d > viewR + 110) {
         for (const k in ch.inst) { if (ch.inst[k].n) pools[k].dirty = true; ch.inst[k].n = 0; }
+        unregLoot(ch);
         ch.mesh.visible = false; ch.nc = 0; chunks.delete(ch.key); active.splice(i, 1); spare.push(ch);
       }
     }
@@ -1777,7 +1779,7 @@ window.CT = window.CT || {};
     return built;
   }
 
-  // ── Far LOD + sea ──────────────────────────────────────────────────────────
+  // â”€â”€ Far LOD + sea â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function farMesh() {
     const n = 161, st = 3200 / (n - 1), P2 = new Float32Array(n * n * 3), Cc = new Float32Array(n * n * 3), N = new Float32Array(n * n * 3);
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
@@ -1848,7 +1850,7 @@ window.CT = window.CT || {};
     const m = new T.Mesh(g, mat); m.frustumCulled = false; mats.sea = mat; return m;
   }
 
-  // ── Static POI meshes ──────────────────────────────────────────────────────
+  // â”€â”€ Static POI meshes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const poiMeshes = []; // {group, x, z, r, always}
   function addPoiMeshes(K, x, z, r, always, warp) {
     const grp = new T.Group();
@@ -1861,7 +1863,1178 @@ window.CT = window.CT || {};
     poiMeshes.push({ grp, x, z, r, always });
   }
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // â”€â”€ Minor landmarks ("sites") and loot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // About 56 small places between the POIs, chosen by a seeded dart throw at init
+  // (spacing >= 175 m, off the roads, outside every POI). Each one is built lazily
+  // when the player comes near (one merged mesh + one glow mesh per site). Loot
+  // containers live in the fine terrain chunks: instanced pools + CT.interactables
+  // entries that register and unregister with the chunk streaming.
+  const SITES = [], LOOT = [], LOOTB = new Map(), anims = [];
+  const LS_SITES = 'crimsonThrone.sites', LS_CHESTS = 'crimsonThrone.chests';
+  const lsGet = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } };
+  const lsSet = (k, o) => { try { localStorage.setItem(k, JSON.stringify(o)); } catch (e) {} };
+  let siteSt = {}, chestSt = {};
+  const CLG = new Map(), cgk = (i, j) => (i + 100) * 1000 + (j + 100);
+  function addClear(x, z, r) {
+    for (let j = Math.floor((z - r) / 32); j <= Math.floor((z + r) / 32); j++) for (let i = Math.floor((x - r) / 32); i <= Math.floor((x + r) / 32); i++) {
+      const k = cgk(i, j); let a = CLG.get(k); if (!a) CLG.set(k, (a = [])); a.push(x, z, r);
+    }
+  }
+  function clearedSite(x, z) {
+    const a = CLG.get(cgk(Math.floor(x / 32), Math.floor(z / 32))); if (!a) return false;
+    for (let i = 0; i < a.length; i += 3) { const dx = x - a[i], dz = z - a[i + 1]; if (dx * dx + dz * dz < a[i + 2] * a[i + 2]) return true; }
+    return false;
+  }
+  const IDM = new T.Matrix4(), _sv = new T.Vector3();
+  function seg(b, ax, ay, az, bx2, by, bz, w, d, col) { const L = Math.hypot(bx2 - ax, by - ay, bz - az); b.add(BOX, limbM(ax, ay, az, bx2, by, bz).scale(_S.set(w, L, d)), col, 0); }
+
+  // colours
+  const stoneFn = (ny, cy, R2) => (ny > 0.75 && R2() < 0.4 ? MOSS : [0x5f5a54, 0x4f4a46, 0x6a645c, 0x57524c][(R2() * 4) | 0]);
+  const paleFn = (ny, cy, R2) => (ny > 0.7 && R2() < 0.45 ? MOSS : [0x9e988a, 0x8e887c, 0xaaa394, 0x837d72][(R2() * 4) | 0]);
+  const barkFn = (ny, cy, R2) => (R2() < 0.3 ? 0x2a221c : 0x3d332b);
+  const rockFnD = (ny, cy, R2) => (ny > 0.6 && R2() < 0.4 ? 0x3a4028 : [0x3a3430, 0x2e2926, 0x45403a][(R2() * 3) | 0]);
+  const snowy = base => (ny, cy, R2) => (ny > 0.5 && R2() < 0.85 ? (R2() < 0.5 ? 0xd8dce4 : 0xbcc4d0) : typeof base === 'function' ? base(ny, cy, R2) : base);
+  const iceFn = (ny, cy, R2) => (ny > 0.55 ? 0xd4dae4 : [0x8a9aac, 0x7a8a9c, 0x9aaabb][(R2() * 3) | 0]);
+  const moundFn = (ny, cy, R2) => (ny > 0.35 ? (R2() < 0.3 ? 0x4a4a26 : [0x3e4424, 0x46502a, 0x363c20][(R2() * 3) | 0]) : [0x3a332a, 0x4a4034][(R2() * 2) | 0]);
+  const mossyFn = (ny, cy, R2) => (ny > 0.4 && R2() < 0.7 ? [0x4e5a34, 0x3e4a28][(R2() * 2) | 0] : [0x5a5550, 0x4a4540][(R2() * 2) | 0]);
+
+  // the site being built: builders work in site-local metres (+z faces the road or the sea)
+  let cs = null, cC = 1, cSn = 0;
+  const WX = (lx, lz) => cs.x + lx * cC + lz * cSn, WZ = (lx, lz) => cs.z - lx * cSn + lz * cC;
+  const GL = (lx, lz) => heightAt(WX(lx, lz), WZ(lx, lz)) - cs.y;
+  const sFire = (lx, ly, lz, s, tint, light) => fire(WX(lx, lz), cs.y + ly, WZ(lx, lz), s, tint, light);
+  const sCol = (lx, lz, r, top) => colCircle(WX(lx, lz), WZ(lx, lz), r, cs.y + top);
+  const sBox = (lx, lz, w, d, rot, top) => colBox(WX(lx, lz), WZ(lx, lz), w, d, cs.rot + rot, cs.y + top);
+  const sFlag = (pool, lx, ly, lz, ry, s) => cs.flags.push(pool, WX(lx, lz), cs.y + ly, WZ(lx, lz), cs.rot + ry, s || 1);
+  const sCrow = (lx, ly, lz) => cs.crows.push(WX(lx, lz), cs.y + ly, WZ(lx, lz), cs.rot + lx * 7.3 + lz * 3.1);
+  const sSmoke = (lx, ly, lz) => smokes.push([WX(lx, lz), cs.y + ly, WZ(lx, lz), Math.abs(lx * 0.37 + lz * 0.11) % 1]);
+  function sCandle(K, lx, ly, lz, light) { K.f.add(cyl(0.045, 0.05, 0.24, 5), M(lx, ly + 0.12, lz), 0xc8b894); sFire(lx, ly + 0.27, lz, 0.11, 0, light); }
+  function sDead(K, lx, lz, s, R, tint, tilt) {
+    const k = new Batch(); k.add(protos.dead, null, tint || 0x3a3129, 0.3, R);
+    K.f.merge(k, M(lx, GL(lx, lz) - 0.25, lz, R() * TAU, s, s * (0.9 + R() * 0.3), s, tilt || 0, -(tilt || 0) * 0.6));
+    sCol(lx, lz, 0.4 * s, 7 * s);
+  }
+  function sStake(K, lx, lz, R) {
+    const y = GL(lx, lz), lean = (R() - 0.5) * 0.25, h = 2.2 + R() * 0.8;
+    K.f.add(cyl(0.03, 0.07, h, 4), M(lx, y + h / 2 - 0.2, lz, 0, 1, 1, 1, lean, 0), DWOOD);
+    skull(K.f, lx, y + h - 0.15, lz + lean * h * 0.5, R() * TAU);
+  }
+  function sBonfire(K, lx, lz, s, light, tint) {
+    const y = GL(lx, lz), f = K.f;
+    for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; f.add(lumpy(ico(0.3 * s, 0), 0.1, k), M(lx + Math.sin(a) * 1.4 * s, y + 0.1, lz + Math.cos(a) * 1.4 * s, a, 1, 0.7, 1), STONE2); }
+    for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; f.add(cyl(0.09 * s, 0.13 * s, 2 * s, 5), limbM(lx + Math.sin(a) * 0.9 * s, y, lz + Math.cos(a) * 0.9 * s, lx + Math.sin(a) * 0.1, y + 1.4 * s, lz + Math.cos(a) * 0.1), k % 2 ? 0x2a1c12 : 0x1a120c); }
+    K.g.add(cyl(0.8 * s, 0.9 * s, 0.1, 8), M(lx, y + 0.08, lz), tint === 2 ? 0x40ff80 : 0xff5a10);
+    sFire(lx, y + 0.2, lz, 2.0 * s, tint || 0, light);
+    sCol(lx, lz, 1.4 * s, y + 1.2);
+    sSmoke(lx, y + 2.2 * s + 0.6, lz);
+  }
+  function bones(K, lx, lz, r, n, R) {
+    for (let i = 0; i < n; i++) {
+      const a = R() * TAU, d = R() * r, x = lx + Math.sin(a) * d, z = lz + Math.cos(a) * d, y = GL(x, z);
+      if (R() < 0.25) skull(K.f, x, y + 0.1, z, R() * TAU, 0.9 + R() * 0.3);
+      else K.f.add(cyl(0.035, 0.05, 0.4 + R() * 0.5, 4), M(x, y + 0.05, z, R() * TAU, 1, 1, 1, Math.PI / 2, 0), R() < 0.5 ? BONE : 0xb8ac90);
+    }
+  }
+  const skelCache = [];
+  function skeleton(K, lx, lz, ry, R, s = 1) {
+    const v = (R() * 3) | 0;
+    if (!skelCache[v]) skelCache[v] = skeletonB(CT.rng(900 + v));
+    K.f.merge(skelCache[v], M(lx, GL(lx, lz), lz, ry, s));
+  }
+  function skeletonB(R) {
+    const b = new Batch();
+    skull(b, 0.05, 0.12, 0.8, (R() - 0.5) * 1.2, 1);
+    b.add(cyl(0.03, 0.03, 0.8, 4), M(0, 0.05, 0.3, 0, 1, 1, 1, Math.PI / 2, 0), BONE);
+    for (let i = 0; i < 4; i++) b.add(new T.TorusGeometry(0.16 - i * 0.015, 0.022, 3, 6, Math.PI), M(0, 0.04, 0.5 - i * 0.1), BONE);
+    for (const sd of [-1, 1]) {
+      b.add(cyl(0.03, 0.025, 0.75, 4), limbM(sd * 0.12, 0.05, -0.15, sd * (0.2 + R() * 0.2), 0.05, -0.85), 0xc8bca0);
+      b.add(cyl(0.025, 0.02, 0.6, 4), limbM(sd * 0.2, 0.06, 0.55, sd * (0.45 + R() * 0.3), 0.05, 0.1 + R() * 0.4), 0xc8bca0);
+    }
+    b.add(BOX, M(0, 0.06, -0.1, 0, 0.3, 0.1, 0.16), 0xc4b89c);
+    return b;
+  }
+  function web(K, lx, ly, lz, r, ry, rx) {
+    const b = new Batch(), col = 0xb8b4a8;
+    for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; b.add(BOX, M(Math.sin(a) * r / 2, Math.cos(a) * r / 2, 0, 0, 0.02, r, 0.02, 0, -a), col, 0); }
+    for (let j = 1; j <= 4; j++) {
+      const rr = r * j / 4.4, len = 2 * rr * Math.sin(Math.PI / 8);
+      for (let k = 0; k < 8; k++) { const a = (k + 0.5) / 8 * TAU; b.add(BOX, M(Math.sin(a) * rr * 0.96, Math.cos(a) * rr * 0.96, 0, 0, 0.018, len, 0.018, 0, -(a + Math.PI / 2)), col, 0); }
+    }
+    K.f.merge(b, M(lx, ly, lz, ry, 1, 1, 1, rx || 0, 0));
+  }
+  // loot + decor prototypes (Batches keep their vertex colours)
+  function chestB(blood) {
+    const b = new Batch(), wood = blood ? 0x3a1414 : 0x5a3a22, band = blood ? BONE : IRON;
+    bx(b, 0, 0.31, 0, 1.1, 0.62, 0.72, wood, 0, 0, 0, 0.12);
+    for (const sx of [-0.38, 0.38]) bx(b, sx, 0.31, 0, 0.09, 0.64, 0.75, band, 0, 0, 0, 0);
+    bx(b, 0, 0.05, 0, 1.14, 0.1, 0.76, DWOOD, 0, 0, 0, 0);
+    bx(b, 0, 0.5, 0.37, 0.18, 0.2, 0.04, blood ? 0x6a1010 : 0x9a7a3a, 0, 0, 0, 0);
+    bx(b, 0, 0.625, 0, 1.0, 0.012, 0.6, blood ? 0x1a0404 : 0x140c06, 0, 0, 0, 0);   // the dark hold, seen when the lid is up
+    for (let i = 0; i < 9; i++) bx(b, -0.38 + (i % 3) * 0.33 + (i * 0.07) % 0.1, 0.635, -0.2 + ((i / 3) | 0) * 0.2, 0.09, 0.02, 0.09, i % 4 ? 0xc89028 : 0xe8c050, i, 0, 0, 0);
+    if (blood) {
+      skull(b, 0, 0.3, 0.4, 0, 1.2);
+      for (const s of [-1, 1]) b.add(cone(0.07, 0.5, 5), limbM(s * 0.56, 0.4, 0.15, s * 0.9, 0.85, 0.2), BONE);
+      for (let i = 0; i < 5; i++) b.add(cyl(0.03, 0.04, 0.45, 4), M(-0.5 + i * 0.25, 0.03, 0.55 + (i % 2) * 0.1, i, 1, 1, 1, Math.PI / 2, 0), BONE);
+      skull(b, 0.66, 0.1, 0.45, 0.6, 0.9); skull(b, -0.62, 0.1, 0.5, -0.5, 0.8);
+    }
+    return b;
+  }
+  function lidB() {
+    const b = new Batch();
+    b.add(new T.CylinderGeometry(0.36, 0.36, 1.1, 8, 1, false, 0, Math.PI), M(0, 0, 0.36, 0, 0.7, 1, 1, 0, Math.PI / 2), 0x5a3a22, 0.12);
+    for (const sx of [-0.38, 0.38]) b.add(new T.CylinderGeometry(0.375, 0.375, 0.09, 8, 1, false, 0, Math.PI), M(sx, 0, 0.36, 0, 0.7, 1, 1, 0, Math.PI / 2), IRON);
+    bx(b, 0, 0.0, 0.73, 0.14, 0.18, 0.03, 0x9a7a3a, 0, 0, 0, 0);
+    return b;
+  }
+  function urnB() {
+    const b = new Batch(), pts = [[0.02, 0], [0.17, 0.01], [0.27, 0.12], [0.32, 0.34], [0.27, 0.58], [0.15, 0.7], [0.13, 0.78], [0.19, 0.84], [0.16, 0.86]].map(p => new T.Vector2(p[0], p[1]));
+    b.add(new T.LatheGeometry(pts, 8), null, (ny, cy) => (cy > 0.4 && cy < 0.5 ? 0x2a1a10 : cy > 0.14 && cy < 0.2 ? 0x3a2414 : 0x7a4a2c), 0.15);
+    b.add(cyl(0.17, 0.17, 0.05, 8), M(0, 0.86, 0), 0x4a2e1c);
+    return b;
+  }
+  function rackB() {
+    const b = new Batch();
+    for (const s of [-1, 1]) { bx(b, s * 0.85, 0.75, 0, 0.08, 1.6, 0.08, WOOD, 0, 0.25, 0); bx(b, s * 0.85, 0.75, 0, 0.08, 1.6, 0.08, WOOD, 0, -0.25, 0); }
+    bx(b, 0, 1.42, 0, 1.9, 0.08, 0.08, WOOD2); bx(b, 0, 0.3, 0.2, 1.8, 0.07, 0.07, WOOD2);
+    return b;
+  }
+  function rackWB() {
+    const b = new Batch(), steel = 0x9a9ea6;
+    seg(b, -0.55, 0.08, 0.28, -0.5, 1.55, 0.08, 0.07, 0.02, steel); bx(b, -0.52, 0.55, 0.22, 0.3, 0.05, 0.06, 0x5a4a30, 0, 0.13, 0);   // sword
+    seg(b, -0.05, 0.05, 0.3, 0.0, 1.6, 0.06, 0.05, 0.05, 0x4a3422); bx(b, 0.08, 1.45, 0.09, 0.3, 0.28, 0.04, steel, 0, 0.15, 0);        // axe
+    seg(b, 0.5, 0.05, 0.3, 0.6, 2.2, 0.02, 0.04, 0.04, 0x4a3422); b.add(cone(0.06, 0.35, 4), limbM(0.6, 2.2, 0.02, 0.617, 2.55, -0.02), steel); // spear
+    return b;
+  }
+  function corpseB() {
+    const b = new Batch(), cloak = 0x4a2e22;
+    b.add(new T.CircleGeometry(0.9, 8), M(0.1, 0.02, 0.1, 0, 1, 1, 1, -Math.PI / 2, 0), 0x3a0606);
+    b.add(lumpy(new T.PlaneGeometry(1.1, 1.3, 2, 2), 0.1, 3), M(0.1, 0.05, 0.1, 0.3, 1, 1, 1, -Math.PI / 2, 0), 0x3a1a14);
+    bx(b, 0, 0.16, 0.15, 0.5, 0.24, 0.72, cloak);
+    b.add(ico(0.14, 1), M(0, 0.16, 0.66), BONE);
+    b.add(new T.SphereGeometry(0.17, 6, 3, 0, TAU, 0, Math.PI / 2), M(0, 0.17, 0.72, 0, 1, 1, 1, -1.3, 0), IRON);
+    for (const s of [-1, 1]) { bx(b, s * 0.12, 0.1, -0.55, 0.16, 0.16, 0.8, 0x2a2018); bx(b, s * 0.13, 0.12, -1.0, 0.18, 0.2, 0.22, 0x1a140e); }
+    bx(b, 0.34, 0.1, 0.2, 0.13, 0.13, 0.6, cloak, 0.3); bx(b, -0.55, 0.08, 0.45, 0.6, 0.12, 0.13, cloak, 0.2);
+    bx(b, 0.75, 0.04, -0.1, 0.07, 0.03, 1.0, 0x8a8e96, 0.2); bx(b, 0.7, 0.05, 0.38, 0.28, 0.04, 0.05, 0x5a4a30, 0.2);
+    b.add(cyl(0.38, 0.38, 0.05, 10), M(-0.75, 0.05, -0.5, 0, 1, 1, 1, 0.1, 0), 0x5a2a1a); b.add(ico(0.08, 0), M(-0.75, 0.1, -0.5), IRON);
+    for (let i = 0; i < 2; i++) { seg(b, -0.1 + i * 0.2, 0.2, 0.2 - i * 0.2, -0.05 + i * 0.25, 0.85, 0.3 - i * 0.2, 0.02, 0.02, 0x3a2a1c); bx(b, -0.05 + i * 0.25, 0.8, 0.3 - i * 0.2, 0.08, 0.14, 0.01, 0xc8c0b0); }
+    return b;
+  }
+  function bagB() {
+    const b = new Batch();
+    for (const s of [-1, 1]) { b.add(lumpy(new T.BoxGeometry(0.45, 0.4, 0.26, 1, 1, 1), 0.06, s + 3), M(s * 0.3, 0.2, 0, s * 0.2), HIDE); bx(b, s * 0.3, 0.36, 0.1, 0.4, 0.14, 0.08, 0x4a3422, s * 0.2, 0.3); }
+    bx(b, 0, 0.36, 0, 0.3, 0.04, 0.12, 0x3a2a1c);
+    b.add(cyl(0.14, 0.14, 0.8, 7), M(0, 0.14, -0.42, 0, 1, 1, 1, 0, Math.PI / 2), 0x6a5a40);
+    for (const s of [-0.25, 0.25]) bx(b, s, 0.15, -0.42, 0.04, 0.3, 0.3, 0x2a1c12);
+    return b;
+  }
+  function hangedB() {
+    const b = new Batch();
+    b.add(cyl(0.015, 0.015, 1.1, 3), M(0, -0.55, 0), 0x8a7a5a);
+    b.add(ico(0.14, 1), M(0, -1.25, 0.02, 0, 1, 1.15, 1), 0x6a5a4a);
+    bx(b, 0, -1.78, 0, 0.42, 0.75, 0.24, 0x3a2e26);
+    for (const s of [-1, 1]) { bx(b, s * 0.27, -1.82, 0, 0.1, 0.66, 0.12, 0x3a2e26, 0, 0, s * 0.08); bx(b, s * 0.1, -2.55, 0, 0.13, 0.8, 0.14, 0x2a221c); bx(b, s * 0.1, -3.0, 0.04, 0.12, 0.12, 0.22, 0x1a140e); }
+    return b;
+  }
+  function geoCrow() {
+    const b = new Batch(), K2 = 0x141216, K3 = 0x221e26;
+    b.add(ico(0.12, 0), M(0, 0.14, 0, 0, 0.9, 0.85, 1.5), K2);
+    b.add(ico(0.075, 0), M(0, 0.26, 0.15), K3);
+    b.add(cone(0.03, 0.09, 4), M(0, 0.25, 0.25, 0, 1, 1, 1, Math.PI / 2, 0), 0x3a3230);
+    b.add(BOX, M(0, 0.15, -0.21, 0, 0.1, 0.02, 0.18, -0.3, 0), K2);
+    for (const s of [-1, 1]) { b.add(BOX, M(s * 0.1, 0.17, -0.02, 0, 0.03, 0.1, 0.28, 0, s * 0.3), K3); b.add(BOX, M(s * 0.04, 0.03, 0, 0, 0.015, 0.07, 0.015), 0x3a3020); }
+    return b.geo();
+  }
+  function crowMat() {
+    const m = new T.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uTime = U.time;
+      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        vec3 ip = instanceMatrix[3].xyz;
+        float ph = uTime + ip.x * 1.7 + ip.z * 2.3;
+        float head = step(0.1, position.z);
+        float peck = smoothstep(0.6, 1.0, sin(ph * 0.9)) * head;
+        transformed.y -= peck * (position.z - 0.1) * 0.9;
+        transformed.z += peck * 0.03;
+        transformed.x += sin(ph * 0.37) * head * step(0.18, position.y) * 0.06;
+        float flick = smoothstep(0.93, 1.0, sin(ph * 2.9)) * step(0.06, abs(position.x)) * step(0.1, position.y);
+        transformed.y += flick * 0.08; transformed.x += flick * sign(position.x) * 0.06;
+        transformed.y += abs(sin(ph * 0.5)) * 0.015;`);
+    };
+    m.customProgramCacheKey = () => 'ct-crow';
+    return m;
+  }
+  function fallTexture() {
+    const W2 = 16, H2 = 64, c = cv(W2, H2), g = c.getContext('2d'), R = CT.rng(606);
+    g.fillStyle = '#56707a'; g.fillRect(0, 0, W2, H2);
+    for (let x = 0; x < W2; x++) {
+      let y = R() * H2; const n = 3 + R() * 4;
+      for (let k = 0; k < n; k++) { const len = 4 + R() * 14, v = (150 + R() * 100) | 0; g.fillStyle = `rgb(${v},${v + 6},${v + 10})`; g.fillRect(x, y % H2, 1, len); if (y % H2 + len > H2) g.fillRect(x, 0, 1, y % H2 + len - H2); y += len + R() * 10; }
+    }
+    return tex(c, true, true);
+  }
+
+  // â”€â”€ Site types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // b: biome, names, loot: [lx, lz, kind, ry, forceBlood], guard, tall/silR (far silhouette), clear (vegetation), noFlat
+  const TYPES = {
+    tower: { b: 'meadow', tall: 14, silR: 3.2, names: ['The Broken Sentinel', "Warden's Stump", 'Oathwatch Tower', 'Crowcall Tower'], loot: [[2.4, 4.8, 'chest', 0.3], [-2.6, 4.2, 'urn']],
+      build(K, R) {
+        const f = K.f, rr = 3.2, h = 14 + R() * 3, ph = R() * 6, g = new T.CylinderGeometry(rr, rr * 1.12, h, 12, 6, true), pp = g.attributes.position;
+        const cut = a => (0.5 + 0.5 * Math.sin(a * 3 + ph)) * h * 0.32;
+        for (let v = 0; v < pp.count; v++) { const vy = pp.getY(v); if (vy > -h * 0.2) pp.setY(v, vy - cut(Math.atan2(pp.getX(v), pp.getZ(v))) * ((vy + h / 2) / h)); }
+        f.add(g, M(0, h / 2 - 0.6, 0), stoneFn, 0.1);
+        f.add(cyl(rr * 1.1, rr * 1.1, 0.3, 12), M(0, 0.05, 0), STONE2);
+        f.add(new T.PlaneGeometry(1.3, 2.3), M(0, 1.15, rr * 1.11 + 0.04), 0x0a0808); bx(f, 0, 2.45, rr * 1.11 + 0.1, 1.9, 0.35, 0.4, STONE2);
+        for (let i = 0; i < 5; i++) { const a = R() * TAU, wy = 4 + R() * h * 0.4, rad = rr * 1.12 - rr * 0.12 * ((wy + 0.6) / h) + 0.04; f.add(new T.PlaneGeometry(0.5, 1.2), M(Math.sin(a) * rad, wy, Math.cos(a) * rad, a), 0x0a0808); }
+        for (let i = 0; i < 16; i++) { const a = R() * TAU, d = rr + 1 + R() * 6, x = Math.sin(a) * d, z = Math.cos(a) * d; bx(f, x, GL(x, z) + 0.2, z, 0.6 + R() * 0.8, 0.4 + R() * 0.5, 0.6 + R() * 0.8, STONE, R() * 3, R() * 0.4, R() * 0.4); }
+        f.add(new T.CylinderGeometry(rr * 0.9, rr * 0.95, 4, 10, 1, true, 0, Math.PI * 1.2), M(-rr - 3.6, 1.3, -2.5, 0.7, 1, 1, 1, Math.PI / 2 - 0.1, 0), stoneFn);
+        f.add(cyl(0.07, 0.09, 5, 5), M(rr * 0.75, h * 0.62 + 1.2, 0), DWOOD); sFlag('flagV', rr * 0.75, h * 0.62 + 3.5, 0, R() * TAU, 1);
+        for (let i = 0; i < 3; i++) { const a = i * 2.1 + R(); sCrow(Math.sin(a) * rr * 1.0, h - 0.6 - cut(a) + 0.02, Math.cos(a) * rr * 1.0); }
+        sCol(0, 0, rr * 1.12, h);
+      } },
+    farm: { b: 'meadow', names: ['Ashfall Farm', 'The Cinder Steading', "Widow Marren's Farm"], loot: [[-2.0, -0.6, 'urn'], [3.8, 4.6, 'corpse', 2.2]],
+      build(K, R) {
+        const f = K.f, W2 = 10, D2 = 6.5;
+        f.add(new T.CircleGeometry(7.5, 12), M(0, 0.05, 0, 0, 1, 1, 1, -Math.PI / 2, 0), 0x1a1612);
+        for (const q of [[-W2 / 2, -D2 / 2, W2 / 2, -D2 / 2], [W2 / 2, -D2 / 2, W2 / 2, D2 / 2], [W2 / 2, D2 / 2, -W2 / 2, D2 / 2], [-W2 / 2, D2 / 2, -W2 / 2, -D2 / 2]]) {
+          const n = Math.round(Math.hypot(q[2] - q[0], q[3] - q[1]) / 1.2), vx = q[0] === q[2];
+          for (let i = 0; i < n; i++) { if (R() < 0.2) continue; const t = (i + 0.5) / n, x = lerp(q[0], q[2], t), z = lerp(q[1], q[3], t), hh = 0.4 + R() * (R() < 0.3 ? 1.8 : 0.6); bx(f, x, hh / 2, z, vx ? 0.5 : 1.25, hh, vx ? 1.25 : 0.5, STONE, 0, 0, 0, 0.2); }
+        }
+        bx(f, -3.4, 3.7, -2.1, 1.2, 7.4, 1.1, STONE, 0, 0, 0.02, 0.18); bx(f, -3.4, 7.5, -2.1, 1.4, 0.3, 1.3, STONE2);
+        f.add(new T.PlaneGeometry(0.8, 0.9), M(-3.4, 0.7, -1.53), 0x080606); K.g.add(BOX, M(-3.4, 0.25, -1.7, 0, 0.6, 0.12, 0.3), 0xff4010);
+        sSmoke(-3.4, 7.8, -2.1); sCol(-3.4, -2.1, 0.8, 7.5);
+        for (let i = 0; i < 7; i++) bx(f, (R() - 0.5) * 7, 0.25 + R() * 0.5, (R() - 0.5) * 4.5, 0.25, 0.25, 3 + R() * 3, 0x16120f, R() * 3, (R() - 0.5) * 0.5, (R() - 0.5) * 0.3, 0.2);
+        for (const q of [[4.8, 3], [4.8, -3], [-4.8, 3]]) bx(f, q[0], 1 + R(), q[1], 0.3, 2 + R() * 2, 0.3, 0x1a1512, 0, (R() - 0.5) * 0.3, (R() - 0.5) * 0.3, 0);
+        for (let i = 0; i < 16; i++) K.g.add(BOX, M((R() - 0.5) * 8, 0.07, (R() - 0.5) * 5, R() * 3, 0.12, 0.05, 0.1), R() < 0.5 ? 0xff4010 : 0xc02008);
+        const cx = 6.6, cz = 3.2, cy = GL(cx, cz); bx(f, cx, cy + 0.7, cz, 2.4, 0.15, 1.4, WOOD2, 0.4, 0, 1.1);
+        f.add(new T.TorusGeometry(0.55, 0.08, 4, 10), M(cx - 0.3, cy + 0.55, cz + 0.9, 0.4 + Math.PI / 2), DWOOD);
+        const wx0 = 5.5, wz0 = -4.6, wy = GL(wx0, wz0); f.add(cyl(0.9, 1.0, 0.9, 9), M(wx0, wy + 0.4, wz0), stoneFn); f.add(cyl(0.72, 0.72, 0.04, 9), M(wx0, wy + 0.83, wz0), 0x0a0c0e); sCol(wx0, wz0, 1.0, wy + 0.9);
+        sDead(K, -8.5, 5, 1.0, R); sCrow(-3.4, 7.66, -2.1); sCrow(wx0 + 0.8, wy + 0.86, wz0);
+        bones(K, 6.5, -1, 2, 6, R);
+      } },
+    mill: { b: 'meadow', tall: 12, silR: 2.6, names: ['The Still Mill', 'Grindbone Mill', 'Old Harrow Mill'], loot: [[3.4, 3.8, 'bag', 0.6], [-3.8, 2.2, 'chest', -0.4]],
+      build(K, R) {
+        const f = K.f;
+        f.add(new T.CylinderGeometry(1.9, 2.9, 9.5, 8, 3), M(0, 4.75, 0), (ny, cy, R2) => (R2() < 0.2 ? MOSS : [0x6a6258, 0x5f5a54, 0x746c60][(R2() * 3) | 0]), 0.08);
+        f.add(cone(2.5, 3.2, 8), M(0.2, 11, 0, 0, 1, 1, 1, 0.08, 0.14), THATCH, 0.2);
+        f.add(new T.PlaneGeometry(1.2, 2.2), M(0, 1.1, 2.86), 0x0a0808);
+        for (let i = 0; i < 3; i++) { const a = i * 2.2 + 1, y = 3.5 + i * 1.8, rad = 2.9 - (y / 9.5) + 0.05; f.add(new T.PlaneGeometry(0.5, 0.8), M(Math.sin(a) * rad, y, Math.cos(a) * rad, a), 0x0a0808); }
+        f.add(cyl(0.22, 0.22, 1.4, 6), M(0, 8.4, 2.4, 0, 1, 1, 1, Math.PI / 2, 0), DWOOD);
+        const a0 = R() * 1.5;
+        for (let k = 0; k < 4; k++) {
+          const a = a0 + k * Math.PI / 2, len = k === 1 ? 3.2 : k === 3 ? 4.5 : 6.2;
+          f.add(BOX, M(Math.sin(a) * len / 2, 8.4 + Math.cos(a) * len / 2, 3.05, 0, 0.22, len, 0.12, 0, -a), DWOOD);
+          if (k !== 1) { const px = Math.sin(a) * len * 0.58 + Math.cos(a) * 0.62, py = 8.4 + Math.cos(a) * len * 0.58 - Math.sin(a) * 0.62; K.d.add(new T.PlaneGeometry(1.1, len * 0.72, 2, 4), M(px, py, 3.1, 0, 1, 1, 1, 0, -a), (ny, cy, R2) => (R2() < 0.3 ? 0x2a2018 : 0x6a5a44), 0.2); }
+        }
+        f.add(cyl(0.8, 0.8, 0.25, 10), M(2.8, 0.75, -1.6, 0.3, 1, 1, 1, 1.2, 0), STONE);
+        for (let i = 0; i < 4; i++) f.add(lumpy(ico(0.35, 0), 0.08, i), M(-2.9 + i * 0.5, 0.3, -2.4 + (i % 2) * 0.4, R(), 1, 0.8, 1.2), 0x8a7a5a);
+        sCol(0, 0, 2.9, 10); sCrow(0.3, 12.35, 0.1);
+      } },
+    shrine: { b: 'meadow', names: ['Shrine of the Old Gods', "Crom's Wayshrine", "The Horned Mother's Stone"], loot: [[2.1, 2.0, 'urn'], [-2.1, 2.0, 'urn']],
+      build(K, R) {
+        const f = K.f;
+        bx(f, 0, 0.2, 0, 3.2, 0.4, 3.2, STONE2, 0, 0, 0, 0.15); bx(f, 0, 0.5, -0.3, 2.2, 0.3, 2.2, STONE, 0, 0, 0, 0.15);
+        f.add(lumpy(new T.BoxGeometry(0.7, 2.6, 0.55, 1, 3, 1), 0.08, 5), M(0, 1.95, -0.6), stoneFn);
+        bx(f, 0, 3.55, -0.6, 0.85, 0.8, 0.7, 0x6a645c, 0, 0, 0, 0.1);
+        for (const s of [-1, 1]) { f.add(cyl(0.12, 0.08, 0.8, 5), limbM(s * 0.4, 3.75, -0.6, s * 0.95, 4.1, -0.55), BONE); f.add(cone(0.08, 0.6, 5), limbM(s * 0.95, 4.1, -0.55, s * 1.05, 4.7, -0.5), BONE); K.g.add(BOX, M(s * 0.18, 3.62, -0.24, 0, 0.12, 0.07, 0.04), 0xff3010); }
+        f.add(new T.TorusGeometry(0.42, 0.08, 4, 10), M(0, 2.9, -0.6, 0, 1, 1, 1, Math.PI / 2, 0), 0x4a4a22);
+        skull(f, -0.6, 0.78, 0.35, 0.3); skull(f, 0.7, 0.78, 0.2, -0.4, 0.9);
+        for (const q of [[0, 0.35], [-0.35, 0.6], [0.4, 0.6]]) f.add(cyl(0.16, 0.1, 0.12, 7), M(q[0], 0.71, q[1]), 0x6a4a2c);
+        f.add(lumpy(ico(0.13, 0), 0.04, 2), M(0.05, 0.8, 0.35), 0x8a6a3a);
+        for (let i = 0; i < 6; i++) K.g.add(BOX, M(-0.3 + R() * 0.6, 0.67, 0.5 + R() * 0.3, R() * 3, 0.06, 0.02, 0.06), 0xd8a030);
+        for (let i = 0; i < 7; i++) sCandle(K, -1.35 + i * 0.45, 0.4, 1.3 + (i % 2) * 0.12, i === 3);
+        for (const q of [[-0.9, -1.2], [0.9, -1.2]]) sCandle(K, q[0], 0.65, q[1], false);
+        for (const s of [-1, 1]) { f.add(cyl(0.06, 0.08, 3, 5), M(s * 2.3, 1.5, -1.2), DWOOD); for (let r = 0; r < 3; r++) K.d.add(new T.PlaneGeometry(0.12, 0.9), M(s * 2.3 + 0.08, 2.4 - r * 0.25, -1.2 + (r - 1) * 0.08, R(), 1, 1, 1, 0, 0.2), r ? CLOTH : 0x8a7a50); skull(f, s * 2.3, 3.1, -1.2, 0); sCol(s * 2.3, -1.2, 0.2, 3); }
+        sBox(0, 0, 3.2, 3.2, 0, 4.2);
+      } },
+    hangoak: { b: 'meadow', names: ['The Hanged Oak', "Traitor's Bough", 'The Rope Tree'], loot: [[2.4, 2.8, 'corpse', 0.5]],
+      build(K, R) {
+        const f = K.f;
+        f.add(lumpy(cyl(0.7, 1.05, 6.5, 8), 0.15, 3), M(0, 3, 0, 0, 1, 1, 1, 0.04, -0.05), barkFn);
+        const limbs = [[3.8, 6.4, 0.6], [-3.4, 6.0, -0.8], [0.5, 6.8, -3.4], [-0.6, 7.4, 3.0]];
+        for (const q of limbs) { f.add(cyl(0.18, 0.4, Math.hypot(q[0], q[1] - 5.2, q[2]) + 0.4, 6), limbM(0, 5.2, 0, q[0], q[1], q[2]), barkFn); f.add(cyl(0.05, 0.16, 2.2, 5), limbM(q[0], q[1], q[2], q[0] * 1.35, q[1] + 1.4, q[2] * 1.35 + 0.3), barkFn); }
+        f.add(cyl(0.2, 0.45, 3, 6), limbM(0, 6, 0, 0.3, 9, 0.4), barkFn);
+        for (let k = 0; k < 6; k++) { const a = k * 1.1 + R(); f.add(cyl(0.08, 0.35, 2.4, 5, true), limbM(0, 0.6, 0, Math.sin(a) * 2.1, -0.3, Math.cos(a) * 2.1), barkFn); }
+        for (let i = 0; i < 3; i++) { const q = limbs[i], t = 0.8; f.merge(protos.hanged, M(q[0] * t, 5.2 + (q[1] - 5.2) * t - 0.1, q[2] * t, R() * TAU, 1, 1, 1, (R() - 0.5) * 0.08, (R() - 0.5) * 0.08)); }
+        for (const q of limbs) sCrow(q[0] * 0.95, q[1] + 0.15, q[2] * 0.95);
+        bx(f, 0, 2.2, 1.0, 0.9, 0.5, 0.06, 0x6a5238, 0, 0, 0.1);
+        bones(K, 0, 0, 4, 10, R); sCol(0, 0, 1.0, 9);
+      } },
+    circle: { b: 'meadow', names: ['The Three Sisters', 'The Grey Maidens', 'The Hearthstones'], loot: [[0.9, 1.8, 'urn']],
+      build(K, R) {
+        const f = K.f;
+        for (let i = 0; i < 3; i++) {
+          const a = i / 3 * TAU + 0.4, x = Math.sin(a) * 4.8, z = Math.cos(a) * 4.8, h = 4.2 + R() * 1.8;
+          f.add(lumpy(new T.BoxGeometry(1.5, h, 0.9, 1, 3, 1), 0.3, i + 20), M(x, h / 2 - 0.4, z, a, 1, 1, 1, (R() - 0.5) * 0.12, (R() - 0.5) * 0.12), stoneFn, 0.1);
+          for (let g = 0; g < 3; g++) K.g.add(BOX, M(x - Math.sin(a) * 0.48, h * 0.4 + g * 0.5, z - Math.cos(a) * 0.48, a, 0.28, 0.06, 0.02, 0, (R() - 0.5) * 1.5), 0x9ab8ff);
+          sCol(x, z, 0.9, h);
+        }
+        f.add(lumpy(new T.BoxGeometry(2.4, 0.5, 1.5, 2, 1, 2), 0.12, 7), M(0, 0.2, 0, 0.3), stoneFn); skull(f, 0.2, 0.6, 0.1, 1.2);
+        sCandle(K, -0.7, 0.45, 0.3, true); sCandle(K, 0.8, 0.45, -0.4, false);
+        for (let i = 0; i < 10; i++) { const a = R() * TAU, d = 6.5 + R() * 2, x = Math.sin(a) * d, z = Math.cos(a) * d; f.add(lumpy(ico(0.3 + R() * 0.3, 0), 0.1, i), M(x, GL(x, z) + 0.1, z), rockCol); }
+      } },
+    shepherd: { b: 'meadow', names: ["Shepherd's Rest", "Old Brannoc's Hut", 'Ewe Hollow'], loot: [[1.9, 3.1, 'chest', 0.2], [-4.4, 5.0, 'bag', 1]],
+      build(K, R) {
+        const f = K.f;
+        f.add(cyl(2.3, 2.45, 2.3, 10), M(0, 1.15, 0), stoneFn, 0.1);
+        f.add(cone(3.1, 2.8, 10), M(0, 3.7, 0), THATCH, 0.15);
+        f.add(new T.PlaneGeometry(1.0, 1.8), M(0, 0.9, 2.47), 0x120c08); bx(f, 0, 1.9, 2.5, 1.4, 0.2, 0.2, DWOOD);
+        sSmoke(0.3, 5.0, 0); sCol(0, 0, 2.5, 5);
+        const px = 6.0, pz = -1.2, pr = 3.4;
+        for (let i = 0; i < 16; i++) {
+          const a = i / 16 * TAU, x = px + Math.sin(a) * pr, z = pz + Math.cos(a) * pr, y = GL(x, z);
+          f.add(cyl(0.05, 0.06, 1.3, 4), M(x, y + 0.55, z), DWOOD); if (i % 2 === 0) sCol(x, z, 0.3, y + 1.2);
+          if (i === 12) continue;
+          const b2 = a + Math.PI / 16, mx = px + Math.sin(b2) * pr * 0.98, mz = pz + Math.cos(b2) * pr * 0.98;
+          bx(f, mx, GL(mx, mz) + 0.5, mz, 2 * pr * Math.sin(Math.PI / 16), 0.75, 0.1, 0x4a3822, b2, 0, 0, 0.2);
+        }
+        f.add(cyl(0.06, 0.08, 1.7, 4), M(px, GL(px, pz) + 0.8, pz), DWOOD); skull(f, px, GL(px, pz) + 1.75, pz, 0, 1.3);
+        sBonfire(K, -3.3, 3.5, 0.45, true);
+        f.add(cyl(0.03, 0.03, 1.9, 4), M(-2.3, 0.95, 1.3, 0, 1, 1, 1, 0.2, 0.25), WOOD);
+      } },
+    seacave: { b: 'coast', names: ["Drowned Men's Grotto", "The Wrecker's Cave", 'Saltmaw Cave'], guard: 'ghoul', guardP: 0.7, loot: [[0.5, 1.2, 'chest'], [5.8, 1.6, 'urn']],
+      build(K, R) {
+        const f = K.f;
+        for (let i = 0; i < 14; i++) { const a = Math.PI + (i / 13 - 0.5) * 3.6, r = 4.5 + R() * 4, s = 2.5 + R() * 3.5, x = Math.sin(a) * r, z = Math.cos(a) * r - 2; f.add(lumpy(ico(1, 1), 0.35, i), M(x, GL(x, z) + s * 0.25, z, R() * TAU, s, s * (0.7 + R() * 0.5), s), rockFnD, 0.15); sCol(x, z, s * 0.8, s); }
+        f.add(lumpy(ico(1, 1), 0.3, 40), M(0, 2.2, -7, 0, 8, 6, 7), rockFnD); sCol(0, -7, 6.6, 7);
+        f.add(new T.CircleGeometry(2.8, 10, 0, Math.PI), M(0, -0.2, -1.2), 0x040304);
+        f.add(lumpy(new T.TorusGeometry(3.2, 0.9, 4, 8, Math.PI), 0.4, 5), M(0, -0.3, -1.3), rockFnD);
+        const wx = 6, wz = 5.5, wy = GL(wx, wz) - 0.3, k = new Batch();
+        bx(k, 0, 0.1, 0, 0.45, 0.45, 14, DWOOD, 0, 0, 0, 0.2);
+        for (let i = 0; i < 10; i++) { const zz = -6 + i * 1.3, rr = 2.2 * Math.sin(Math.PI * (0.12 + 0.76 * i / 9)) + 0.3, br = R() < 0.4; k.add(new T.TorusGeometry(rr, 0.12, 3, 8, br ? Math.PI * (0.35 + R() * 0.3) : Math.PI), M(0, rr * 0.9, zz, 0, 1, 1, 1, 0, Math.PI), 0x3a2a1c, 0.2); }
+        k.add(cyl(0.2, 0.25, 7, 6), M(0.5, 2.8, 1, 0, 1, 1, 1, 0.6, 0.35), WOOD);
+        k.add(new T.PlaneGeometry(2.4, 2.8, 2, 2), M(1.4, 3.4, 2.4, 0.4, 1, 1, 1, 0.5, 0.2), 0x5a4a3a);
+        f.merge(k, M(wx, wy, wz, 0.8, 1, 1, 1, 0, 0.3)); sBox(wx, wz, 5, 14, 0.8, 3);
+        for (let i = 0; i < 8; i++) { const x = (R() - 0.5) * 14, z = 3 + R() * 7, y = GL(x, z); if (R() < 0.5) crate(f, x, y - 0.1, z, 0.6 + R() * 0.3, R() * 3); else f.add(cyl(0.3, 0.27, 0.8, 8), M(x, y + 0.3, z, R() * 3, 1, 1, 1, Math.PI / 2, 0), 0x5a3a22); }
+        bones(K, 0, 0.8, 3, 10, R); sStake(K, -3.5, 2.5, R); sStake(K, 3.0, 2.8, R);
+      } },
+    lighthouse: { b: 'coast', tall: 22, silR: 3, names: ['The Dead Lamp', "Gull's Beacon", 'Last Light'], loot: [[4.0, 2.8, 'chest', 0.4], [-3.6, 3.6, 'corpse', -0.6]],
+      build(K, R) {
+        const f = K.f, H = 18;
+        f.add(new T.CylinderGeometry(2.1, 3.0, H, 10, 6), M(0, H / 2, 0), (ny, cy, R2) => ((((cy + 9) / 3) | 0) % 2 ? [0x8a8478, 0x7e786c][(R2() * 2) | 0] : [0x5a3a30, 0x4e332a][(R2() * 2) | 0]), 0.06);
+        f.add(cyl(2.7, 2.5, 0.35, 10), M(0, H + 0.1, 0), STONE2);
+        for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; f.add(cyl(0.05, 0.05, 1, 3), M(Math.sin(a) * 2.55, H + 0.8, Math.cos(a) * 2.55), IRON); }
+        f.add(new T.TorusGeometry(2.55, 0.05, 3, 12), M(0, H + 1.25, 0, 0, 1, 1, 1, Math.PI / 2, 0), IRON);
+        for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; if (i === 4) continue; f.add(cyl(0.08, 0.08, 2.6, 4), M(Math.sin(a) * 1.5, H + 1.5, Math.cos(a) * 1.5), IRON); }
+        f.add(cone(2.0, 1.8, 6), M(0.4, H + 3.4, 0, 0, 1, 1, 1, 0.2, 0.35), SLATE);
+        f.add(cyl(0.9, 0.5, 0.5, 8), M(0, H + 0.5, 0), IRON); K.g.add(cyl(0.8, 0.8, 0.05, 8), M(0, H + 0.76, 0), 0xff7a20);
+        sFire(0, H + 0.8, 0, 1.3, 0, true);
+        f.add(new T.PlaneGeometry(1.2, 2.2), M(0, 1.1, 3.02), 0x0a0808);
+        for (let i = 0; i < 5; i++) { const y = 3 + i * 3, a = i * 1.3, rad = 3.0 - 0.9 * (y / H) + 0.04; f.add(new T.PlaneGeometry(0.5, 1), M(Math.sin(a) * rad, y, Math.cos(a) * rad, a), 0x0a0808); }
+        for (const q of [[-5, -1, 0.5, 4], [-7.5, -3, 5, 0.5], [-5, -5, 0.5, 4]]) bx(f, q[0], 0.7, q[1], q[2], 1.2 + R(), q[3], STONE, 0, 0, 0, 0.2);
+        for (let i = 0; i < 8; i++) { const a = R() * TAU, d = 5 + R() * 5, x = Math.sin(a) * d, z = Math.cos(a) * d; f.add(lumpy(ico(0.6 + R() * 0.8, 0), 0.2, i), M(x, GL(x, z) + 0.2, z, R() * 3), rockCol); }
+        sCrow(2.2, H + 0.3, 1.1); sCrow(-1.8, H + 0.3, -1.6); sCol(0, 0, 3.0, H + 4);
+      } },
+    hunters: { b: 'forest', names: ["Trapper's Camp", 'Grimwald Camp', "The Skinner's Fire"], loot: [[2.4, 2.9, 'bag', 0.4], [-1.4, -4.4, 'chest', Math.PI]],
+      build(K, R) {
+        const f = K.f;
+        sBonfire(K, 0, 0, 0.55, true);
+        const lk = new Batch();
+        for (const s of [-1, 1]) lk.add(cyl(0.06, 0.07, 2.4, 4), M(s * 1.4, 1.1, 0.8, 0, 1, 1, 1, 0.1, 0), WOOD);
+        lk.add(cyl(0.06, 0.06, 3.2, 4), M(0, 2.2, 0.85, 0, 1, 1, 1, 0, Math.PI / 2), WOOD);
+        lk.add(new T.PlaneGeometry(3.2, 2.6, 3, 2), M(0, 1.2, 0, 0, 1, 1, 1, 0.95, 0), (ny, cy, R2) => (R2() < 0.3 ? 0x5a4630 : HIDE), 0.2);
+        lk.add(lumpy(new T.PlaneGeometry(2.2, 1.6, 2, 2), 0.1, 3), M(0, 0.05, 0.2, 0, 1, 1, 1, -Math.PI / 2, 0), 0x5a4a38);
+        f.merge(lk, M(-3.8, GL(-3.8, -2.2), -2.2, 0.7));
+        for (let i = 0; i < 2; i++) {
+          const x = 3.3 + i * 0.6, z = -2.2 + i * 2.6, y = GL(x, z), rk = new Batch(), ry = -0.9 + i * 0.5;
+          for (const s of [-1, 1]) rk.add(cyl(0.06, 0.07, 2.4, 4), M(s * 0.95, 1.2, 0), WOOD);
+          bx(rk, 0, 2.2, 0, 2.1, 0.1, 0.1, WOOD); bx(rk, 0, 0.5, 0, 2.1, 0.1, 0.1, WOOD);
+          rk.add(lumpy(new T.PlaneGeometry(1.6, 1.5, 3, 3), 0.18, i), M(0, 1.35, 0.02), (ny, cy, R2) => (Math.abs(cy) < 0.3 ? 0x8a6a48 : HIDE), 0.2);
+          f.merge(rk, M(x, y, z, ry)); sBox(x, z, 2.1, 0.3, ry, y + 2.3);
+        }
+        const tx = -3.4, tz = 2.8, ty = GL(tx, tz);
+        for (let k = 0; k < 3; k++) { const a = k * TAU / 3; f.add(cyl(0.05, 0.07, 3.4, 4), limbM(tx + Math.sin(a) * 1.2, ty, tz + Math.cos(a) * 1.2, tx, ty + 3.1, tz), WOOD); }
+        f.add(lumpy(ico(0.5, 1), 0.1, 2), M(tx, ty + 1.9, tz, 0, 0.55, 1.4, 0.7), 0x6a2a1a); f.add(ico(0.2, 0), M(tx, ty + 0.9, tz + 0.1, 0, 0.7, 1.2, 1.3), 0x5a3a28);
+        sCol(tx, tz, 1, ty + 3);
+        for (let k = 0; k < 3; k++) { const a = k * 2.1 + 0.9, x = Math.sin(a) * 2.4, z = Math.cos(a) * 2.4; f.add(cyl(0.25, 0.25, 1.6, 6), M(x, GL(x, z) + 0.2, z, a, 1, 1, 1, 0, Math.PI / 2), 0x4a3422); }
+        skull(f, 2.9, GL(2.9, -0.6) + 0.15, -0.6, 0.6, 1.4);
+      } },
+    fallen: { b: 'forest', clear: 17, names: ['The Fallen Giant', "Old Titan's Bridge", 'Thunderfall Log'], loot: [[2.5, 3.0, 'corpse', 1.2], [-12.0, 3.6, 'chest', 0.3]],
+      build(K, R) {
+        const f = K.f, y0 = GL(-14, 0) + 1.6, y1 = GL(14, 0) + 1.0;
+        f.add(lumpy(new T.CylinderGeometry(1.1, 1.6, 29, 10, 6), 0.25, 9), limbM(-14, y0, 0, 14.5, y1, 0), barkFn, 0.12);
+        f.add(new T.CylinderGeometry(1.16, 1.62, 24, 10, 1, true, -Math.PI / 2 - 0.9, 1.8), limbM(-12, y0 + 0.06, 0, 12, lerp(y0, y1, 26 / 28.5) + 0.06, 0), (ny, cy, R2) => (R2() < 0.5 ? 0x4e5a30 : 0x3e4a26), 0.15);
+        f.add(lumpy(cyl(3.2, 3.2, 1.0, 10), 0.4, 3), M(-14.5, y0 + 0.5, 0, 0, 1, 1, 1, 0, Math.PI / 2 + 0.1), (ny, cy, R2) => (R2() < 0.5 ? 0x3a2c20 : 0x2a2018), 0.15);
+        for (let k = 0; k < 9; k++) { const a = k / 9 * TAU; f.add(cyl(0.08, 0.3, 3, 5, true), limbM(-14.8, y0 + 0.5, 0, -15.8 - R(), y0 + 0.5 + Math.cos(a) * 3.4, Math.sin(a) * 3.4), barkFn); }
+        for (let k = 0; k < 6; k++) { const t = 0.3 + k * 0.12, x = lerp(-14, 14, t), y = lerp(y0, y1, t), sd = k % 2 ? 1 : -1; f.add(cyl(0.12, 0.3, 3 + R() * 2, 5), limbM(x, y + 0.6, sd * 0.7, x + 1.5, y + 2.4 + R() * 2, sd * (2.4 + R())), barkFn); }
+        for (let k = 0; k < 16; k++) { const x = lerp(-13, 13, R()), y = lerp(y0, y1, (x + 14) / 28.5) - 0.6 + R() * 0.6, z = (R() < 0.5 ? -1 : 1) * (1.25 + R() * 0.3); K.g.add(cyl(0.15 + R() * 0.12, 0.05, 0.06, 6), M(x, y, z), R() < 0.5 ? 0x7ac8a0 : 0xb0d890); }
+        sBox(0, 0, 29, 2.8, 0, Math.max(y0, y1) + 1.5); sCrow(4, lerp(y0, y1, 18 / 28.5) + 1.45, 0);
+      } },
+    witch: { b: 'forest', names: ["Crone's Roost", "Hag Mother's Hut", "The Bone Wife's House"], loot: [[-3.0, 3.2, 'urn'], [3.8, -2.0, 'chest', -1.2]],
+      build(K, R) {
+        const f = K.f;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) { f.add(cyl(0.12, 0.16, 2.2, 5), M(sx * 1.7, 0.8, sz * 1.4, 0, 1, 1, 1, sz * 0.1, -sx * 0.1), 0x2e241a); sCol(sx * 1.7, sz * 1.4, 0.3, 2.5); }
+        bx(f, 0, 1.8, 0, 4.2, 0.2, 3.6, 0x3a2e22);
+        bx(f, 0, 3.1, 0, 3.2, 2.4, 2.8, 0x3a3226, 0, 0, 0.07, 0.2);
+        f.add(prism(3.6, 3.1, 2.6), M(0, 4.3, 0), 0x3a3226); roof(f, 3.6, 3.1, 2.6, 4.3, 0x2a2618, 0.8, 0.3);
+        bx(f, 0, 2.8, 1.42, 0.9, 1.7, 0.1, 0x120c08); K.g.add(new T.PlaneGeometry(0.5, 0.5), M(-1.0, 3.4, 1.43), 0x80ffb0);
+        for (let st = 0; st < 4; st++) bx(f, 0, 1.6 - st * 0.42, 2.2 + st * 0.5, 1.0, 0.1, 0.45, 0x3a2e22);
+        for (let c = 0; c < 6; c++) { const x = -1.6 + c * 0.64; f.add(cyl(0.01, 0.01, 0.9, 3), M(x, 4.0, 1.7), 0x6a5a40); if (c % 2) skull(f, x, 3.5, 1.72, 0, 0.55); else f.add(cyl(0.02, 0.03, 0.5, 3), M(x, 3.45, 1.72, 0, 1, 1, 1, 0, 0.5), BONE); }
+        const cx = 2.8, cz = 2.8, cy = GL(cx, cz);
+        f.add(new T.SphereGeometry(0.7, 8, 4, 0, TAU, Math.PI / 2, Math.PI / 2), M(cx, cy + 1.0, cz), IRON);
+        K.g.add(cyl(0.62, 0.62, 0.04, 8), M(cx, cy + 0.95, cz), 0x5aff90);
+        for (let k = 0; k < 3; k++) { const a = k * TAU / 3; f.add(cyl(0.04, 0.05, 1.3, 4), limbM(cx + Math.sin(a) * 0.8, cy, cz + Math.cos(a) * 0.8, cx + Math.sin(a) * 0.5, cy + 1.1, cz + Math.cos(a) * 0.5), IRON); }
+        sFire(cx, cy + 0.15, cz, 0.7, 2, true); sCol(cx, cz, 0.8, cy + 1.2);
+        for (let i = 0; i < 5; i++) { const a = i / 5 * TAU + 0.3, d = 7 + R() * 2; sStake(K, Math.sin(a) * d, Math.cos(a) * d, R); }
+        const ty = GL(-3.2, -2.6); f.add(cyl(0.1, 0.14, 3.2, 5), M(-3.2, ty + 1.5, -2.6), DWOOD); skull(f, -3.2, ty + 3.1, -2.6, 0.4, 1.4);
+        for (const s of [-1, 1]) f.add(cyl(0.03, 0.05, 1.2, 4), limbM(-3.2, ty + 3.2, -2.6, -3.2 + s * 0.8, ty + 4, -2.5), BONE);
+        sCol(-3.2, -2.6, 0.2, ty + 3); bones(K, 0, 4, 3, 8, R);
+      } },
+    hollow: { b: 'forest', names: ['The Lantern Oak', 'Hollowheart', "Owl-Mother's Tree"], loot: [[0, 3.8, 'chest'], [3.6, 2.6, 'urn']],
+      build(K, R) {
+        const f = K.f, H = 8, g = new T.CylinderGeometry(2.55, 2.9, H, 12, 4, true), pp = g.attributes.position;
+        for (let v = 0; v < pp.count; v++) { const vy = pp.getY(v); if (vy > H / 2 - 0.1) pp.setY(v, vy - hash2(Math.round(Math.atan2(pp.getX(v), pp.getZ(v)) * 10), 3) * 2.2); }
+        f.add(lumpy(g, 0.3, 4), M(0, H / 2 - 0.3, 0), barkFn, 0.12);
+        f.add(archShape(1.7, 2.6), M(0, 0, 2.92, 0, 1, 1, 1, -0.1, 0), 0x080605);
+        for (let k = 0; k < 3; k++) { const a = k * 2.1 + 0.4; f.add(cyl(0.25, 0.6, 5, 6), limbM(Math.sin(a) * 1.5, H - 1.5, Math.cos(a) * 1.5, Math.sin(a) * 4.2, H + 2.5, Math.cos(a) * 4.2), barkFn); f.add(cyl(0.06, 0.25, 3, 5), limbM(Math.sin(a) * 4.2, H + 2.5, Math.cos(a) * 4.2, Math.sin(a + 0.4) * 5.5, H + 4.4, Math.cos(a + 0.4) * 5.5), barkFn); }
+        for (let k = 0; k < 8; k++) { const a = k / 8 * TAU + 0.2; f.add(cyl(0.12, 0.5, 3.4, 5, true), limbM(Math.sin(a) * 2.2, 1.2, Math.cos(a) * 2.2, Math.sin(a) * 4.6, -0.4, Math.cos(a) * 4.6), barkFn); }
+        const lx = 1.9, ly = 4.6, lz = 3.5;
+        f.add(cyl(0.12, 0.25, 2.2, 5), limbM(0.8, 4.2, 2.3, lx + 0.3, ly + 0.9, lz), barkFn);
+        f.add(cyl(0.01, 0.01, 0.8, 3), M(lx, ly + 0.45, lz), IRON);
+        f.add(cyl(0.14, 0.18, 0.36, 6, true), M(lx, ly - 0.1, lz), IRON); f.add(cone(0.2, 0.16, 6), M(lx, ly + 0.15, lz), IRON);
+        sFire(lx, ly - 0.2, lz, 0.2, 0, true);
+        for (let k = 0; k < 10; k++) { const a = R() * TAU, y = R() * 3, rad = 2.95 - y * 0.1; K.g.add(cyl(0.12 + R() * 0.1, 0.04, 0.05, 6), M(Math.sin(a) * rad, y + 0.2, Math.cos(a) * rad), R() < 0.5 ? 0x7ac8a0 : 0xd8c070); }
+        sCol(0, 0, 2.9, H);
+      } },
+    spiders: { b: 'forest', names: ['The Webbed Grove', 'Silkrot Hollow', "The Weaver's Den"], loot: [[1.2, 1.4, 'corpse', 2.4], [-2.2, -1.8, 'bag', 0.8]],
+      build(K, R) {
+        const f = K.f, tr = [];
+        for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + R() * 0.4, d = 6 + R() * 2.5, x = Math.sin(a) * d, z = Math.cos(a) * d; tr.push([x, z]); sDead(K, x, z, 0.9 + R() * 0.4, R, 0x2e2a26); }
+        for (let i = 0; i < 6; i++) { const A = tr[i], B = tr[(i + 1) % 6], mx = (A[0] + B[0]) / 2, mz = (A[1] + B[1]) / 2, L = Math.hypot(B[0] - A[0], B[1] - A[1]); web(K, mx, GL(mx, mz) + 2.6 + R(), mz, Math.min(2.8, L * 0.42), Math.atan2(-(B[1] - A[1]), B[0] - A[0]), (R() - 0.5) * 0.3); }
+        web(K, 0, 5.6, 0, 5, 0.3, -Math.PI / 2 + 0.15);
+        for (let i = 0; i < 5; i++) { const a = R() * TAU, d = 1.5 + R() * 3, x = Math.sin(a) * d, z = Math.cos(a) * d, y = 3.0 + R() * 1.5; f.add(cyl(0.01, 0.01, 5.6 - y, 3), M(x, (y + 5.6) / 2, z), 0xb8b4a8); f.add(lumpy(ico(0.35, 1), 0.08, i), M(x, y, z, R() * 3, 0.9, 2.2, 0.9), (ny, cy, R2) => (R2() < 0.3 ? 0xa8a498 : 0xc8c4b8)); }
+        for (let i = 0; i < 7; i++) { const a = R() * TAU, d = R(); f.add(ico(0.25 + R() * 0.15, 1), M(-3 + Math.sin(a) * d, GL(-3, 2.4) + 0.2, 2.4 + Math.cos(a) * d), 0xd8d0b8); }
+        bones(K, 0, 0, 5, 16, R); skeleton(K, -1.6, 3.0, 1.2, R);
+      } },
+    dolmen: { b: 'forest', names: ['The Mossy Dolmen', "Giant's Table", 'The Barrowstone'], loot: [[0, 0.3, 'urn'], [2.8, 2.6, 'corpse', 0.9]],
+      build(K, R) {
+        const f = K.f;
+        for (const s of [-1, 1]) { f.add(lumpy(new T.BoxGeometry(0.9, 2.7, 1.5, 1, 2, 1), 0.2, s + 5), M(s * 1.45, 1.1, 0, 0, 1, 1, 1, 0, s * -0.05), mossyFn); sCol(s * 1.45, 0, 0.8, 2.6); }
+        f.add(lumpy(new T.BoxGeometry(4.4, 0.75, 2.6, 2, 1, 2), 0.25, 9), M(0.1, 2.75, 0, 0.1, 1, 1, 1, 0.05, 0.08), mossyFn);
+        f.add(lumpy(new T.BoxGeometry(2.6, 2.2, 0.7, 2, 2, 1), 0.2, 11), M(0, 0.9, -1.2, 0, 1, 1, 1, -0.1, 0), mossyFn); sCol(0, -1.2, 1.0, 2);
+        for (let g = 0; g < 5; g++) K.g.add(BOX, M(-1 + g * 0.5, 1.2 + (g % 2) * 0.3, -0.83, 0, 0.08, 0.35, 0.02, 0, (R() - 0.5)), 0x80ffb0);
+        for (let i = 0; i < 12; i++) { const a = i / 12 * TAU, x = Math.sin(a) * 5.5, z = Math.cos(a) * 5.5; f.add(lumpy(ico(0.35, 0), 0.1, i), M(x, GL(x, z) + 0.15, z), mossyFn); }
+        skull(f, -0.7, 0.12, 0.6, 0.4); sCandle(K, 0.7, 0, 0.9, true);
+      } },
+    woodcut: { b: 'forest', names: ["Woodcutter's Clearing", "Axeman's Rest", 'The Stump Field'], loot: [[3.8, 1.8, 'rack', -1.2], [-2.8, 3.0, 'chest', 0.6]],
+      build(K, R) {
+        const f = K.f, stump = (x, z, s) => f.add(cyl(0.4 * s, 0.55 * s, 0.7 * s, 7), M(x, GL(x, z) + 0.3 * s, z), ny => (ny > 0.8 ? 0x8a6e48 : 0x3a2c20));
+        for (let i = 0; i < 12; i++) { const a = R() * TAU, d = 4 + R() * 7; stump(Math.sin(a) * d, Math.cos(a) * d, 0.8 + R() * 0.6); }
+        stump(0, 0, 1.4); sCol(0, 0, 0.7, 1);
+        f.add(cyl(0.035, 0.04, 0.9, 4), M(0.2, 1.35, 0.05, 0, 1, 1, 1, 0.1, -0.7), 0x6a4a2c); bx(f, -0.05, 1.02, 0.03, 0.3, 0.22, 0.05, 0x9a9ea6, 0, 0, -0.7);
+        for (let i = 0; i < 15; i++) { const row = i < 6 ? 0 : i < 11 ? 1 : 2, n = i - [0, 6, 11][row]; f.add(cyl(0.22, 0.22, 3, 7), M(-3.5 + (n - 2.5 + row * 0.5) * 0.45, 0.22 + row * 0.38, -3.4, 0, 1, 1, 1, Math.PI / 2, 0), 0x4a3422, 0.15); }
+        sBox(-3.5, -3.4, 3.0, 3.2, 0, 1.2);
+        const sx0 = 3.4, sz0 = -3.2;
+        for (const s of [-1, 1]) { f.add(cyl(0.05, 0.05, 1.3, 4), M(sx0 + s * 0.9, 0.5, sz0 - 0.3, 0, 1, 1, 1, 0.45, 0), WOOD); f.add(cyl(0.05, 0.05, 1.3, 4), M(sx0 + s * 0.9, 0.5, sz0 + 0.3, 0, 1, 1, 1, -0.45, 0), WOOD); }
+        f.add(cyl(0.25, 0.25, 3, 7), M(sx0, 1.05, sz0, 0, 1, 1, 1, 0, Math.PI / 2), 0x4a3422); bx(f, sx0 + 0.3, 1.2, sz0, 0.04, 0.6, 0.9, 0x8a8e96, 0, 0, 0.1);
+        sBox(sx0, sz0, 3, 1, 0, 1.3);
+        for (const q of [[-5.5, 1], [-5.5, 4], [-7.3, 1], [-7.3, 4]]) { const h = q[0] > -6 ? 2.6 : 1.8; f.add(cyl(0.08, 0.1, h, 5), M(q[0], h / 2, q[1]), WOOD); }
+        bx(f, -6.4, 2.25, 2.5, 2.4, 0.12, 3.6, 0x3a2e22, 0, 0, 0.42);
+        for (let i = 0; i < 8; i++) bx(f, -6.5 + (i % 2) * 0.1, 0.25 + ((i / 2) | 0) * 0.3, 1.4 + (i % 4) * 0.7, 0.9, 0.28, 0.3, i % 3 ? 0x5a4028 : 0x6a4a2e, 0.1);
+        sDead(K, 8.5, -5, 1.1, R);
+      } },
+    sunken: { b: 'swamp', noFlat: true, names: ['The Drowned Kings', 'The Sinking Gods', 'Mirewatch'], loot: [[1.6, 3.6, 'urn'], [-4.6, 2.4, 'corpse', 0.4]],
+      build(K, R) {
+        const f = K.f;
+        const statue = (x, z, ry, s, tilt) => {
+          const b = new Batch();
+          bx(b, 0, -1.6, 0, 2.4, 2.6, 1.3, paleFn); bx(b, 0, 0.1, 0, 3.6, 1.1, 1.6, paleFn); bx(b, 0, 0.9, 0.05, 0.6, 0.6, 0.6, paleFn); bx(b, 0, 1.75, 0.05, 1.2, 1.4, 1.25, paleFn);
+          bx(b, 0, 1.95, 0.68, 1.1, 0.18, 0.12, 0x837d72); bx(b, 0, 1.6, 0.72, 0.18, 0.4, 0.16, 0x9e988a);
+          for (const e of [-0.28, 0.28]) bx(b, e, 1.78, 0.67, 0.22, 0.12, 0.06, 0x141210);
+          bx(b, 0, 1.25, 0.66, 0.5, 0.08, 0.06, 0x2a2622);
+          for (let c = 0; c < 5; c++) b.add(cone(0.14, 0.55, 4), M(-0.5 + c * 0.25, 2.65, 0.05), 0x8a7a50);
+          bx(b, 0, 2.45, 0.05, 1.3, 0.16, 1.35, 0x8a7a50);
+          f.merge(b, M(x, GL(x, z) - 0.4 * s, z, ry, s, s, s, tilt, tilt * 0.6));
+          sCol(x, z, 1.6 * s, 3 * s);
+        };
+        statue(0, -2, 0.2, 1.5, 0.18); statue(-6.2, -1, 0.9, 1.2, -0.3); statue(5.8, 0.5, -0.7, 1.0, 0.45);
+        const hx = 3.6, hz = 5.4, hy = GL(hx, hz), hb = new Batch();
+        bx(hb, 0, 0.6, 0, 0.7, 1.4, 0.8, paleFn); for (let k = 0; k < 4; k++) bx(hb, -0.25 + k * 0.17, 1.45, 0.25, 0.15, 0.5, 0.15, paleFn, 0, 0.6); bx(hb, 0.4, 1.1, 0.2, 0.18, 0.45, 0.18, paleFn, 0, 0.5, 0.5);
+        bx(hb, 0, 3.2, 0.3, 0.14, 3.6, 0.05, 0x7a7e86); bx(hb, 0, 1.3, 0.3, 0.9, 0.12, 0.2, 0x5a4a30);
+        f.merge(hb, M(hx, hy - 0.3, hz, 0.5, 1.4, 1.4, 1.4, 0.15, 0.1)); sCol(hx, hz, 0.7, 5);
+        for (let i = 0; i < 4; i++) sDead(K, -8 + R() * 16, -8 - R() * 3, 0.8 + R() * 0.4, R, 0x2c2a22, (R() - 0.5) * 0.5);
+        sCrow(0, GL(0, -2) + 3.6, -1.3);
+      } },
+    chapel: { b: 'swamp', noFlat: true, tall: 13, silR: 1.6, silZ: -6.1, names: ['The Drowned Chapel', "Saint Ulm's Sinking", 'The Bell of the Mire'], guard: 'ghoul', guardP: 0.9, loot: [[0, 0.8, 'chest', 0, 1], [4.0, 6.2, 'urn']],
+      build(K, R) {
+        const f = K.f, k = new Batch(), wall = (ny, cy, R2) => (R2() < 0.3 ? [0x4a5230, 0x3e4628][(R2() * 2) | 0] : cy < -0.5 && R2() < 0.6 ? 0x3a3a2c : [0x6e685c, 0x5e5a50, 0x7a7466, 0x55514a][(R2() * 4) | 0]);
+        bx(k, -2.6, 2.2, 0, 0.5, 4.4, 9, wall); bx(k, 2.6, 2.2, 0, 0.5, 4.4, 9, wall); bx(k, 0, 2.2, -4.5, 5.7, 4.4, 0.5, wall);
+        for (const s of [-1, 1]) bx(k, s * 1.8, 2.2, 4.5, 2.1, 4.4, 0.5, wall);
+        bx(k, 0, 3.8, 4.5, 1.5, 1.2, 0.5, wall);
+        for (const z of [-4.5, 4.5]) k.add(prism(0.5, 5.7, 2.6), M(0, 4.4, z, Math.PI / 2), wall);
+        const rb = new Batch(); roof(rb, 4.6, 5.4, 2.6, 4.4, SLATE, 0.5, 0.25); k.merge(rb, M(0, 0, -2.3, Math.PI / 2));
+        for (let i = 0; i < 3; i++) for (const s of [-1, 1]) if (R() < 0.75) bx(k, s * 1.35, 5.7, 0.6 + i * 1.3, 3.1, 0.18, 0.18, DWOOD, 0, 0, -s * 0.74);
+        for (const z of [-2.5, 0, 2.5]) for (const s of [-1, 1]) k.add(archShape(0.8, 2.0), M(s * 2.87, 1.6, z, s * Math.PI / 2), 0x0a0808);
+        bx(k, 0, 5.5, -6.1, 2.6, 11, 2.6, wall);
+        for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) k.add(archShape(1.0, 1.8), M(Math.sin(a) * 1.32, 8.6, -6.1 + Math.cos(a) * 1.32, a), 0x0a0808);
+        k.add(cone(2.1, 3.2, 4), M(0, 12.6, -6.1, Math.PI / 4), SLATE);
+        k.add(cyl(0.3, 0.55, 0.8, 8), M(0, 9.2, -6.1), 0x6a5020);
+        f.merge(k, M(0, -0.9, 0, 0, 1, 1, 1, 0.04, 0.06));
+        sBox(-2.6, 0, 0.6, 9, 0, 4); sBox(2.6, 0, 0.6, 9, 0, 4); sBox(0, -4.5, 5.7, 0.6, 0, 4); sBox(-1.8, 4.5, 2.1, 0.6, 0, 4); sBox(1.8, 4.5, 2.1, 0.6, 0, 4); sBox(0, -6.1, 2.8, 2.8, 0, 11);
+        for (let i = 0; i < 4; i++) { const x = -1.2 + i * 0.8, z = 5.5 + (i % 2) * 0.2; sCandle(K, x, GL(x, z), z, i === 1); }
+        for (let i = 0; i < 9; i++) { const x = (R() < 0.5 ? -1 : 1) * (4.5 + R() * 4), z = -5 + R() * 11, y = GL(x, z); bx(f, x, y + 0.3, z, 0.7, 1.2, 0.2, [0x6e6a5e, 0x5e5a50][i % 2], R() * 0.5 - 0.25, (R() - 0.5) * 0.4, (R() - 0.5) * 0.4, 0.1); }
+        sDead(K, -7.5, -6.5, 1.1, R, 0x2c2a22, 0.2);
+        sCrow(0, 6.25, 4.5); sFire(0, 1.2, -3.2, 0.001, 2, true);
+      } },
+    cagetree: { b: 'swamp', noFlat: true, names: ['The Gibbet Tree', 'Crowcage Willow', 'The Hanging Cages'], loot: [[1.9, 3.0, 'corpse', 0.3]],
+      build(K, R) {
+        const f = K.f;
+        f.add(lumpy(cyl(0.55, 0.95, 6, 8), 0.15, 5), M(0, 2.6, 0, 0, 1, 1, 1, -0.06, 0.08), barkFn);
+        const limbs = [[3.6, 6.2, 0.4], [-3.0, 6.6, 1.2], [0.3, 7.2, -3.2]];
+        for (const q of limbs) { f.add(cyl(0.14, 0.35, Math.hypot(q[0], q[1] - 5, q[2]) + 0.3, 6), limbM(0, 5, 0, q[0], q[1], q[2]), barkFn); f.add(cyl(0.04, 0.12, 2.4, 4), limbM(q[0], q[1], q[2], q[0] * 1.3, q[1] + 1.6, q[2] * 1.3), barkFn); }
+        for (let k = 0; k < 6; k++) { const a = k * 1.05 + R(); f.add(cyl(0.08, 0.3, 2.4, 5, true), limbM(0, 0.5, 0, Math.sin(a) * 2, -0.4, Math.cos(a) * 2), barkFn); }
+        for (let i = 0; i < 2; i++) {
+          const q = limbs[i], x = q[0] * 0.85, y = 5 + (q[1] - 5) * 0.85, z = q[2] * 0.85, b = new Batch();
+          b.add(cyl(0.02, 0.02, 1.2, 3), M(0, -0.6, 0), IRON);
+          for (let bI = 0; bI < 8; bI++) { const a2 = bI / 8 * TAU; b.add(cyl(0.022, 0.022, 1.9, 3), M(Math.sin(a2) * 0.42, -2.15, Math.cos(a2) * 0.42), IRON); }
+          for (const yy of [-3.1, -1.2]) b.add(new T.TorusGeometry(0.42, 0.035, 3, 10), M(0, yy, 0, 0, 1, 1, 1, Math.PI / 2, 0), IRON);
+          b.add(cyl(0.44, 0.44, 0.04, 8), M(0, -3.1, 0), IRON);
+          skull(b, 0, -1.65, 0, R() * 3); bx(b, 0, -2.25, 0, 0.3, 0.7, 0.18, BONE); for (let rb = 0; rb < 4; rb++) bx(b, 0, -2.05 - rb * 0.13, 0.08, 0.42, 0.04, 0.2, BONE, 0, 0, 0, 0);
+          b.add(cyl(0.035, 0.035, 0.8, 3), M(0.08, -2.8, 0.05, 0, 1, 1, 1, 0.3, 0.2), BONE);
+          f.merge(b, M(x, y, z, R() * 3));
+          sCrow(x, y - 1.15, z);
+        }
+        sCrow(limbs[2][0] * 0.9, limbs[2][1] + 0.1, limbs[2][2] * 0.9);
+        bones(K, 0, 1, 3, 8, R); sCol(0, 0, 0.9, 8);
+      } },
+    stilts: { b: 'swamp', noFlat: true, names: ['The Stilt House', "Bogman's Stilts", "The Eelwife's House"], loot: [[3.2, 5.4, 'bag', 0.4], [-4.4, 3.4, 'chest', 0.8]],
+      build(K, R) {
+        const f = K.f, dy = 2.7;
+        for (let i = 0; i < 6; i++) { const x = (i % 3 - 1) * 2.8, z = i < 3 ? -2.4 : 2.4; f.add(cyl(0.13, 0.17, 4.2, 5), M(x, dy - 1.6, z, 0, 1, 1, 1, (R() - 0.5) * 0.12, (R() - 0.5) * 0.12), 0x2e241a); sCol(x, z, 0.25, dy); }
+        bx(f, 0, dy, 0, 7.2, 0.22, 6, 0x3a2e22, 0, 0, 0, 0.2);
+        for (const s of [-1, 1]) bx(f, s * 3.5, dy + 0.5, 0, 0.1, 0.9, 6, DWOOD, 0, 0, 0, 0);
+        bx(f, -0.6, dy + 1.4, -0.8, 4.8, 2.6, 3.6, 0x3e3428, 0, 0, 0, 0.2);
+        const rb = new Batch(); rb.add(prism(4.8, 3.6, 2.0), null, 0x3e3428); roof(rb, 4.8, 3.6, 2.0, 0, 0x2a2618, 0.7, 0.28); f.merge(rb, M(-0.6, dy + 2.7, -0.8));
+        bx(f, -0.6, dy + 1.1, 1.02, 0.9, 1.8, 0.08, 0x120c08); K.g.add(new T.PlaneGeometry(0.6, 0.5), M(1.0, dy + 1.8, 1.03), 0xffa040);
+        for (const s of [-0.35, 0.35]) f.add(cyl(0.05, 0.05, 3.4, 4), M(1.8 + s, dy / 2 - 0.1, 3.4, 0, 1, 1, 1, -0.3, 0), WOOD);
+        for (let r = 0; r < 6; r++) bx(f, 1.8, 0.2 + r * 0.48, 3.9 - r * 0.15, 0.8, 0.06, 0.08, WOOD, 0, 0, 0, 0);
+        f.add(cyl(0.06, 0.08, 3.2, 4), M(3.4, dy + 1.6, 2.8), DWOOD); bx(f, 3.1, dy + 3.1, 2.8, 0.7, 0.06, 0.06, DWOOD); f.add(cyl(0.12, 0.15, 0.3, 5), M(2.8, dy + 2.8, 2.8), IRON);
+        sFire(2.8, dy + 2.72, 2.8, 0.28, 0, true);
+        for (let n = 0; n < 2; n++) f.add(lumpy(new T.PlaneGeometry(1.8, 1.6, 3, 3), 0.15, n + 7), M(-3.62, dy - 0.2, -1.5 + n * 2.2, Math.PI / 2), (ny, cy, R2) => (R2() < 0.5 ? 0x5a5a48 : 0x4a4a3a), 0.2);
+        const bxp = 5.4, bzp = -1.5, byp = Math.max(GL(bxp, bzp), -cs.y + 0.05);
+        f.add(new T.CylinderGeometry(0.7, 0.7, 4, 8, 1, true, -Math.PI / 2, Math.PI), M(bxp, byp + 0.55, bzp, 0.3, 1, 1, 1, Math.PI / 2, 0), 0x3a2a1c);
+        sCrow(3.1, dy + 3.15, 2.8);
+      } },
+    bogaltar: { b: 'swamp', noFlat: true, names: ['The Bog Altar', "The Mire Mother's Altar", 'Altar of Sunken Teeth'], loot: [[0, 2.8, 'chest', 0, 1], [-3.0, 1.6, 'urn']],
+      build(K, R) {
+        const f = K.f;
+        for (const s of [-1, 1]) f.add(lumpy(ico(0.8, 0), 0.2, s + 4), M(s * 1.2, 0.3, 0, 0, 1, 0.8, 1), rockFnD);
+        bx(f, 0, 0.95, 0, 3.4, 0.35, 1.6, 0x4a4540, 0.05, 0, 0, 0.2);
+        f.merge(protos.corpse, M(0, 1.12, 0, Math.PI / 2, 0.95));
+        f.add(cyl(0.12, 0.16, 3.8, 6), M(0, 1.8, -1.6), DWOOD); skull(f, 0, 3.8, -1.55, 0, 1.8);
+        for (const s of [-1, 1]) { f.add(cyl(0.05, 0.08, 1.6, 4), limbM(0, 4.0, -1.6, s * 1.1, 5.0, -1.5), BONE); for (let t = 0; t < 3; t++) f.add(cyl(0.02, 0.04, 0.6, 3), limbM(s * (0.35 + t * 0.3), 4.2 + t * 0.3, -1.58, s * (0.3 + t * 0.3), 4.8 + t * 0.3, -1.5), BONE); }
+        for (let i = 0; i < 11; i++) { const a = (i / 10 - 0.5) * 2.8 + Math.PI, d = 2.3 + (i % 2) * 0.4, x = Math.sin(a) * d, z = Math.cos(a) * d; sCandle(K, x, GL(x, z), z, i === 5); }
+        for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + 0.2, d = 5.5 + R(); sStake(K, Math.sin(a) * d, Math.cos(a) * d, R); }
+        bones(K, 0, 0, 4, 10, R); sBox(0, 0, 3.4, 1.6, 0, 1.1); sCol(0, -1.6, 0.25, 4);
+      } },
+    barrow: { b: 'hills', names: ['Barrow of Kings Forgotten', 'The Howe of Hrodgar', 'The Black Barrow'], guard: 'ghoul', guardP: 0.85, loot: [[0.2, 4.6, 'chest'], [3.0, 4.8, 'urn']],
+      build(K, R) {
+        const f = K.f, ez = 2.3;
+        f.add(lumpy(ico(1, 2), 0.12, 21), M(0, -0.6, -5, 0, 8.5, 4.2, 7.5), moundFn, 0.1);
+        for (const s of [-1, 1]) f.add(lumpy(new T.BoxGeometry(0.8, 3.0, 0.8, 1, 2, 1), 0.12, s + 30), M(s * 1.3, 1.2, ez), stoneFn);
+        f.add(lumpy(new T.BoxGeometry(3.6, 0.7, 1.0, 2, 1, 1), 0.12, 33), M(0, 2.95, ez), stoneFn);
+        bx(f, 0, 1.2, ez - 0.2, 1.9, 2.5, 0.35, 0x2a2826, 0, 0, 0, 0.1);
+        K.g.add(new T.RingGeometry(0.42, 0.5, 12), M(0, 1.5, ez - 0.01), 0xa02010);
+        for (let g = 0; g < 4; g++) K.g.add(BOX, M(Math.sin(g * 1.57) * 0.25, 1.5 + Math.cos(g * 1.57) * 0.25, ez - 0.01, 0, 0.06, 0.18, 0.01, 0, g * 1.57), 0xa02010);
+        for (let i = 0; i < 6; i++) f.add(lumpy(ico(0.5 - i * 0.06, 0), 0.1, i), M((R() - 0.5) * 0.4, 3.4 + i * 0.4, -5 + (R() - 0.5) * 0.4), stoneFn);
+        for (const s of [-1, 1]) { f.add(lumpy(new T.BoxGeometry(1, 3.8, 0.7, 1, 2, 1), 0.2, s + 40), M(s * 4.2, 1.5, ez + 1.5, s * 0.3, 1, 1, 1, 0, s * 0.08), stoneFn); sCol(s * 4.2, ez + 1.5, 0.7, 3.6); }
+        for (let i = 0; i < 4; i++) sStake(K, (i < 2 ? -1 : 1) * (2.6 + (i % 2) * 3.4), ez + 6.5 + (i % 2), R);
+        sCol(0, -5, 7.2, 3.5); sBox(0, ez, 3.4, 1.0, 0, 3.2);
+        bones(K, 0, ez + 3.5, 2.5, 6, R); sCrow(0, 5.85, -5);
+      } },
+    mine: { b: 'hills', names: ['The Abandoned Mine', 'Deepdelve Shaft', 'Ironvein Mine'], guard: 'orc', guardP: 0.6, loot: [[-2.8, 2.4, 'chest', 0.3], [3.0, 1.4, 'rack', -1.3]],
+      build(K, R) {
+        const f = K.f;
+        for (let i = 0; i < 10; i++) { const x = -7 + i * 1.6, z = -3.5 - R() * 2, s = 2.5 + R() * 2.5; if (Math.abs(x) < 1.8) { f.add(lumpy(ico(1, 1), 0.3, i), M(x, 4.3 + s * 0.3, z - 1, R() * 3, s, s * 0.7, s), rockFnD); continue; } f.add(lumpy(ico(1, 1), 0.3, i), M(x, s * 0.6, z, R() * 3, s, s * (0.9 + R() * 0.5), s), rockFnD); sCol(x, z, s * 0.85, s * 1.4); }
+        f.add(lumpy(ico(1, 1), 0.25, 50), M(0, 3, -8, 0, 9, 6, 5), rockFnD); sCol(0, -8, 6, 8);
+        f.add(new T.PlaneGeometry(2.6, 2.9), M(0, 1.45, -2.4), 0x050404);
+        for (const s of [-1, 1]) { bx(f, s * 1.45, 1.5, -2.2, 0.3, 3.1, 0.3, WOOD2, 0, 0, s * -0.04); bx(f, s * 1.0, 2.7, -2.1, 0.12, 1.1, 0.12, DWOOD, 0, 0, s * 0.8); sCol(s * 1.45, -2.2, 0.3, 3); }
+        bx(f, 0, 3.1, -2.2, 3.6, 0.35, 0.4, WOOD2); bx(f, 0.6, 3.55, -2.0, 1.1, 0.4, 0.06, 0x6a5238, 0, 0, 0.1);
+        for (let i = 0; i < 16; i++) { const z = -2.2 + i * 0.6; bx(f, 0, GL(0, z) + 0.06, z, 1.4, 0.1, 0.22, DWOOD, 0, 0, 0, 0.2); }
+        for (const s of [-0.5, 0.5]) seg(f, s, GL(s, -2.2) + 0.16, -2.2, s, GL(s, 7) + 0.16, 7, 0.07, 0.09, IRON);
+        const cz = 2.4, cy = GL(0, cz); bx(f, 0, cy + 0.75, cz, 1.1, 0.7, 1.4, 0x3a3230, 0, 0, 0, 0.15); bx(f, 0, cy + 1.08, cz, 1.2, 0.08, 1.5, IRON);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.add(cyl(0.22, 0.22, 0.1, 8), M(sx * 0.52, cy + 0.3, cz + sz * 0.45, 0, 1, 1, 1, 0, Math.PI / 2), IRON);
+        for (let i = 0; i < 6; i++) { f.add(lumpy(ico(0.2, 0), 0.06, i), M((R() - 0.5) * 0.7, cy + 1.15, cz + (R() - 0.5), R()), 0x2a2622); if (i % 2) K.g.add(BOX, M((R() - 0.5) * 0.6, cy + 1.22, cz + (R() - 0.5) * 0.9, R(), 0.05, 0.05, 0.05), 0xd8a030); }
+        sBox(0, cz, 1.2, 1.5, 0, cy + 1.1);
+        f.add(cyl(0.07, 0.09, 2.6, 5), M(1.9, 1.3, -1.2), DWOOD); bx(f, 1.7, 2.6, -1.2, 0.5, 0.06, 0.06, DWOOD); f.add(cyl(0.11, 0.14, 0.28, 5), M(1.5, 2.4, -1.2), IRON); sFire(1.5, 2.32, -1.2, 0.26, 0, true);
+        for (let i = 0; i < 2; i++) { f.add(cyl(0.03, 0.03, 1.2, 4), M(-1.9 + i * 0.3, 0.6, -1.6, 0, 1, 1, 1, 0.3, 0.2), WOOD); bx(f, -1.78 + i * 0.3, 1.15, -1.45, 0.6, 0.06, 0.06, IRON, 0.3, 0, 0.3); }
+        for (let i = 0; i < 12; i++) { const x = 4.8 + R() * 3, z = -1 + R() * 4; f.add(lumpy(ico(0.4 + R() * 0.5, 0), 0.12, i), M(x, GL(x, z) + 0.1, z, R() * 3, 1, 0.6, 1), rockFnD); }
+      } },
+    giant: { b: 'hills', clear: 16, names: ["The Giant's Grave", "Ymir's Rest", 'The Bones of Thrymm'], loot: [[1.6, 4.4, 'corpse', 2.0], [-5.4, 4.2, 'chest', 0.4]],
+      build(K, R) {
+        const f = K.f;
+        for (let i = 0; i < 9; i++) { const x = -5 + i * 1.3, r = 3.6 - Math.abs(i - 4) * 0.25; f.add(new T.TorusGeometry(r, 0.2, 4, 10, Math.PI * (i === 7 ? 0.5 : 0.9)), M(x, -0.6, 0, Math.PI / 2, 1, 1, 1, 0, 0.15 + (R() - 0.5) * 0.2), BONE); }
+        for (let i = 0; i < 12; i++) bx(f, -6 + i * 1.05, 0.2, 0, 0.8, 0.55, 0.6, 0xc4b89c, R() * 0.3, 0, 0, 0.1);
+        const sb = new Batch();
+        sb.add(lumpy(ico(1.9, 1), 0.2, 3), M(0, 1.3, 0, 0, 1.1, 0.9, 1.0), BONE);
+        sb.add(BOX, M(1.3, 0.4, 0, 0, 1.6, 0.8, 1.9), 0xc4b89c);
+        for (const s of [-1, 1]) sb.add(ico(0.45, 0), M(1.75, 1.45, s * 0.7), 0x0c0a08);
+        sb.add(BOX, M(2.14, 0.9, 0, 0, 0.1, 0.5, 0.35), 0x0c0a08);
+        for (let t = 0; t < 7; t++) sb.add(cone(0.1, 0.35, 4), M(2.05, 0.15, -0.8 + t * 0.27, 0, 1, 1, 1, Math.PI, 0), 0xd6ccb4);
+        sb.add(BOX, M(1.5, -0.35, 0.2, 0.2, 1.8, 0.4, 1.7), 0xc4b89c);
+        f.merge(sb, M(8.8, -0.2, 0.3, -0.25, 1, 1, 1, 0, 0.12));
+        sCol(8.8, 0.3, 2.4, 3); sBox(0, 0, 11, 7.2, 0, 2.5);
+        const fx = -2.5, fz = 5.6, fy = GL(fx, fz); f.add(cyl(0.35, 0.35, 6, 7), M(fx, fy + 0.3, fz, 0.2, 1, 1, 1, 0, Math.PI / 2), BONE);
+        for (const s of [-1, 1]) f.add(ico(0.62, 0), M(fx + s * 3 * Math.cos(0.2), fy + 0.4, fz - s * 3 * Math.sin(0.2)), BONE);
+        bx(f, -8.5, 2.8, -2.5, 0.5, 6, 0.12, 0x5a3a2a, 0, 0.1, 0.25); bx(f, -9.2, 5.5, -2.2, 1.8, 0.25, 0.3, 0x3a2a1c, 0, 0.1, 0.25); sCol(-8.5, -2.5, 0.5, 5);
+        sCrow(9.0, 2.95, 0.3); bones(K, 0, 4.5, 5, 8, R);
+      } },
+    lookout: { b: 'hills', tall: 11, silR: 2, names: ['The Bandit Lookout', 'Cutthroat Perch', 'The Blackhand Watch'], guard: 'bandit', guardP: 0.9, loot: [[-3.4, 2.8, 'chest', 0.5], [4.8, -1.4, 'bag', -0.8]],
+      build(K, R) {
+        const f = K.f, tz = -2.5;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.add(cyl(0.14, 0.18, 6.5, 6), M(sx * 1.3, 3.25, tz + sz * 1.3, 0, 1, 1, 1, -sz * 0.04, sx * 0.04), WOOD);
+        for (let s = 0; s < 4; s++) { const q = [[0, 1.3], [1.3, 0], [0, -1.3], [-1.3, 0]][s]; bx(f, q[0], 2.2, tz + q[1], s % 2 ? 0.1 : 2.8, 0.12, s % 2 ? 2.8 : 0.1, DWOOD, 0, s % 2 ? 0.7 : 0, s % 2 ? 0 : 0.7); }
+        bx(f, 0, 5.8, tz, 3.4, 0.22, 3.4, WOOD2);
+        for (let s = 0; s < 4; s++) { const q = [[0, 1.6], [1.6, 0], [0, -1.6], [-1.6, 0]][s]; bx(f, q[0], 6.4, tz + q[1], s % 2 ? 0.1 : 3.2, 0.9, s % 2 ? 3.2 : 0.1, WOOD, 0, 0, 0, 0.2); }
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) bx(f, sx * 1.5, 7.4, tz + sz * 1.5, 0.12, 2.2, 0.12, DWOOD);
+        f.add(cone(2.9, 2, 4), M(0, 9.4, tz, Math.PI / 4), THATCH);
+        for (let r = 0; r < 9; r++) bx(f, 0, 0.4 + r * 0.62, tz + 1.95, 0.8, 0.08, 0.1, WOOD, 0, 0, 0, 0);
+        for (const sx of [-0.4, 0.4]) bx(f, sx, 2.9, tz + 1.95, 0.08, 5.8, 0.08, WOOD, 0, 0, 0, 0);
+        f.add(cyl(0.05, 0.05, 3, 4), M(0.6, 11.4, tz), WOOD); sFlag('flagHand', 0.6, 12.3, tz, R() * 3, 1);
+        sBox(0, tz, 2.9, 2.9, 0, 9);
+        sBonfire(K, 1.8, 3.4, 0.5, true);
+        for (let i = 0; i < 5; i++) { const x = -5.5 + R() * 2.5, z = -3 + i * 1.1, y = GL(x, z); if (i % 2) crate(f, x, y, z, 0.8, R()); else barrel(f, x, y, z, 1); sCol(x, z, 0.6, y + 1); }
+        for (let i = 0; i < 5; i++) { const a = i / 5 * TAU + 0.5, d = 8 + R() * 2; sStake(K, Math.sin(a) * d, Math.cos(a) * d, R); }
+        for (let i = 0; i < 4; i++) f.add(cyl(0.025, 0.03, 2.6, 4), M(3.2 + i * 0.25, 1.2, -4.5, 0, 1, 1, 1, -0.25, 0), WOOD);
+        bx(f, 3.6, 2.1, -4.25, 1.4, 0.08, 0.08, DWOOD); sCrow(-1.6, 6.9, tz + 1.6);
+      } },
+    battle: { b: 'hills', clear: 22, names: ['The Red Field', 'The Field of Broken Spears', 'Kingsfall Field'], loot: [[4.4, 3.4, 'corpse', 0.8], [-6.8, -4.6, 'corpse', 2.6], [-1.8, 6.4, 'chest', 0.3]],
+      build(K, R) {
+        const f = K.f, shieldC = [0x6e1410, 0x2a3a26, 0x5a4a2a, 0x3a3a44, 0x1e1a1e];
+        for (let i = 0; i < 24; i++) {
+          const a = R() * TAU, d = 2 + R() * 17, x = Math.sin(a) * d, z = Math.cos(a) * d, y = GL(x, z), L = 1 + R() * 2.2, dx = (R() - 0.5) * 1.4, dz = (R() - 0.5) * 1.4, ty = y + L;
+          if (R() < 0.75) {
+            f.add(cyl(0.03, 0.035, Math.hypot(dx, L + 0.2, dz), 4), limbM(x, y - 0.2, z, x + dx, ty, z + dz), 0x4a3422);
+            if (R() < 0.55) { const l = Math.hypot(dx, L + 0.2, dz), ux = dx / l, uy = (L + 0.2) / l, uz = dz / l; f.add(cone(0.06, 0.35, 4), limbM(x + dx, ty, z + dz, x + dx + ux * 0.35, ty + uy * 0.35, z + dz + uz * 0.35), 0x8a8e96); }
+          } else f.add(cyl(0.035, 0.03, 1.2, 4), M(x, y + 0.04, z, R() * 3, 1, 1, 1, Math.PI / 2, 0), 0x4a3422);
+        }
+        for (let i = 0; i < 9; i++) { const a = R() * TAU, d = 2 + R() * 16, x = Math.sin(a) * d, z = Math.cos(a) * d, y = GL(x, z); f.add(cyl(0.45, 0.45, 0.06, 10), M(x, y + 0.12, z, R() * 3, 1, 1, 1, 0.2 + R() * 0.3, R() * 0.3), shieldC[i % 5]); f.add(ico(0.1, 0), M(x, y + 0.2, z), IRON); }
+        for (let i = 0; i < 9; i++) { const a = R() * TAU, d = 3 + R() * 15; skeleton(K, Math.sin(a) * d, Math.cos(a) * d, R() * TAU, R); }
+        for (const q of [[-3, -2, 'hangSkull'], [5, -6, 'flagV'], [7.5, 6, 'hangSkull'], [-9, 4, 'flagV']]) {
+          const y = GL(q[0], q[1]), lean = (R() - 0.5) * 0.3, rr = R() * 3, tzz = q[1] + lean * 3;
+          f.add(cyl(0.07, 0.09, 6.5, 5), M(q[0], y + 3, q[1], 0, 1, 1, 1, lean, 0), DWOOD);
+          if (q[2] === 'hangSkull') { bx(f, q[0], y + 5.9, tzz, 1.8, 0.1, 0.1, DWOOD, rr); sFlag('hangSkull', q[0], y + 5.85, tzz, rr, 0.9); } else sFlag('flagV', q[0], y + 6.0, tzz, rr, 1);
+          sCrow(q[0], y + 6.25, q[1] + lean * 3.25); sCol(q[0], q[1], 0.2, y + 6);
+        }
+        const hx = 2, hz = -9.5, hb = new Batch();
+        skull(hb, 0, 0.3, 1.3, 0, 1.6); hb.add(BOX, M(0, 0.25, 1.65, 0, 0.18, 0.14, 0.5), BONE);
+        for (let i = 0; i < 8; i++) hb.add(new T.TorusGeometry(0.4 - Math.abs(i - 3) * 0.03, 0.03, 3, 6, Math.PI), M(0, 0.05, 0.6 - i * 0.2), BONE);
+        for (const s of [-1, 1]) for (const e of [0.5, -1]) hb.add(cyl(0.04, 0.03, 1.1, 4), limbM(s * 0.2, 0.08, e, s * (0.5 + R() * 0.3), 0.05, e + (R() - 0.5) * 0.8), 0xc8bca0);
+        f.merge(hb, M(hx, GL(hx, hz), hz, R() * TAU));
+        for (let i = 0; i < 7; i++) f.add(new T.SphereGeometry(0.2, 6, 3, 0, TAU, 0, Math.PI / 2), M(-2 + (i % 3) * 0.3, GL(-2, 1) + 0.05 + ((i / 3) | 0) * 0.18, 1 + (i % 2) * 0.2), IRON);
+      } },
+    frozen: { b: 'snow', names: ['The Frozen Warrior', 'The Ice-Bound King', 'Hrimgar Unyielding'], loot: [[2.0, 2.6, 'urn'], [-2.6, 3.0, 'corpse', 0.6]],
+      build(K, R) {
+        const f = K.f, ice = iceFn, b = new Batch();
+        bx(f, 0, 0.55, 0, 2.8, 1.1, 2.8, snowy(STONE), 0, 0, 0, 0.1); bx(f, 0, 1.25, 0, 2.2, 0.3, 2.2, snowy(STONE2));
+        for (const s of [-1, 1]) bx(b, s * 0.28, 0.9, 0, 0.36, 1.8, 0.42, ice, 0, 0, s * 0.08);
+        bx(b, 0, 2.35, 0, 1.0, 1.2, 0.6, ice); bx(b, 0, 1.75, 0, 0.9, 0.35, 0.55, ice);
+        for (const s of [-1, 1]) b.add(ico(0.32, 0), M(s * 0.62, 2.85, 0), ice);
+        bx(b, 0, 3.2, 0, 0.26, 0.2, 0.26, ice); b.add(ico(0.28, 1), M(0, 3.45, 0), ice);
+        for (const s of [-1, 1]) b.add(cone(0.08, 0.7, 5), limbM(s * 0.22, 3.55, 0, s * 0.62, 4.05, 0.05), BONE);
+        b.add(lumpy(new T.PlaneGeometry(1.2, 2.4, 2, 3), 0.1, 3), M(0, 2.0, -0.38, 0, 1, 1, 1, 0.1, 0), ice);
+        seg(b, 0.62, 2.8, 0, 0.95, 3.9, 0.25, 0.22, 0.24, ice); seg(b, 0.95, 3.9, 0.25, 0.9, 4.6, 0.3, 0.2, 0.22, ice);
+        seg(b, 0.9, 4.5, 0.3, 0.9, 7.0, 0.35, 0.12, 0.04, 0xc0d0e0); bx(b, 0.9, 4.6, 0.3, 0.55, 0.1, 0.14, ice);
+        seg(b, -0.62, 2.8, 0, -0.85, 2.1, 0.35, 0.22, 0.24, ice); b.add(cyl(0.55, 0.55, 0.1, 10), M(-0.95, 2.2, 0.5, 0, 1, 1, 1, Math.PI / 2 - 0.2, 0), ice);
+        for (let i = 0; i < 6; i++) b.add(cone(0.05, 0.3 + R() * 0.3, 4), M(-0.6 + R() * 1.4, 1.95 - R() * 0.3, 0.2 + R() * 0.2, 0, 1, 1, 1, Math.PI, 0), 0xc8dcf0);
+        f.merge(b, M(0, 1.4, 0, 0, 1.25));
+        K.g.add(ico(0.12, 0), M(0.9 * 1.25, 1.4 + 7.05 * 1.25, 0.35 * 1.25), 0xcfe0ff);
+        sCol(0, 0, 1.6, 10);
+        for (let i = 0; i < 9; i++) { const a = R() * TAU, d = 3.5 + R() * 5, x = Math.sin(a) * d, z = Math.cos(a) * d; f.add(lumpy(ico(0.8, 1), 0.15, i), M(x, GL(x, z) - 0.2, z, R() * 3, 1.2 + R(), 0.4, 1 + R()), 0xd8dce4); }
+      } },
+    caravan: { b: 'snow', names: ['The Crushed Caravan', 'Avalanche Road', "The Merchant's Tomb"], loot: [[2.8, 2.6, 'chest', 0.5], [-3.8, 1.8, 'bag', -0.4], [0.8, -3.8, 'corpse', 2.8]],
+      build(K, R) {
+        const f = K.f, wb = new Batch();
+        bx(wb, 0, 0.7, 0, 3.6, 0.2, 1.8, WOOD2); for (const s of [-1, 1]) bx(wb, 0, 1.0, s * 0.88, 3.6, 0.5, 0.08, WOOD);
+        for (let i = 0; i < 4; i++) wb.add(new T.TorusGeometry(0.9, 0.05, 3, 8, Math.PI * (i === 2 ? 0.45 : 1)), M(-1.4 + i * 0.95, 1.1, 0, Math.PI / 2), DWOOD);
+        wb.add(lumpy(new T.PlaneGeometry(2.6, 2.4, 3, 3), 0.25, 5), M(-0.6, 1.9, 0.3, 0, 1, 1, 1, -1.2, 0.2), 0x7a6a50);
+        wb.add(new T.TorusGeometry(0.55, 0.07, 4, 10), M(1.2, 0.5, 0.95), DWOOD);
+        for (let k = 0; k < 4; k++) wb.add(BOX, M(1.2, 0.5, 0.95, 0, 0.05, 1.05, 0.05, 0, k * Math.PI / 4), DWOOD);
+        f.merge(wb, M(0, -0.1, 0, 0.3, 1, 1, 1, 0.1, -0.35));
+        f.add(new T.TorusGeometry(0.55, 0.07, 4, 10), M(-2.8, GL(-2.8, -1.5) + 0.08, -1.5, 0, 1, 1, 1, Math.PI / 2, 0), DWOOD);
+        for (const q of [[1.9, 1.4, -0.9, 1.3], [-2.0, 1.9, -1.7, 2.0], [3.2, 1.0, -2.6, 1.3]]) f.add(lumpy(ico(1, 1), 0.3, (q[0] * 10) | 0), M(q[0], q[1], q[2], R() * 3, q[3], q[3] * 0.8, q[3]), snowy(rockCol));
+        for (let i = 0; i < 7; i++) { const a = R() * TAU, d = R() * 5, x = Math.sin(a) * d - 1, z = Math.cos(a) * d - 2.5; f.add(lumpy(ico(1, 1), 0.2, i + 60), M(x, GL(x, z) - 0.3, z, R() * 3, 1.5 + R() * 1.5, 0.6 + R() * 0.5, 1.2 + R()), 0xd8dce4); }
+        sCol(1.9, -0.9, 1.2, 2.5); sCol(-2.0, -1.7, 1.8, 3.5); sCol(3.2, -2.6, 1.2, 2.3); sBox(0, 0, 3.6, 1.8, 0.3, 1.5);
+        for (let i = 0; i < 5; i++) { const x = 1.6 + R() * 3, z = -0.4 + R() * 1.6, y = GL(x, z); if (i % 2) crate(f, x, y - 0.1, z, 0.6, R()); else f.add(cyl(0.3, 0.27, 0.8, 8), M(x, y + 0.28, z, R() * 3, 1, 1, 1, Math.PI / 2, 0), 0x5a3a22); }
+        skeleton(K, -4.6, -1.2, 1.2, R, 1.4);
+        f.merge(protos.corpse, M(-2.4, GL(-2.4, 4.0) + 0.02, 4.0, 2.2));
+      } },
+    icecave: { b: 'snow', names: ['The Ice Cave', 'Frostmaw', 'The Blue Throat'], guard: 'troll', guardP: 0.8, loot: [[0.4, 1.0, 'chest'], [3.8, 2.6, 'urn']],
+      build(K, R) {
+        const f = K.f, rk = snowy(rockFnD);
+        for (let i = 0; i < 12; i++) { const a = Math.PI + (i / 11 - 0.5) * 3.4, r = 4.5 + R() * 3.5, s = 2.5 + R() * 3, x = Math.sin(a) * r, z = Math.cos(a) * r - 2; f.add(lumpy(ico(1, 1), 0.35, i), M(x, GL(x, z) + s * 0.25, z, R() * TAU, s, s * (0.7 + R() * 0.5), s), rk, 0.15); sCol(x, z, s * 0.8, s); }
+        f.add(lumpy(ico(1, 1), 0.3, 41), M(0, 2.4, -7, 0, 8, 6.5, 7), rk); sCol(0, -7, 6.6, 7);
+        K.g.add(new T.CircleGeometry(2.8, 10, 0, Math.PI), M(0, -0.2, -1.2), 0x0c1c2c);
+        f.add(lumpy(new T.TorusGeometry(3.2, 0.9, 4, 8, Math.PI), 0.4, 6), M(0, -0.3, -1.3), rk);
+        for (let k = 0; k < 13; k++) { const t = (k + 0.5) / 13 * Math.PI, x = Math.cos(t) * 2.55, y = Math.sin(t) * 2.55 - 0.3, L = 0.4 + R() * 1.0; f.add(cone(0.1, L, 4), M(x, y - L / 2, -0.7, 0, 1, 1, 1, Math.PI, 0), 0xb8d8f0); }
+        for (let k = 0; k < 7; k++) { const x = (R() - 0.5) * 5, z = -0.8 + R() * 1.5; K.g.add(new T.OctahedronGeometry(0.25, 0), M(x, GL(x, z) + 0.3, z, R(), 0.6, 1.6 + R(), 0.6, (R() - 0.5) * 0.6, (R() - 0.5) * 0.6), 0x9ad0ff); }
+        sFire(0, 0.8, -2.2, 0.001, 3, true);
+        bones(K, 0, 1.8, 3, 10, R); skeleton(K, 2.4, 0.6, 2.2, R);
+      } },
+    prayer: { b: 'snow', names: ['The Mountain Shrine', 'Shrine of the Sky-Father', 'The Windprayer Cairn'], loot: [[2.2, 1.8, 'urn'], [-2.6, 2.6, 'bag', 0.4]],
+      build(K, R) {
+        const f = K.f;
+        for (let i = 0; i < 7; i++) f.add(lumpy(ico(1.3 - i * 0.15, 0), 0.15, i), M((R() - 0.5) * 0.3, 0.4 + i * 0.55, (R() - 0.5) * 0.3, R() * 3, 1, 0.7, 1), snowy(stoneFn));
+        f.add(lumpy(new T.BoxGeometry(0.5, 1.2, 0.4, 1, 2, 1), 0.06, 3), M(0, 4.4, 0), stoneFn); f.add(ico(0.3, 0), M(0, 5.2, 0), 0x8a8478);
+        K.g.add(BOX, M(0, 4.5, 0.21, 0, 0.18, 0.18, 0.02, 0, Math.PI / 4), 0xffc040);
+        sCol(0, 0, 1.4, 4.5);
+        const FC = [0x8a1a14, 0xc8a040, 0xd8d0c0, 0x2a4a8a, 0x3a6a3a];
+        for (const q of [[4.6, -2], [-4.4, -2.6], [0.6, -5.2]]) {
+          const y = GL(q[0], q[1]); f.add(cyl(0.06, 0.08, 5, 5), M(q[0], y + 2.4, q[1]), DWOOD); sCol(q[0], q[1], 0.2, y + 5);
+          const ax = q[0], ay = y + 4.8, az = q[1], by = 5.0, n = 9, ry = Math.atan2(az, -ax);
+          seg(f, ax, ay, az, ax / 2, (ay + by) / 2 - 0.8, az / 2, 0.02, 0.02, 0x8a7a5a); seg(f, ax / 2, (ay + by) / 2 - 0.8, az / 2, 0, by, 0, 0.02, 0.02, 0x8a7a5a);
+          for (let i = 1; i < n; i++) { const t = i / n, x = lerp(ax, 0, t), zz = lerp(az, 0, t), yy = lerp(ay, by, t) - (1 - Math.abs(t - 0.5) * 2) * 0.8; K.d.add(new T.PlaneGeometry(0.34, 0.42), M(x, yy - 0.22, zz, ry, 1, 1, 1, 0, (R() - 0.5) * 0.3), FC[i % 5], 0.1); }
+          sCrow(q[0], y + 4.95, q[1]);
+        }
+        for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.4, x = Math.sin(a) * 1.9, z = Math.cos(a) * 1.9; sCandle(K, x, GL(x, z), z, i === 0); }
+        skull(f, 1.0, GL(1.0, 1.4) + 0.12, 1.4, 0.3); f.add(cyl(0.16, 0.1, 0.12, 7), M(-0.9, GL(-0.9, 1.5) + 0.06, 1.5), 0x6a4a2c);
+      } },
+    gskull: { b: 'snow', clear: 15, names: ['The Giant Skull', 'Skull of the Frost Giant', "The Jotun's Skull"], guard: 'troll', guardP: 0.5, loot: [[0, 4.8, 'chest'], [5.0, 2.2, 'corpse', 1.2]],
+      build(K, R) {
+        const f = K.f, bone = (ny, cy, R2) => (ny > 0.55 && R2() < 0.7 ? 0xd8dce4 : [0xd6ccb4, 0xc4b89c, 0xb8ac90][(R2() * 3) | 0]);
+        f.add(lumpy(ico(3.4, 1), 0.3, 7), M(0, 2.4, -1, 0, 1.1, 0.9, 1.2), bone);
+        for (const s of [-1, 1]) f.add(ico(1.0, 0), M(s * 1.35, 2.9, 2.75, 0, 1, 1.1, 0.8), 0x080606);
+        f.add(ico(0.55, 0), M(0, 1.7, 3.35, 0, 0.8, 1.2, 0.6), 0x080606);
+        bx(f, 0, 0.55, 2.2, 4.2, 1.1, 2.4, bone); for (let t = 0; t < 9; t++) f.add(cone(0.18, 0.7, 4), M(-1.8 + t * 0.45, 0.1, 3.35, 0, 1, 1, 1, Math.PI, 0), 0xe0d8c4);
+        for (const s of [-1, 1]) { let px = s * 3.0, py = 3.8, pz = -0.5; for (let k = 0; k < 5; k++) { const nx = px + s * 1.1, ny = py + 0.9 - k * 0.15, nz = pz - 0.6 + k * 0.45, r0 = 0.75 - k * 0.14; f.add(cyl(r0 * 0.8, r0, Math.hypot(nx - px, ny - py, nz - pz) + 0.1, 7), limbM(px, py, pz, nx, ny, nz), (n2, cy, R2) => (R2() < 0.3 ? 0x5a4a38 : 0x4a3c2e)); px = nx; py = ny; pz = nz; } }
+        sCol(0, -1, 3.6, 5); sBox(0, 2.2, 4.2, 2.4, 0, 1.1);
+        bones(K, 0, 5.5, 4, 12, R); sCrow(0.3, 5.5, -0.8);
+      } },
+    falls: { b: 'falls', names: ['The Weeping Falls', 'The Veil of Tears', 'Mossfang Falls'], loot: [], build: (K, R, s) => buildFalls(K, R, s) },
+  };
+  const BIOME_TYPES = { meadow: [], coast: [], forest: [], swamp: [], hills: [], snow: [] };
+  for (const k in TYPES) if (BIOME_TYPES[TYPES[k].b]) BIOME_TYPES[TYPES[k].b].push(k);
+
+  // â”€â”€ Waterfalls (scenic sites on the steepest crag steps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function buildFalls(K, R, s) {
+    const P3 = s.path, n = P3.length / 2, pos = [], uv = [], col = [], idx = [], f = K.f;
+    let acc = 0, px = P3[0], pz = P3[1], ph = heightAt(px, pz);
+    for (let i = 0; i < n; i++) {
+      const x = P3[i * 2], z = P3[i * 2 + 1], j = Math.min(n - 1, i + 1), k = Math.max(0, i - 1);
+      const tx = P3[j * 2] - P3[k * 2], tz = P3[j * 2 + 1] - P3[k * 2 + 1], tl = Math.hypot(tx, tz) || 1, nx = -tz / tl, nz = tx / tl;
+      const h = heightAt(x, z), fall = i < s.base, w = fall ? 1.9 : lerp(1.5, 0.8, Math.min(1, (i - s.base) / 20)), lift = fall ? 0.45 : 0.14;
+      const slope = (heightAt(P3[k * 2], P3[k * 2 + 1]) - heightAt(P3[j * 2], P3[j * 2 + 1])) / (Math.max(1, j - k) * 0.9), wht = clamp(slope / 1.1, 0, 1);
+      acc += Math.hypot(x - px, z - pz, h - ph); px = x; pz = z; ph = h;
+      for (let c = -1; c <= 1; c++) {
+        const ex = x + nx * w * c, ez = z + nz * w * c, v = lerp(0.72, 1.35, wht) * (c ? 0.92 : 1.05);
+        pos.push(ex - s.x, Math.max(heightAt(ex, ez), h) + lift + (c ? 0 : 0.08) - s.y, ez - s.z); uv.push((c + 1) / 2, acc / 3); col.push(v, v, v * (1.05 - wht * 0.1));
+      }
+      if (i) { const b0 = (i - 1) * 3, b1 = i * 3; for (let c = 0; c < 2; c++) idx.push(b0 + c, b1 + c, b0 + c + 1, b0 + c + 1, b1 + c, b1 + c + 1); }
+    }
+    // the pool at the foot (white churn in the middle, dark water at the rim)
+    const bi = Math.min(n - 1, s.base), bxw = P3[bi * 2], bzw = P3[bi * 2 + 1], by = s.poolY, o = pos.length / 3;
+    pos.push(bxw - s.x, by - s.y, bzw - s.z); uv.push(0.5, 0.5); col.push(1.3, 1.3, 1.3);
+    for (let k = 0; k <= 14; k++) { const a = k / 14 * TAU; pos.push(bxw + Math.sin(a) * 4.2 - s.x, by - s.y, bzw + Math.cos(a) * 4.2 - s.z); uv.push(0.5 + Math.sin(a) * 1.4, 0.5 + Math.cos(a) * 1.4); col.push(0.55, 0.62, 0.66); if (k) idx.push(o, o + k, o + k + 1); }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+    // the spring: a mossy rock lip the water breaks out of
+    const ux = P3[0] - P3[2], uz = P3[1] - P3[3], ul = Math.hypot(ux, uz) || 1, sx = ux / ul, sz = uz / ul, h0 = heightAt(P3[0], P3[1]);
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 6 - 0.5) * 2.6, d = 2.2 + R() * 1.4, dx = sx * Math.cos(a) - sz * Math.sin(a), dz = sz * Math.cos(a) + sx * Math.sin(a), x = P3[0] + dx * d, z = P3[1] + dz * d, s2 = 1.2 + R() * 1.2;
+      f.add(lumpy(ico(s2, 1), 0.3, k + 60), M(x - s.x, Math.max(heightAt(x, z), h0) - s.y + s2 * 0.35, z - s.z, R() * 3, 1, 0.8, 1), mossyFn);
+    }
+    f.add(new T.CircleGeometry(1.1, 8, 0, Math.PI), M(P3[0] + sx * 1.4 - s.x, h0 + 0.1 - s.y, P3[1] + sz * 1.4 - s.z, Math.atan2(-sx, -sz)), 0x080808);
+    s.xm = new T.Mesh(g, mats.fall);
+    // foam, rocks and a lip of mossy stones
+    for (let k = 0; k < 9; k++) { const a = R() * TAU, d = 1 + R() * 2.5, x = bxw + Math.sin(a) * d - s.x, z = bzw + Math.cos(a) * d - s.z; f.add(lumpy(ico(0.5 + R() * 0.4, 0), 0.2, k), M(x, by - s.y + 0.1, z, R() * 3, 1, 0.45, 1), 0xd8dcd8); }
+    for (let k = 0; k < 12; k++) { const a = k / 12 * TAU + R() * 0.3, d = 4.4 + R() * 1.2, x = bxw + Math.sin(a) * d - s.x, z = bzw + Math.cos(a) * d - s.z; f.add(lumpy(ico(0.6 + R() * 0.7, 0), 0.25, k + 20), M(x, heightAt(x + s.x, z + s.z) - s.y + 0.1, z, R() * 3, 1, 0.7, 1), mossyFn); }
+    for (let k = 0; k < 6; k++) { const x = P3[0] + (R() - 0.5) * 6 - s.x, z = P3[1] + (R() - 0.5) * 6 - s.z; f.add(lumpy(ico(0.6 + R() * 0.6, 0), 0.25, k + 40), M(x, heightAt(x + s.x, z + s.z) - s.y, z, R() * 3, 1, 0.7, 1), mossyFn); }
+  }
+  function planFalls(R) {
+    const cand = [];
+    for (let z = -1000; z <= 1000; z += 8) for (let x = -1300; x <= 1300; x += 8) {
+      if (coastC(x, z) < 60) continue;
+      weights(x, z, W); if (W.forest + W.hills < 0.75 || W.swamp > 0.1) continue;
+      const h = samp(HG, x, z); if (h < 12) continue;
+      const gx = samp(HG, x + 2, z) - samp(HG, x - 2, z), gz = samp(HG, x, z + 2) - samp(HG, x, z - 2), gl = Math.hypot(gx, gz);
+      if (gl < 0.4) continue;
+      const dx = -gx / gl, dz = -gz / gl, drop = h - samp(HG, x + dx * 10, z + dz * 10), back = samp(HG, x - dx * 10, z - dz * 10) - h;
+      if (drop < 8 || back > 4) continue;
+      cand.push([drop - back * 1.5, x, z]);
+    }
+    cand.sort((a, b) => b[0] - a[0]);
+    const out = [];
+    for (const c of cand) {
+      if (out.length >= 3) break;
+      const x = c[1], z = c[2];
+      if (!poiFar(x, z, 50) || samp(RD, x, z) < 25) continue;
+      if (out.some(o => Math.hypot(o.x - x, o.z - z) < 380) || SITES.some(s => Math.hypot(s.x - x, s.z - z) < 140)) continue;
+      // trace downhill from just behind the lip
+      const path = []; let px = x, pz = z, base = -1, flat = 0;
+      for (let t = 0; t < 4; t++) { const g1 = samp(HG, px + 1.5, pz) - samp(HG, px - 1.5, pz), g2 = samp(HG, px, pz + 1.5) - samp(HG, px, pz - 1.5), l = Math.hypot(g1, g2) || 1; px += g1 / l * 0.8; pz += g2 / l * 0.8; }
+      let dxp = 0, dzp = 0;
+      for (let i = 0; i < 110; i++) {
+        path.push(px, pz);
+        const g1 = samp(HG, px + 1.5, pz) - samp(HG, px - 1.5, pz), g2 = samp(HG, px, pz + 1.5) - samp(HG, px, pz - 1.5), l = Math.hypot(g1, g2);
+        if (l < 1e-4) break;
+        let ddx = -g1 / l, ddz = -g2 / l; if (i) { ddx = ddx * 0.6 + dxp * 0.4; ddz = ddz * 0.6 + dzp * 0.4; const l2 = Math.hypot(ddx, ddz) || 1; ddx /= l2; ddz /= l2; }
+        dxp = ddx; dzp = ddz;
+        const h0 = samp(HG, px, pz); px += ddx * 0.9; pz += ddz * 0.9;
+        const h1 = samp(HG, px, pz); if (h1 < 0.4) break;
+        if (base < 0) { if (i > 4 && (h0 - h1) / 0.9 < 0.22) { if (++flat >= 3) base = path.length / 2 - 2; } else flat = 0; }
+        else if (path.length / 2 - base > 26) break;
+      }
+      if (base < 6) continue;
+      const bxw = path[base * 2], bzw = path[base * 2 + 1], hb = samp(HG, bxw, bzw);
+      stampDisc(bxw, bzw, 8, (i, d) => { const t = sstep(3.8, 8, d); HG[i] = Math.min(HG[i], lerp(hb - 0.6, HG[i], t)); FL[i] *= lerp(0.1, 1, t); });
+      addClear(bxw, bzw, 9); for (let i = 0; i < base; i += 3) addClear(path[i * 2], path[i * 2 + 1], 3.5);
+      out.push({ x: bxw, z: bzw, path, base, poolY: hb - 0.15 });
+    }
+    return out;
+  }
+
+  // â”€â”€ Planning (init, after the heightfield bake) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function poiFar(x, z, m) {
+    for (const p of POIS) { const r = Math.max(p.radius, CLEAR[p.id] || 0) + m; if ((x - p.x) * (x - p.x) + (z - p.z) * (z - p.z) < r * r) return false; }
+    return Math.hypot(x, z + 1250) > 300 + m;
+  }
+  const _nr = [0, 0];
+  function nearestRoad(x, z) {
+    let bd = 1e18;
+    for (const r of roads) for (let i = 0; i < r.n; i += 3) { const d = (r.X[i] - x) * (r.X[i] - x) + (r.Z[i] - z) * (r.Z[i] - z); if (d < bd) { bd = d; _nr[0] = r.X[i]; _nr[1] = r.Z[i]; } }
+    return Math.sqrt(bd);
+  }
+  function slopeOk(x, z, th, r) {
+    if (gridNy(x, z) < th) return false;
+    for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; if (gridNy(x + Math.sin(a) * r, z + Math.cos(a) * r) < th - 0.05) return false; }
+    return true;
+  }
+  const guardFor = (b, R) => (b === 'swamp' ? 'ghoul' : b === 'snow' ? (R() < 0.35 ? 'troll' : 'orc') : b === 'hills' ? (R() < 0.5 ? 'orc' : 'bandit') : b === 'forest' ? (R() < 0.6 ? 'bandit' : 'orc') : 'bandit');
+  function addLoot(o) {
+    o.opened = !!chestSt[o.id]; o.guarded = false; o.ch = null; o.io = null; o.li = o.gi = o.ui = -1; o.y = 0;
+    LOOT.push(o);
+    const k = ckey(Math.floor(o.x / CH), Math.floor(o.z / CH)); let a = LOOTB.get(k); if (!a) LOOTB.set(k, (a = [])); a.push(o);
+    addClear(o.x, o.z, 2.2);
+  }
+  function planSites() {
+    try { if (!localStorage.getItem('crimsonThrone.save') && !localStorage.getItem('crimsonThrone.pois')) { localStorage.removeItem(LS_SITES); localStorage.removeItem(LS_CHESTS); } } catch (e) {}
+    siteSt = lsGet(LS_SITES); chestSt = lsGet(LS_CHESTS);
+    const R = CT.rng(0x51735), used = {};
+    for (let t = 0; t < 60000 && SITES.length < 58; t++) {
+      const x = (R() * 2 - 1) * 1380, z = (R() * 2 - 1) * 1380, c0 = coastC(x, z);
+      if (c0 < 24 || !poiFar(x, z, 40) || samp(RD, x, z) < 16) continue;
+      let near = false; for (const s of SITES) if ((s.x - x) * (s.x - x) + (s.z - z) * (s.z - z) < 175 * 175) { near = true; break; }
+      if (near) continue;
+      const h = heightAt(x, z), b = biomeAt(x, z);
+      if (b === 'citadel') continue;
+      const sw = b === 'swamp';
+      if (sw ? h < -0.25 : h < 1.2) continue;
+      if (!slopeOk(x, z, b === 'snow' ? 0.74 : 0.8, 7)) continue;
+      const bk = b === 'coast' ? 'meadow' : b;
+      let list = BIOME_TYPES[bk];
+      if (c0 < 120 && (b === 'coast' || b === 'meadow' || b === 'hills') && R() < 0.6) list = (cliffK(x, z) > 0.3 || h > 8) ? ['seacave', 'lighthouse'] : ['seacave'];
+      let tp = null, bu = 1e9;
+      for (const k of list) { const u = (used[k] || 0) + R() * 0.5; if (u < bu) { bu = u; tp = k; } }
+      used[tp] = (used[tp] || 0) + 1;
+      const T2 = TYPES[tp], coast = T2.b === 'coast';
+      let rot;
+      if (coast) rot = Math.atan2(x, z);
+      else { const d = nearestRoad(x, z); rot = d < 170 ? faceTo(x, z, _nr[0], _nr[1]) : R() * TAU; }
+      if (!T2.noFlat) {
+        let th = 0; for (let k = 0; k < 9; k++) { const a = k / 8 * TAU, rr = k ? 6 : 0; th += samp(HG, x + Math.sin(a) * rr, z + Math.cos(a) * rr); } th /= 9;
+        stampDisc(x, z, 20, (i, d) => { const t2 = sstep(9, 20, d); HG[i] = lerp(th, HG[i], t2); FL[i] *= lerp(0.25, 1, t2); });
+      }
+      const id = 's' + SITES.length;
+      SITES.push({ id, name: T2.names[(used[tp] - 1) % T2.names.length], x: +x.toFixed(1), z: +z.toFixed(1), type: tp, biome: b, found: !!siteSt[id], rot, y: 0, seed: 1000 + SITES.length * 7919, built: false, vis: false, grp: null, fr: null, flags: null, crows: null, xm: null });
+      addClear(x, z, T2.clear || 13);
+    }
+    // waterfalls
+    planFalls(R).forEach((w, i) => {
+      const id = 'w' + i, T2 = TYPES.falls;
+      SITES.push({ id, name: T2.names[i % T2.names.length], x: +w.x.toFixed(1), z: +w.z.toFixed(1), type: 'falls', biome: biomeAt(w.x, w.z), found: !!siteSt[id], rot: 0, y: 0, seed: 77 + i * 131, built: false, vis: false, grp: null, fr: null, flags: null, crows: null, xm: null, path: w.path, base: w.base, poolY: w.poolY });
+    });
+    for (const s of SITES) s.y = heightAt(s.x, s.z);
+    // site loot
+    for (const s of SITES) {
+      const T2 = TYPES[s.type], c = Math.cos(s.rot), sn = Math.sin(s.rot);
+      let first = true;
+      const list = s.type === 'falls' ? (() => { const P3 = s.path, i = Math.max(0, s.base - 1), tx = P3[s.base * 2] - P3[i * 2], tz = P3[s.base * 2 + 1] - P3[i * 2 + 1], tl = Math.hypot(tx, tz) || 1; return [[-tz / tl * 6.6, tx / tl * 6.6, 'chest', Math.atan2(tz, -tx)]]; })() : T2.loot;
+      list.forEach((q, k) => {
+        const lx = q[0], lz = q[1], x = s.type === 'falls' ? s.x + lx : s.x + lx * c + lz * sn, z = s.type === 'falls' ? s.z + lz : s.z - lx * sn + lz * c;
+        const kind = q[2], chest = kind === 'chest';
+        let guard = null;
+        if (chest && first && T2.guard && R() < (T2.guardP || 0.7)) guard = T2.guard;
+        if (chest) first = false;
+        const blood = chest && (!!q[4] || R() < 0.2);
+        addLoot({ id: s.id + 'c' + k, kind, x, z, ry: s.type === 'falls' ? q[3] : s.rot + (q[3] || 0), guard, blood, site: s.id });
+      });
+    }
+    // scattered loot: saddlebags and the fallen along the roads, caches in the wild
+    const okAt = (x, z, gap) => {
+      if (coastC(x, z) < 12 || !poiFar(x, z, 12)) return false;
+      const h = heightAt(x, z); if (h < 0.4 || gridNy(x, z) < 0.8) return false;
+      for (const s of SITES) if ((s.x - x) * (s.x - x) + (s.z - z) * (s.z - z) < 35 * 35) return false;
+      for (const o of LOOT) if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < gap * gap) return false;
+      return true;
+    };
+    let ri = 0;
+    for (const r of roads) for (let i = 50; i < r.n - 50; i += 85) {
+      if (R() > 0.6) continue;
+      const j = Math.min(r.n - 1, i + 2), tx = r.X[j] - r.X[i], tz = r.Z[j] - r.Z[i], tl = Math.hypot(tx, tz) || 1, sd = R() < 0.5 ? -1 : 1, off = 5 + R() * 3;
+      const x = r.X[i] - tz / tl * off * sd, z = r.Z[i] + tx / tl * off * sd;
+      if (samp(RD, x, z) < 4.5 || !okAt(x, z, 60)) continue;
+      const kind = R() < 0.55 ? 'bag' : 'corpse';
+      addLoot({ id: 'r' + ri++, kind, x, z, ry: faceTo(x, z, r.X[i], r.Z[i]) + (kind === 'corpse' ? R() * 2 - 1 : 0), guard: null, blood: false, site: null });
+    }
+    let wi = 0;
+    for (let t = 0; t < 6000 && wi < 42; t++) {
+      const x = (R() * 2 - 1) * 1350, z = (R() * 2 - 1) * 1350;
+      if (samp(RD, x, z) < 7 || !okAt(x, z, 90)) continue;
+      const b = biomeAt(x, z); if (b === 'citadel') continue;
+      const u = R(), kind = u < 0.36 ? 'chest' : u < 0.66 ? 'corpse' : u < 0.86 ? 'urn' : 'rack';
+      const guard = kind === 'chest' && z < 880 && R() < 0.4 ? guardFor(b, R) : null;
+      addLoot({ id: 'x' + wi++, kind, x, z, ry: R() * TAU, guard, blood: kind === 'chest' && R() < 0.2, site: null });
+    }
+  }
+
+  // â”€â”€ Loot in the chunks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const LABEL = { chest: 'Open Chest', urn: 'Smash Urn', corpse: 'Search the Fallen', rack: 'Take from the Weapon Rack', bag: 'Search the Saddlebags' };
+  let pendReg = false;
+  function putI(ch, name, x, y, z, ry, sx, sy, sz, cr, cg, cb, rx, rz) {
+    const L0 = ch.inst[name], n0 = L0 ? L0.n : 0;
+    put(ch, name, x, y, z, ry, sx, sy, sz, cr, cg, cb, rx, rz);
+    const L = ch.inst[name]; return L && L.n > n0 ? n0 : -1;
+  }
+  function setI(ch, name, i, x, y, z, ry, sx, sy, sz, rx, rz) {
+    const L = ch.inst[name]; if (!L || i < 0 || i >= L.n) return;
+    _e.set(rx || 0, ry, rz || 0); _q.setFromEuler(_e); _p.set(x, y, z); _s.set(sx, sy, sz);
+    _m.compose(_p, _q, _s); _m.toArray(L.m, i * 16); pools[name].dirty = true;
+  }
+  function lidSet(c, ang) {
+    const s = c.blood ? 1.2 : 1, sn = Math.sin(c.ry), co = Math.cos(c.ry);
+    setI(c.ch, 'lid', c.li, c.x - sn * 0.36 * s, c.y + 0.62 * s, c.z - co * 0.36 * s, c.ry, s, s, s, -ang, 0);
+  }
+  function lootChunk(ch) {
+    unregLoot(ch);
+    if (ch.lod !== 1) return;
+    const L = LOOTB.get(ch.key); if (!L) return;
+    for (const c of L) {
+      const y = (c.y = heightAt(c.x, c.z) - 0.02), ry = c.ry;
+      c.li = c.gi = c.ui = -1;
+      if (c.kind === 'chest') {
+        const s = c.blood ? 1.2 : 1, sn = Math.sin(ry), co = Math.cos(ry);
+        put(ch, c.blood ? 'bchest' : 'chest', c.x, y, c.z, ry, s, s, s, 1, 1, 1);
+        c.li = putI(ch, 'lid', c.x - sn * 0.36 * s, y + 0.62 * s, c.z - co * 0.36 * s, ry, s, s, s, c.blood ? 0.8 : 1, c.blood ? 0.32 : 1, c.blood ? 0.3 : 1, c.opened ? -1.95 : 0, 0);
+        addCol(ch, c.x, c.z, 0.5 * s, y + 0.8 * s);
+      } else if (c.kind === 'urn') { c.ui = putI(ch, 'urn', c.x, y, c.z, ry, 1, c.opened ? 0.4 : 1, 1, 1, 1, 1, c.opened ? 0.25 : 0, 0); addCol(ch, c.x, c.z, 0.3, y + 0.8); }
+      else if (c.kind === 'rack') { put(ch, 'rack', c.x, y, c.z, ry, 1, 1, 1, 1, 1, 1); const k = c.opened ? 0 : 1; c.ui = putI(ch, 'rackw', c.x, y, c.z, ry, k, k, k, 1, 1, 1); addCol(ch, c.x, c.z, 0.45, y + 1.5); }
+      else put(ch, c.kind, c.x, y, c.z, ry, 1, 1, 1, 1, 1, 1);
+      if (!c.opened) c.gi = putI(ch, 'glint', c.x, y + (c.kind === 'corpse' || c.kind === 'bag' ? 0.4 : c.kind === 'rack' ? 1.0 : 0.8), c.z, 0, 0.9, 0.9, 0.9, 1, c.blood ? 0.2 : 0.72, c.blood ? 0.1 : 0.28);
+      c.ch = ch; ch.loot.push(c);
+    }
+    regLoot(ch);
+  }
+  const useLoot = o => openC(o.c);
+  function regLoot(ch) {
+    if (!CT.interactables || typeof CT.interactables.add !== 'function') { if (ch.loot.length) pendReg = true; return; }
+    for (const c of ch.loot) if (!c.io) c.io = CT.interactables.add({ x: c.x, z: c.z, radius: 2.2, label: c.blood ? 'Open Blood Chest' : LABEL[c.kind], onUse: useLoot, disabled: c.opened, c });
+  }
+  function unregLoot(ch) {
+    for (const c of ch.loot) { if (c.io && CT.interactables && CT.interactables.remove) CT.interactables.remove(c.io); c.io = null; c.ch = null; }
+    ch.loot.length = 0;
+  }
+  function rollLoot(c) {
+    const out = [], RN = Math.random, t = clamp((1250 - c.z) / 2300, 0, 1) + (c.blood ? 0.3 : 0), rr = (a, b) => a + Math.floor(RN() * (b - a + 1)), k = 1 + t * 2.2;
+    let gold = 0;
+    const has = id => !!(CT.rpg && typeof CT.rpg.has === 'function' && CT.rpg.has(id));
+    const gear = weaponOnly => {
+      let id;
+      if (t > 0.6 && RN() < (c.blood ? 0.14 : weaponOnly ? 0.08 : 0.04)) id = 'greatsword';
+      else {
+        const L = t < 0.3 ? ['handaxe', 'dagger', 'furs', 'handaxe'] : t < 0.6 ? ['handaxe', 'dagger', 'steelsword', 'furs', 'mail'] : ['steelsword', 'mace', 'mail', 'steelsword', 'mace', 'dagger'];
+        const L2 = weaponOnly ? L.filter(q => C.ITEMS[q].kind === 'weapon') : L; id = L2[(RN() * L2.length) | 0];
+      }
+      if (has(id) || out.indexOf(id) >= 0) gold += Math.max(10, Math.round((C.ITEMS[id].price || 30) * 0.4)); else out.push(id, 1);
+    };
+    const potion = p => { if (RN() < p) out.push(t > 0.35 && RN() < 0.45 ? 'bigpotion' : 'potion', 1); };
+    switch (c.kind) {
+      case 'chest': gold += Math.round(rr(8, 22) * k); potion(0.65); if (c.blood || RN() < 0.3) gear(false); if (c.blood) { gold += Math.round(rr(12, 25) * k); out.push('bigpotion', 1); if (RN() < 0.5) gear(false); } break;
+      case 'urn': if (RN() < 0.85) gold += Math.round(rr(2, 9) * k); potion(0.3); break;
+      case 'corpse': gold += Math.round(rr(3, 12) * k); potion(0.45); if (RN() < 0.2) gear(false); break;
+      case 'rack': gear(true); if (RN() < 0.25) gear(true); break;
+      case 'bag': gold += Math.round(rr(4, 14) * k); potion(0.5); if (RN() < 0.12 && !has('furs')) out.push('furs', 1); break;
+    }
+    if (gold > 0) out.unshift('gold', gold);
+    return out;
+  }
+  function grantItem(id, n) {
+    const r = CT.rpg; if (!r) return;
+    if (typeof r.grant === 'function') r.grant(id, n);
+    else if (typeof r.give === 'function' && r.give(id, n)) CT.bus.emit('loot', { item: id, count: n });
+  }
+  function openC(c) {
+    if (!c || c.opened) return;
+    c.opened = true; if (c.io) c.io.disabled = true;
+    chestSt[c.id] = 1; lsSet(LS_CHESTS, chestSt);
+    const ch = c.ch;
+    if (ch) {
+      if (c.gi >= 0) setI(ch, 'glint', c.gi, c.x, c.y, c.z, 0, 0, 0, 0);
+      if (c.kind === 'urn') setI(ch, 'urn', c.ui, c.x, c.y, c.z, c.ry, 1, 0.4, 1, 0.25, 0);
+      if (c.kind === 'rack') setI(ch, 'rackw', c.ui, c.x, c.y, c.z, c.ry, 0, 0, 0);
+    }
+    if (c.kind === 'chest') anims.push({ c, t: 0 });
+    _sv.set(c.x, c.y + 0.6, c.z);
+    if (CT.audio && typeof CT.audio.sfx === 'function') { if (c.kind === 'urn') CT.audio.sfx('bone', { pos: _sv }); CT.audio.sfx('loot', { pos: _sv }); }
+    if (c.blood) CT.bus.emit('notify', { text: 'The Blood Chest yields its hoard', kind: 'loot' });
+    const items = rollLoot(c);
+    for (let i = 0; i < items.length; i += 2) grantItem(items[i], items[i + 1]);
+    if (!items.length) CT.bus.emit('notify', { text: 'Nothing but dust and old bones', kind: 'info' });
+    if (CT.rpg && typeof CT.rpg.save === 'function') CT.rpg.save();
+  }
+  const GUARDS = { bandit: 3, ghoul: 4, orc: 2, troll: 1 };
+  const GTXT = { bandit: 'Bandits guard this stash!', ghoul: 'The dead rise to guard their hoard!', orc: 'Orcs guard this stash!', troll: 'A troll guards this hoard!' };
+  function spawnGuards(c) {
+    c.guarded = true;
+    const Mo = CT.monsters; if (!Mo || typeof Mo.spawn !== 'function') return;
+    const n = GUARDS[c.guard] || 2, a0 = Math.random() * TAU;
+    for (let i = 0; i < n; i++) { const a = a0 + i / n * TAU, r = 4 + Math.random() * 3; Mo.spawn(c.guard, c.x + Math.sin(a) * r, c.z + Math.cos(a) * r, { rise: c.guard === 'ghoul', yaw: a + Math.PI }); }
+    CT.bus.emit('notify', { text: GTXT[c.guard] || 'Guardians stir', kind: 'info' });
+  }
+  function discoverSite(s) {
+    s.found = true; siteSt[s.id] = 1; lsSet(LS_SITES, siteSt);
+    CT.bus.emit('notify', { text: 'DISCOVERED: ' + s.name, kind: 'discover' });
+    if (CT.audio && typeof CT.audio.sfx === 'function') CT.audio.sfx('discover');
+    if (CT.rpg && typeof CT.rpg.addXp === 'function') { CT.rpg.addXp(20); CT.bus.emit('notify', { text: '+20 XP', kind: 'xp' }); }
+  }
+  function resetSites() {
+    siteSt = {}; chestSt = {}; lsSet(LS_SITES, siteSt); lsSet(LS_CHESTS, chestSt);
+    for (const s of SITES) s.found = false;
+    for (const c of LOOT) { c.opened = false; c.guarded = false; }
+    anims.length = 0;
+    for (const ch of active) if (LOOTB.has(ch.key)) buildChunk(ch);
+  }
+
+  // â”€â”€ Site meshes, lazily built; shared instanced fires, crows and banners â”€â”€â”€
+  const SF_CAP = 256, CROW_CAP = 96, FLAG_CAP = 48;
+  let sfMesh = null, shMesh = null, crowMesh = null, silMesh = null;
+  const sflagMesh = {}, FLAGDEF = { flagV: [2, false], flagHand: [1, false], hangSkull: [0, true] }, _fc = { flagV: 0, flagHand: 0, hangSkull: 0 };
+  function buildSite(s) {
+    s.built = true;
+    const K = kit(), R = CT.rng(s.seed), f0 = fires.length, t0 = performance.now();
+    cs = s; cC = Math.cos(s.rot); cSn = Math.sin(s.rot); s.flags = []; s.crows = [];
+    try { TYPES[s.type].build(K, R, s); } catch (e) { console.error('[CT.world site ' + s.type + ']', e); }
+    cs = null;
+    s.fr = fires.slice(f0).filter(f => f.s > 0.01);
+    K.f.merge(K.d, IDM);
+    const grp = new T.Group();
+    if (!K.f.empty) grp.add(new T.Mesh(K.f.geo(), mats.flat2));
+    if (!K.g.empty) grp.add(new T.Mesh(K.g.geo(), mats.glow));
+    if (s.xm) grp.add(s.xm);
+    grp.position.set(s.x, s.y, s.z); grp.rotation.y = s.rot; grp.updateMatrix(); grp.matrixAutoUpdate = false;
+    grp.children.forEach(m => { m.matrixAutoUpdate = false; });
+    grp.visible = false; s.vis = false; scene.add(grp); s.grp = grp;
+    s.ms = +(performance.now() - t0).toFixed(1);
+  }
+  function refreshSiteInst() {
+    let nf = 0, nc = 0;
+    for (const k in _fc) _fc[k] = 0;
+    for (const s of SITES) {
+      if (!s.vis) continue;
+      for (const f of s.fr) {
+        if (nf >= SF_CAP) break;
+        const t = FIRE_TINT[f.tint];
+        _e.set(0, nf, 0); _q.setFromEuler(_e); _p.set(f.x, f.y, f.z); _s.set(f.s, f.s * 1.25, f.s); _m.compose(_p, _q, _s); sfMesh.setMatrixAt(nf, _m);
+        sfMesh.setColorAt(nf, _col.setRGB(t[0], t[1], t[2]));
+        _p.set(f.x, f.y + f.s * 0.5, f.z); _s.setScalar(f.s * 4.2); _q.identity(); _m.compose(_p, _q, _s); shMesh.setMatrixAt(nf, _m);
+        shMesh.setColorAt(nf, _col.setRGB(t[0], t[1] * 0.55, t[2] * 0.3));
+        nf++;
+      }
+      const cr = s.crows;
+      for (let i = 0; i < cr.length && nc < CROW_CAP; i += 4) { _e.set(0, cr[i + 3], 0); _q.setFromEuler(_e); _p.set(cr[i], cr[i + 1], cr[i + 2]); _s.setScalar(1.35); _m.compose(_p, _q, _s); crowMesh.setMatrixAt(nc++, _m); }
+      const fl = s.flags;
+      for (let i = 0; i < fl.length; i += 6) {
+        const nm = fl[i], m = sflagMesh[nm]; if (!m || _fc[nm] >= FLAG_CAP) continue;
+        _e.set(0, fl[i + 4], 0); _q.setFromEuler(_e); _p.set(fl[i + 1], fl[i + 2], fl[i + 3]); _s.setScalar(fl[i + 5]); _m.compose(_p, _q, _s); m.setMatrixAt(_fc[nm]++, _m);
+      }
+    }
+    for (const m of [sfMesh, shMesh]) { m.count = nf; m.visible = nf > 0; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
+    crowMesh.count = nc; crowMesh.visible = nc > 0; crowMesh.instanceMatrix.needsUpdate = true;
+    for (const k in sflagMesh) { const m = sflagMesh[k]; m.count = _fc[k]; m.visible = _fc[k] > 0; m.instanceMatrix.needsUpdate = true; }
+  }
+  function initSiteMeshes() {
+    const fg = geoFire(), hg = new T.PlaneGeometry(1, 1);
+    sfMesh = new T.InstancedMesh(fg, mats.fire, SF_CAP); shMesh = new T.InstancedMesh(hg, mats.halo, SF_CAP);
+    for (const m of [sfMesh, shMesh]) { m.instanceColor = new T.InstancedBufferAttribute(new Float32Array(SF_CAP * 3).fill(1), 3); m.count = 0; m.visible = false; m.frustumCulled = false; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); }
+    shMesh.renderOrder = 6;
+    crowMesh = new T.InstancedMesh(geoCrow(), crowMat(), CROW_CAP); crowMesh.count = 0; crowMesh.visible = false; crowMesh.frustumCulled = false; scene.add(crowMesh);
+    for (const k in FLAGDEF) { const d = FLAGDEF[k], m = new T.InstancedMesh(flagGeo(d[0], d[1]), d[1] ? mats.hang : mats.flag, FLAG_CAP); m.count = 0; m.visible = false; m.frustumCulled = false; scene.add(m); sflagMesh[k] = m; }
+    // loot pools (one draw call per kind, only while a fine chunk holds one)
+    protos.corpse = corpseB(); protos.hanged = hangedB();
+    pool('chest', chestB(false).geo(), mats.flat2, 8, 96);
+    pool('bchest', chestB(true).geo(), mats.flat2, 4, 32);
+    pool('lid', lidB().geo(), mats.flat2, 10, 128);
+    pool('urn', urnB().geo(), mats.flat2, 8, 96);
+    pool('rack', rackB().geo(), mats.flat2, 4, 48);
+    pool('rackw', rackWB().geo(), mats.flat2, 4, 48);
+    pool('corpse', protos.corpse.geo(), mats.flat2, 8, 96);
+    pool('bag', bagB().geo(), mats.flat2, 8, 96);
+    pool('glint', new T.PlaneGeometry(1, 1), mats.glint, 16, 160);
+    pools.glint.m.renderOrder = 6;
+    // far silhouettes of the tall sites (drawn with the far LOD, sunk out of sight near the camera)
+    const sb = new Batch();
+    for (const s of SITES) {
+      const t = TYPES[s.type]; if (!t.tall) continue;
+      const lz = t.silZ || 0, x = s.x + lz * Math.sin(s.rot), z = s.z + lz * Math.cos(s.rot);
+      sb.add(cyl(t.silR * 0.8, t.silR, t.tall, 6), M(x, s.y + t.tall / 2 - 0.5, z), 0x1e1a1e);
+      if (s.type === 'mill') for (let k = 0; k < 2; k++) sb.add(BOX, M(x + Math.sin(s.rot) * 2.6, s.y + 8.4, z + Math.cos(s.rot) * 2.6, s.rot, 0.4, 11, 0.3, 0, k * Math.PI / 2 + 0.6), 0x1e1a1e);
+      if (s.type === 'lookout') sb.add(cone(3, 2.4, 4), M(x, s.y + t.tall, z, s.rot + Math.PI / 4), 0x1e1a1e);
+    }
+    if (!sb.empty) { silMesh = new T.Mesh(sb.geo(), mats.sil); silMesh.frustumCulled = false; silMesh.renderOrder = 6; late.add(silMesh); }
+  }
+  let siteT = 0, siteFirst = true, lastNF = -1, precompiled = false;
+  // Compile the site programs once (behind the title screen), so the first crow, chest or waterfall does not stall a frame.
+  function precompileSites() {
+    precompiled = true;
+    const r = core && core.renderer; if (!r || typeof r.compile !== 'function') return;
+    const probe = new T.Mesh(new T.PlaneGeometry(1, 1), mats.fall); probe.frustumCulled = false; scene.add(probe);
+    const objs = [crowMesh, pools.chest.m, pools.glint.m, silMesh, sfMesh, shMesh].filter(Boolean), vis = objs.map(o => o.visible);
+    objs.forEach(o => { o.visible = true; });
+    try { r.compile(scene, core.camera); } catch (e) {}
+    objs.forEach((o, i) => { o.visible = vis[i]; });
+    scene.remove(probe); probe.geometry.dispose();
+  }
+  function updateSites(dt, c, cam, jump) {
+    if (!precompiled) precompileSites();
+    for (let i = anims.length - 1; i >= 0; i--) {
+      const a = anims[i]; a.t += dt;
+      const k = Math.min(1, a.t / 0.6), e = 1 - (1 - k) * (1 - k) * (1 - k), ang = 1.95 * e + Math.sin(k * Math.PI) * 0.18;
+      if (a.c.ch && a.c.li >= 0) lidSet(a.c, ang);
+      if (k >= 1) { anims[i] = anims[anims.length - 1]; anims.pop(); }
+    }
+    if (pendReg && CT.interactables && typeof CT.interactables.add === 'function') { pendReg = false; for (const ch of active) if (ch.loot.length) regLoot(ch); }
+    if (fallTex) { fallTex.offset.y -= dt * 1.3; if (fallTex.offset.y < -1) fallTex.offset.y += 1; }
+    siteT -= dt;
+    if (siteT > 0 && !jump && !siteFirst) return;
+    siteT = 0.2;
+    const all = jump || siteFirst; siteFirst = false;
+    const br = (viewR + 60) * (viewR + 60);
+    let best = null, bd = br;
+    for (const s of SITES) {
+      if (s.built) continue;
+      const d = (s.x - cam.x) * (s.x - cam.x) + (s.z - cam.z) * (s.z - cam.z);
+      if (d < bd) { if (all) buildSite(s); else { bd = d; best = s; } }
+    }
+    if (best) buildSite(best);
+    const vr = (Math.min(viewR, 260) + 25) * (Math.min(viewR, 260) + 25);
+    let changed = false;
+    for (const s of SITES) {
+      if (!s.built) continue;
+      const v = (s.x - cam.x) * (s.x - cam.x) + (s.z - cam.z) * (s.z - cam.z) < vr;
+      if (v !== s.vis) { s.vis = v; s.grp.visible = v; changed = true; }
+    }
+    if (changed) refreshSiteInst();
+    if (c.state !== 'PLAY') return;
+    let nf = 0; for (const p of POIS) if (p.found) nf++;
+    if (lastNF > 0 && nf === 0) resetSites();
+    lastNF = nf;
+    for (const s of SITES) if (!s.found && (s.x - cam.x) * (s.x - cam.x) + (s.z - cam.z) * (s.z - cam.z) < 625) discoverSite(s);
+    for (const ch of active) for (const cc of ch.loot) {
+      if (cc.opened || !cc.guard || cc.guarded) continue;
+      if ((cc.x - cam.x) * (cc.x - cam.x) + (cc.z - cam.z) * (cc.z - cam.z) < 900) spawnGuards(cc);
+    }
+  }
+  let fallTex = null;
+
+  // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const protos = {};
   let fireMesh = null, haloMesh = null, smokeMesh = null, road = null, far = null, late = null;
   function loadFound() {
@@ -1878,6 +3051,8 @@ window.CT = window.CT || {};
     late = new T.Group(); late.renderOrder = 6; scene.add(late);
     colors(); bake();
     const tBake = performance.now() - t0;
+    planSites();
+    const tPlan = performance.now() - t0 - tBake;
     loadFound();
     const detail = detailTex();
     mats = {
@@ -1897,9 +3072,13 @@ window.CT = window.CT || {};
       halo: haloMat(glowTex()),
       mist: new T.MeshBasicMaterial({ map: fogTex(), color: 0x7a806e, transparent: true, opacity: 0.5, depthWrite: false }),
       smoke: new T.MeshLambertMaterial({ color: 0x3a3634, flatShading: true, transparent: true, opacity: 0.55, depthWrite: false }),
+      glint: haloMat(glowTex()),
+      sil: warpify(new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }), { dip: 45, key: 'sil', fogMax: 0.3, fog0: 0.6, fog1: 1.7 }),
     };
+    fallTex = fallTexture();
+    mats.fall = new T.MeshLambertMaterial({ map: fallTex, vertexColors: true, color: 0xc8d8e0, emissive: 0x1a2a32, side: T.DoubleSide });
     // far LOD + citadel draw in the transparent pass (opaque look) so they sit in front of the sky's storm crown
-    for (const k of ['far', 'cflat', 'cglow']) { mats[k].transparent = true; mats[k].opacity = 1; mats[k].depthWrite = true; }
+    for (const k of ['far', 'cflat', 'cglow', 'sil']) { mats[k].transparent = true; mats[k].opacity = 1; mats[k].depthWrite = true; }
     const btex = bannerTex();
     mats.flag = flutter(new T.MeshLambertMaterial({ map: btex, side: T.DoubleSide, alphaTest: 0.5 }), false);
     mats.hang = flutter(new T.MeshLambertMaterial({ map: btex, side: T.DoubleSide, alphaTest: 0.5 }), true);
@@ -1965,6 +3144,7 @@ window.CT = window.CT || {};
     for (let i = 0; i < 4; i++) { const l = new T.PointLight(0xff8a30, 0, 26, 1.6); l.userData.f = null; scene.add(l); lights.push(l); }
     // chimney smoke
     smokeMesh = new T.InstancedMesh(new T.IcosahedronGeometry(0.6, 0), mats.smoke, 120); smokeMesh.count = 0; smokeMesh.frustumCulled = false; smokeMesh.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(smokeMesh);
+    initSiteMeshes();
     // road, far LOD, sea
     road = roadMesh(); scene.add(road);
     far = farMesh(); late.add(far);
@@ -1973,13 +3153,13 @@ window.CT = window.CT || {};
     idxFine = gridIndex(NF); idxCoarse = gridIndex(NCs);
     const t2 = performance.now();
     stream(1e6);
-    CT.world.stats = { bake: Math.round(tBake), poi: Math.round(tPoi), chunks: Math.round(performance.now() - t2), total: Math.round(performance.now() - t0) };
+    CT.world.stats = { bake: Math.round(tBake), plan: Math.round(tPlan), poi: Math.round(tPoi), chunks: Math.round(performance.now() - t2), total: Math.round(performance.now() - t0) };
     lastCam.copy(core.camera.position);
   }
 
-  // ── Update ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const lastCam = new T.Vector3();
-  let poiT = 0, lightT = 0;
+  let poiT = 0, lightT = 0, sitesBroken = false;
   const near4 = [null, null, null, null], nearD = [0, 0, 0, 0];
   function update(dt, c) {
     core = c; U.time.value += dt;
@@ -2016,6 +3196,7 @@ window.CT = window.CT || {};
       }
     }
     smokeMesh.count = n; smokeMesh.instanceMatrix.needsUpdate = true;
+    if (!sitesBroken) { try { updateSites(dt, c, cam, jump); } catch (e) { sitesBroken = true; console.error('[CT.world.sites]', e); } }
     // discovery
     poiT -= dt;
     if (poiT <= 0 && c.state === 'PLAY') {
@@ -2027,7 +3208,7 @@ window.CT = window.CT || {};
     }
   }
 
-  // ── Collision + queries ────────────────────────────────────────────────────
+  // â”€â”€ Collision + queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function pushCircle(pos, rad, x, z, r) {
     const dx = pos.x - x, dz = pos.z - z, d2 = dx * dx + dz * dz, rr = r + rad;
     if (d2 >= rr * rr) return;
@@ -2112,9 +3293,21 @@ window.CT = window.CT || {};
   function interiorAt(x, z) { for (const o of interiors) if (inBox(o, x, z)) return true; return false; }
 
   CT.world = {
-    init, update, heightAt, normalAt, biomeAt, waterAt, collide, raycast, interiorAt,
+    init, update, heightAt, normalAt, biomeAt, waterAt, collide, raycast, interiorAt, resetSites,
     pois: POIS, spots, roads,
-    _dbg: () => ({ hg: (x, z) => samp(HG, x, z), fl: (x, z) => samp(FL, x, z), seaTex, mats, far, sea, road, fireMesh, haloMesh, smokeMesh, poiMeshes, pools, fires, flags, active, late }),
+    sites: SITES,   // [{id, name, x, z, type, biome, found}]: minor landmarks for the map UI (found = discovered)
+    loot: LOOT,     // [{id, kind, x, z, opened, guard, blood}]: every loot container on the isle
+    siteInfo() {
+      const by = {}, kinds = {}; let reg = 0, blood = 0, guarded = 0;
+      SITES.forEach(s => { by[s.biome] = (by[s.biome] || 0) + 1; });
+      LOOT.forEach(c => { kinds[c.kind] = (kinds[c.kind] || 0) + 1; if (c.io) reg++; if (c.blood) blood++; if (c.guard) guarded++; });
+      let calls = 0;
+      SITES.forEach(s => { if (s.vis) calls += s.grp.children.length; });
+      [sfMesh, shMesh, crowMesh, silMesh, ...Object.values(sflagMesh)].forEach(m => { if (m && m.visible) calls++; });
+      ['chest', 'bchest', 'lid', 'urn', 'rack', 'rackw', 'corpse', 'bag', 'glint'].forEach(k => { if (pools[k] && pools[k].m.visible) calls++; });
+      return { calls, sites: SITES.length, byBiome: by, built: SITES.filter(s => s.built).length, visible: SITES.filter(s => s.vis).length, found: SITES.filter(s => s.found).length, loot: LOOT.length, kinds, blood, guarded, registered: reg, opened: LOOT.filter(c => c.opened).length };
+    },
+    _dbg: () => ({ hg: (x, z) => samp(HG, x, z), fl: (x, z) => samp(FL, x, z), seaTex, mats, far, sea, road, fireMesh, haloMesh, smokeMesh, poiMeshes, pools, fires, flags, active, late, silMesh }),
     spotCheck() { const bad = []; for (const id in spots) for (const sp of spots[id]) if (blocked(sp.x, sp.z, 1.5)) bad.push(id + ':' + sp.tag); return bad; },
     info() { return { chunks: active.length, calls: core.renderer.info.render.calls, tris: core.renderer.info.render.triangles, stats: CT.world.stats, pools: poolNames.map(n => n + ':' + pools[n].m.count).join(' ') }; },
   };
