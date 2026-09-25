@@ -244,6 +244,7 @@
     // interactable (for the USE button) + potion count
     showUse = !!(CT.player && CT.player.prompt);
     if (!showUse && CT.npcs && typeof CT.npcs.nearestInteractable === 'function' && CT.player && CT.player.pos) showUse = !!CT.npcs.nearestInteractable(CT.player.pos, 3.2);
+    if (!showUse && CT.interactables && CT.player && CT.player.pos) showUse = !!CT.interactables.nearest(CT.player.pos);
     potions = -1;
     if (CT.rpg && Array.isArray(CT.rpg.inventory)) {
       const I = (CT.config && CT.config.ITEMS) || {};

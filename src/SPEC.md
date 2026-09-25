@@ -207,3 +207,8 @@ Dark, epic synthesised score: low brass drones, war drums (taiko-like), a male c
 
 ## Testing
 `python tools/shot.py <out.png> [--wait ms] [--eval "js"] [--eval2 "js" --wait2 ms]` from `src/` opens `dev.html` in headless Chrome at 1280x720 ON THE REAL GPU (RTX 2070, D3D11), prints console and page errors, and saves a screenshot. Debug hooks (core): `CT.debug.play()` skips the gate and title into PLAY. `CT.debug.tp(x, z)` teleports. `CT.debug.spawn(type, dist)` spawns in front of you. `CT.debug.god(on)`. `CT.debug.give(id)`. `CT.debug.time(t)` sets the time of day. `CT.debug.weather(name)`. `CT.debug.attack(heavy)` does a player swing. `CT.debug.look(yaw, pitch)`. `CT.debug.state(name)`. `CT.debug.dialog(npcId)`. Look at your screenshots with the Read tool and iterate until the result is stunning. Never run taskkill on chrome.exe globally.
+
+## Addendum (living world)
+- `CT.interactables` (core): `add({x, z, radius, label, onUse(o), disabled})` / `remove(o)` / `nearest(pos)`. The core shows "E  <label>" (touch: USE) and calls `onUse` when the player presses interact and no NPC is nearer. Use it for chests, shrines, corpses, travellers and event triggers.
+- `CT.life` (life.js, loaded after monsters.js and before npcs.js): ambient wildlife, road travellers and random encounters. See the file header.
+- Roaming monster density was raised (monsters.js BIOME table). Over half of the roaming spawns appear 70 to 120 m ahead in view.

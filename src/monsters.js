@@ -1540,13 +1540,13 @@
   // ── Population + garrisons ─────────────────────────────────────────────────
   const POI = id => C.POIS.find(p => p.id === id);
   const BIOME = {
-    coast:  { d: 0, n: 2, dayT: [], nightT: [['ghoul', 1]] },
-    meadow: { d: 3, n: 4, dayT: [['bandit', 6], ['wolf', 1.2]], nightT: [['bandit', 3], ['wolf', 2], ['ghoul', 3]] },
-    forest: { d: 4, n: 6, dayT: [['wolf', 7], ['bandit', 3]], nightT: [['wolf', 6], ['ghoul', 2], ['bandit', 1]] },
-    swamp:  { d: 2, n: 6, dayT: [['ghoul', 3], ['bandit', 1]], nightT: [['ghoul', 6], ['wraith', 4]] },
-    hills:  { d: 4, n: 5, dayT: [['orc', 6], ['troll', 1.2], ['bandit', 2]], nightT: [['orc', 5], ['troll', 1.5], ['ghoul', 2]] },
-    snow:   { d: 3, n: 5, dayT: [['troll', 3], ['wolf', 2], ['boneKnight', 2]], nightT: [['troll', 3], ['boneKnight', 3], ['wraith', 1]] },
-    citadel:{ d: 2, n: 3, dayT: [['boneKnight', 1]], nightT: [['boneKnight', 2], ['wraith', 1]] },
+    coast:  { d: 3, n: 5, dayT: [['bandit', 3], ['wolf', 1]], nightT: [['ghoul', 3], ['bandit', 1]] },
+    meadow: { d: 8, n: 10, dayT: [['bandit', 6], ['wolf', 1.2]], nightT: [['bandit', 3], ['wolf', 2], ['ghoul', 3]] },
+    forest: { d: 10, n: 13, dayT: [['wolf', 7], ['bandit', 3]], nightT: [['wolf', 6], ['ghoul', 2], ['bandit', 1]] },
+    swamp:  { d: 7, n: 12, dayT: [['ghoul', 3], ['bandit', 1]], nightT: [['ghoul', 6], ['wraith', 4]] },
+    hills:  { d: 9, n: 11, dayT: [['orc', 6], ['troll', 1.2], ['bandit', 2]], nightT: [['orc', 5], ['troll', 1.5], ['ghoul', 2]] },
+    snow:   { d: 7, n: 10, dayT: [['troll', 3], ['wolf', 2], ['boneKnight', 2]], nightT: [['troll', 3], ['boneKnight', 3], ['wraith', 1]] },
+    citadel:{ d: 5, n: 7, dayT: [['boneKnight', 1]], nightT: [['boneKnight', 2], ['wraith', 1]] },
   };
   const GROUP = { wolf: [3, 5], ghoul: [2, 4], bandit: [2, 3], orc: [1, 3], troll: [1, 1], wraith: [1, 2], boneKnight: [2, 3] };
   const GARRISONS = [
@@ -1616,19 +1616,21 @@
     return false;
   }
   function populate(P) {
-    for (let i = list.length - 1; i >= 0; i--) { const m = list[i]; if (!m.garrison && !m.dead && Math.hypot(m.pos.x - P.x, m.pos.z - P.z) > 150) removeMonster(m); }
+    for (let i = list.length - 1; i >= 0; i--) { const m = list[i]; if (!m.garrison && !m.dead && Math.hypot(m.pos.x - P.x, m.pos.z - P.z) > 190) removeMonster(m); }
     garrisons(P);
     const cap = core.quality === 'low' ? 16 : 30;
     let alive = 0, roam = 0;
     for (const m of list) if (!m.dead) { alive++; if (!m.garrison) roam++; }
     if (alive >= cap) return;
+    if (rnd() < 0.5) return;                                                     // pace the arrivals (one check per 2 s)
     const night = isNight(), bio = has('world', 'biomeAt') ? CT.world.biomeAt(P.x, P.z) : 'meadow';
     const B = BIOME[bio] || BIOME.meadow;
     const target = night ? B.n * (bloodmoon() ? 2 : 1) : B.d;
     if (roam >= target) return;
     const yaw = playerYaw();
     for (let tries = 0; tries < 6; tries++) {
-      const a = yaw + (rnd() - 0.5) * PI * 1.2, dist = 40 + rnd() * 30;       // behind or beside the player (camera looks along -Z by yaw)
+      const ahead = rnd() < 0.55;                                               // over half spawn ahead, in view, far enough to see them coming
+      const a = ahead ? yaw + PI + (rnd() - 0.5) * 1.3 : yaw + (rnd() - 0.5) * PI * 1.2, dist = ahead ? 70 + rnd() * 50 : 45 + rnd() * 35;
       const x = P.x + Math.sin(a) * dist, z = P.z + Math.cos(a) * dist;
       if (blocked(x, z)) continue;
       const sb = has('world', 'biomeAt') ? CT.world.biomeAt(x, z) : bio, SB = BIOME[sb] || B;

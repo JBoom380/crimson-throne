@@ -1,7 +1,7 @@
 // ─── CORE: renderer, post pass, states, integration ──────────────────────────
 (function () {
   const C = CT.config, T = THREE, bus = CT.bus;
-  const MODS = ['audio', 'world', 'sky', 'gore', 'monsters', 'npcs', 'rpg', 'player', 'controls', 'ui'];
+  const MODS = ['audio', 'world', 'sky', 'gore', 'monsters', 'life', 'npcs', 'rpg', 'player', 'controls', 'ui'];
   CT._broken = {};
   const has = (m, fn) => CT[m] && typeof CT[m][fn] === 'function' && !CT._broken[m];
   // A crash inside one module disables that module instead of stopping the game.
@@ -91,7 +91,18 @@
   else { const g = new T.Mesh(new T.PlaneGeometry(3200, 3200), new T.MeshLambertMaterial({ color: 0x4a5a2a })); g.rotation.x = -Math.PI / 2; scene.add(g); }
   if (has('sky', 'init')) CT.sky.init(core);
   else { scene.background = new T.Color(0x2a1420); scene.fog = new T.Fog(0x5a3030, 40, 300); scene.add(new T.HemisphereLight(0xffb080, 0x201010, 1.4)); const sun = new T.DirectionalLight(0xffa060, 1.5); sun.position.set(-50, 40, -80); scene.add(sun); }
-  ['gore', 'monsters', 'npcs', 'rpg', 'player', 'controls'].forEach(m => call(m, 'init', core));
+  ['gore', 'monsters', 'life', 'npcs', 'rpg', 'player', 'controls'].forEach(m => call(m, 'init', core));
+  // Generic interactables (chests, shrines, travellers): {x, z, radius, label, onUse()}. Any module may add or remove.
+  CT.interactables = {
+    list: [],
+    add(o) { this.list.push(o); return o; },
+    remove(o) { const i = this.list.indexOf(o); if (i >= 0) this.list.splice(i, 1); },
+    nearest(pos) {
+      let best = null, bd = 1e9;
+      for (const o of this.list) { if (o.disabled) continue; const d = Math.hypot(o.x - pos.x, o.z - pos.z); if (d < (o.radius || 2.5) && d < bd) { bd = d; best = o; } }
+      return best;
+    },
+  };
   const heightAt = (x, z) => (has('world', 'heightAt') ? CT.world.heightAt(x, z) : 0);
 
   // ── Save helpers (rpg owns stats; core stores the player position) ─────────
@@ -195,6 +206,7 @@
       const n = CT.npcs.nearestInteractable(p.pos, 3.2);
       if (n) prompt = `${isTouch ? 'USE' : 'E'}  Talk to ${n.name}`;
     }
+    if (!prompt && core.state === 'PLAY' && p.pos) { const o = CT.interactables.nearest(p.pos); if (o) prompt = `${isTouch ? 'USE' : 'E'}  ${o.label}`; }
     const dialog = core.state === 'DIALOG' && S.dialogNpc ? call('npcs', 'dialog', S.dialogNpc) : null;
     return {
       state: core.state, isTouch, hurt: core.hurtFlash, saveExists: saveExists(), time: core.time,
@@ -258,12 +270,13 @@
       else if (inp.map) setState('MAP');
       else if (inp.interact && CT.player && CT.player.pos && has('npcs', 'nearestInteractable')) {
         const n = CT.npcs.nearestInteractable(CT.player.pos, 3.2); if (n) CT.npcs.interact(n);
+        else { const o = CT.interactables.nearest(CT.player.pos); if (o) { try { o.onUse(o); } catch (e) { console.error('[CT.interactables]', e); } } }
       }
     }
 
     const simulate = core.state === 'PLAY' || core.state === 'DEAD';
     if (simulate) {
-      ['player', 'monsters', 'npcs', 'gore', 'rpg'].forEach(m => call(m, 'update', dt, core));
+      ['player', 'monsters', 'life', 'npcs', 'gore', 'rpg'].forEach(m => call(m, 'update', dt, core));
       if (!CT.player || !has('player', 'update')) fallbackMove(dt, inp);
       if (core.time - S.lastPosSave > 10 && core.state === 'PLAY') { S.lastPosSave = core.time; savePos(); }
     } else if (core.state === 'TITLE' || core.state === 'GATE') {

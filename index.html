@@ -81025,6 +81025,10 @@ CT.config = {
     greatsword:  { name: 'Ironhand Greatsword', kind: 'weapon', style: 'greatsword', damage: 58, heavyMult: 2.4, speed: 0.65, reach: 3.1, arc: 2.1, bleed: 0.5, price: 300 },
     moonblade:   { name: 'Moonblade',           kind: 'weapon', style: 'sword',      damage: 50, heavyMult: 2.4, speed: 1.1,  reach: 2.7, arc: 1.8, bleed: 0.4, holy: true, price: 0 },
     crimson:     { name: 'The Crimson Edge',    kind: 'weapon', style: 'crimson',    damage: 80, heavyMult: 2.6, speed: 1.0,  reach: 3.0, arc: 2.0, bleed: 0.8, holy: true, price: 0 },
+    banditblade: { name: 'Blackhand Sword',     kind: 'weapon', style: 'sword',      damage: 22, heavyMult: 2.2, speed: 1.0,  reach: 2.3, arc: 1.6, bleed: 0.25, price: 45 },
+    banditaxe:   { name: 'Blackhand Axe',       kind: 'weapon', style: 'axe',        damage: 27, heavyMult: 2.3, speed: 0.9,  reach: 2.2, arc: 1.4, bleed: 0.4, price: 50 },
+    orccleaver:  { name: 'Orcish Cleaver',      kind: 'weapon', style: 'axe',        damage: 36, heavyMult: 2.4, speed: 0.8,  reach: 2.3, arc: 1.5, bleed: 0.5, price: 90 },
+    boneblade:   { name: 'Bone Knight Greatsword', kind: 'weapon', style: 'greatsword', damage: 52, heavyMult: 2.4, speed: 0.68, reach: 3.0, arc: 2.0, bleed: 0.4, price: 220 },
     furs:        { name: 'Wolfhide Furs',       kind: 'armor',  armor: 0.10, price: 30 },
     mail:        { name: 'Blackhand Mail',      kind: 'armor',  armor: 0.22, price: 150 },
     bronze:      { name: 'Queen\'s Bronze',     kind: 'armor',  armor: 0.35, price: 0 },
@@ -87305,13 +87309,13 @@ window.CT = window.CT || {};
   // ── Population + garrisons ─────────────────────────────────────────────────
   const POI = id => C.POIS.find(p => p.id === id);
   const BIOME = {
-    coast:  { d: 0, n: 2, dayT: [], nightT: [['ghoul', 1]] },
-    meadow: { d: 3, n: 4, dayT: [['bandit', 6], ['wolf', 1.2]], nightT: [['bandit', 3], ['wolf', 2], ['ghoul', 3]] },
-    forest: { d: 4, n: 6, dayT: [['wolf', 7], ['bandit', 3]], nightT: [['wolf', 6], ['ghoul', 2], ['bandit', 1]] },
-    swamp:  { d: 2, n: 6, dayT: [['ghoul', 3], ['bandit', 1]], nightT: [['ghoul', 6], ['wraith', 4]] },
-    hills:  { d: 4, n: 5, dayT: [['orc', 6], ['troll', 1.2], ['bandit', 2]], nightT: [['orc', 5], ['troll', 1.5], ['ghoul', 2]] },
-    snow:   { d: 3, n: 5, dayT: [['troll', 3], ['wolf', 2], ['boneKnight', 2]], nightT: [['troll', 3], ['boneKnight', 3], ['wraith', 1]] },
-    citadel:{ d: 2, n: 3, dayT: [['boneKnight', 1]], nightT: [['boneKnight', 2], ['wraith', 1]] },
+    coast:  { d: 3, n: 5, dayT: [['bandit', 3], ['wolf', 1]], nightT: [['ghoul', 3], ['bandit', 1]] },
+    meadow: { d: 8, n: 10, dayT: [['bandit', 6], ['wolf', 1.2]], nightT: [['bandit', 3], ['wolf', 2], ['ghoul', 3]] },
+    forest: { d: 10, n: 13, dayT: [['wolf', 7], ['bandit', 3]], nightT: [['wolf', 6], ['ghoul', 2], ['bandit', 1]] },
+    swamp:  { d: 7, n: 12, dayT: [['ghoul', 3], ['bandit', 1]], nightT: [['ghoul', 6], ['wraith', 4]] },
+    hills:  { d: 9, n: 11, dayT: [['orc', 6], ['troll', 1.2], ['bandit', 2]], nightT: [['orc', 5], ['troll', 1.5], ['ghoul', 2]] },
+    snow:   { d: 7, n: 10, dayT: [['troll', 3], ['wolf', 2], ['boneKnight', 2]], nightT: [['troll', 3], ['boneKnight', 3], ['wraith', 1]] },
+    citadel:{ d: 5, n: 7, dayT: [['boneKnight', 1]], nightT: [['boneKnight', 2], ['wraith', 1]] },
   };
   const GROUP = { wolf: [3, 5], ghoul: [2, 4], bandit: [2, 3], orc: [1, 3], troll: [1, 1], wraith: [1, 2], boneKnight: [2, 3] };
   const GARRISONS = [
@@ -87381,19 +87385,21 @@ window.CT = window.CT || {};
     return false;
   }
   function populate(P) {
-    for (let i = list.length - 1; i >= 0; i--) { const m = list[i]; if (!m.garrison && !m.dead && Math.hypot(m.pos.x - P.x, m.pos.z - P.z) > 150) removeMonster(m); }
+    for (let i = list.length - 1; i >= 0; i--) { const m = list[i]; if (!m.garrison && !m.dead && Math.hypot(m.pos.x - P.x, m.pos.z - P.z) > 190) removeMonster(m); }
     garrisons(P);
     const cap = core.quality === 'low' ? 16 : 30;
     let alive = 0, roam = 0;
     for (const m of list) if (!m.dead) { alive++; if (!m.garrison) roam++; }
     if (alive >= cap) return;
+    if (rnd() < 0.5) return;                                                     // pace the arrivals (one check per 2 s)
     const night = isNight(), bio = has('world', 'biomeAt') ? CT.world.biomeAt(P.x, P.z) : 'meadow';
     const B = BIOME[bio] || BIOME.meadow;
     const target = night ? B.n * (bloodmoon() ? 2 : 1) : B.d;
     if (roam >= target) return;
     const yaw = playerYaw();
     for (let tries = 0; tries < 6; tries++) {
-      const a = yaw + (rnd() - 0.5) * PI * 1.2, dist = 40 + rnd() * 30;       // behind or beside the player (camera looks along -Z by yaw)
+      const ahead = rnd() < 0.55;                                               // over half spawn ahead, in view, far enough to see them coming
+      const a = ahead ? yaw + PI + (rnd() - 0.5) * 1.3 : yaw + (rnd() - 0.5) * PI * 1.2, dist = ahead ? 70 + rnd() * 50 : 45 + rnd() * 35;
       const x = P.x + Math.sin(a) * dist, z = P.z + Math.cos(a) * dist;
       if (blocked(x, z)) continue;
       const sb = has('world', 'biomeAt') ? CT.world.biomeAt(x, z) : bio, SB = BIOME[sb] || B;
@@ -90456,6 +90462,7 @@ window.CT = window.CT || {};
     // interactable (for the USE button) + potion count
     showUse = !!(CT.player && CT.player.prompt);
     if (!showUse && CT.npcs && typeof CT.npcs.nearestInteractable === 'function' && CT.player && CT.player.pos) showUse = !!CT.npcs.nearestInteractable(CT.player.pos, 3.2);
+    if (!showUse && CT.interactables && CT.player && CT.player.pos) showUse = !!CT.interactables.nearest(CT.player.pos);
     potions = -1;
     if (CT.rpg && Array.isArray(CT.rpg.inventory)) {
       const I = (CT.config && CT.config.ITEMS) || {};
@@ -92202,7 +92209,7 @@ window.CT = window.CT || {};
 // ─── CORE: renderer, post pass, states, integration ──────────────────────────
 (function () {
   const C = CT.config, T = THREE, bus = CT.bus;
-  const MODS = ['audio', 'world', 'sky', 'gore', 'monsters', 'npcs', 'rpg', 'player', 'controls', 'ui'];
+  const MODS = ['audio', 'world', 'sky', 'gore', 'monsters', 'life', 'npcs', 'rpg', 'player', 'controls', 'ui'];
   CT._broken = {};
   const has = (m, fn) => CT[m] && typeof CT[m][fn] === 'function' && !CT._broken[m];
   // A crash inside one module disables that module instead of stopping the game.
@@ -92292,7 +92299,18 @@ window.CT = window.CT || {};
   else { const g = new T.Mesh(new T.PlaneGeometry(3200, 3200), new T.MeshLambertMaterial({ color: 0x4a5a2a })); g.rotation.x = -Math.PI / 2; scene.add(g); }
   if (has('sky', 'init')) CT.sky.init(core);
   else { scene.background = new T.Color(0x2a1420); scene.fog = new T.Fog(0x5a3030, 40, 300); scene.add(new T.HemisphereLight(0xffb080, 0x201010, 1.4)); const sun = new T.DirectionalLight(0xffa060, 1.5); sun.position.set(-50, 40, -80); scene.add(sun); }
-  ['gore', 'monsters', 'npcs', 'rpg', 'player', 'controls'].forEach(m => call(m, 'init', core));
+  ['gore', 'monsters', 'life', 'npcs', 'rpg', 'player', 'controls'].forEach(m => call(m, 'init', core));
+  // Generic interactables (chests, shrines, travellers): {x, z, radius, label, onUse()}. Any module may add or remove.
+  CT.interactables = {
+    list: [],
+    add(o) { this.list.push(o); return o; },
+    remove(o) { const i = this.list.indexOf(o); if (i >= 0) this.list.splice(i, 1); },
+    nearest(pos) {
+      let best = null, bd = 1e9;
+      for (const o of this.list) { if (o.disabled) continue; const d = Math.hypot(o.x - pos.x, o.z - pos.z); if (d < (o.radius || 2.5) && d < bd) { bd = d; best = o; } }
+      return best;
+    },
+  };
   const heightAt = (x, z) => (has('world', 'heightAt') ? CT.world.heightAt(x, z) : 0);
 
   // ── Save helpers (rpg owns stats; core stores the player position) ─────────
@@ -92396,6 +92414,7 @@ window.CT = window.CT || {};
       const n = CT.npcs.nearestInteractable(p.pos, 3.2);
       if (n) prompt = `${isTouch ? 'USE' : 'E'}  Talk to ${n.name}`;
     }
+    if (!prompt && core.state === 'PLAY' && p.pos) { const o = CT.interactables.nearest(p.pos); if (o) prompt = `${isTouch ? 'USE' : 'E'}  ${o.label}`; }
     const dialog = core.state === 'DIALOG' && S.dialogNpc ? call('npcs', 'dialog', S.dialogNpc) : null;
     return {
       state: core.state, isTouch, hurt: core.hurtFlash, saveExists: saveExists(), time: core.time,
@@ -92459,12 +92478,13 @@ window.CT = window.CT || {};
       else if (inp.map) setState('MAP');
       else if (inp.interact && CT.player && CT.player.pos && has('npcs', 'nearestInteractable')) {
         const n = CT.npcs.nearestInteractable(CT.player.pos, 3.2); if (n) CT.npcs.interact(n);
+        else { const o = CT.interactables.nearest(CT.player.pos); if (o) { try { o.onUse(o); } catch (e) { console.error('[CT.interactables]', e); } } }
       }
     }
 
     const simulate = core.state === 'PLAY' || core.state === 'DEAD';
     if (simulate) {
-      ['player', 'monsters', 'npcs', 'gore', 'rpg'].forEach(m => call(m, 'update', dt, core));
+      ['player', 'monsters', 'life', 'npcs', 'gore', 'rpg'].forEach(m => call(m, 'update', dt, core));
       if (!CT.player || !has('player', 'update')) fallbackMove(dt, inp);
       if (core.time - S.lastPosSave > 10 && core.state === 'PLAY') { S.lastPosSave = core.time; savePos(); }
     } else if (core.state === 'TITLE' || core.state === 'GATE') {
