@@ -116,73 +116,115 @@
     return true;
   }
 
-  // ── Arms: Frazetta barbarian forearms (local origin = centre of the fist) ──
-  // Skin: 8 tones with a warm subsurface red in the shadows. Gear: cord wraps, a studded bronze-trimmed leather
-  // bracer and a woad tattoo band (sword arm); a laced bracer with a fur trim (off-hand). Grime, cuts, oiled highlights.
-  const SKIN = ramp(['#22080a', '#4a140f', '#782a18', '#a4462a', '#c46a40', '#de925c', '#f2b884', '#ffdcac']);
-  const WOAD = ramp(['#0c1830', '#18305a', '#264a82', '#3a64a4']);
-  const CORD = ramp(['#2a1a0c', '#4e3218', '#7a5228', '#a47640']);
-  const FUR = ramp(['#1a120a', '#34261a', '#58442e', '#806848', '#a89070']);
-  const NAIL = ramp(['#6a3a2a', '#b8806a', '#e8b8a0', '#fff0e0']);
-  const LA = norm3(-0.5, -0.62, 0.6);
-  const skin = (l, x, y) => tone(SKIN, l, x, y);
-  function grime(l, x, y) {                                   // dirt, sweat and oiled highlights on bare skin
-    const g = vnoise(x / 9 + 11, y / 9);
-    if (g > 0.76) return skin(l - (g - 0.76) * 0.8, x, y);
-    if (l > 0.87) return SKIN[7];
-    if (hsh(x, y) < 0.012) return SKIN[1];
-    return 0;
+  // â”€â”€ Arms: articulated plate gauntlets (local origin = centre of the fist) â”€â”€
+  // Blackened iron plates with bronze trim, 3 overlapping lames per finger, domed knuckle plates, a thumb plate,
+  // a flared bell cuff (spiked rim on the sword arm, ridged rim + fur on the off-hand), leather liner in the gaps,
+  // riveted wrist strap, a mail sleeve, scratches and dents. Specular edge pixels pick up the sky colour at draw time.
+  const IRONB = ramp(['#070609', '#121117', '#1f1e26', '#302f39', '#4a4954', '#6e6d7a']);
+  const SPEC_HI = hex('#e6eaf2'), SPEC_MID = hex('#9ea3b2'), O_IRON = hex('#030205');
+  const LINER = ramp(['#140905', '#24120a', '#3a1e10', '#553018']);
+  const FUR = ramp(['#0a0706', '#1a120d', '#2e2219', '#4a3a2c', '#6e6050', '#9a8e80']);
+  const LA = norm3(-0.5, -0.62, 0.6), HV = norm3(LA[0], LA[1], LA[2] + 1);
+  const GROOVE = new Set([IRONB[0], LINER[0], LINER[1], LINER[2], STRAP[0], STRAP[1]]);
+  function iron(nx, ny, nz, bias, x, y, noSpec) {                // banded plate shading with a hard Blinn highlight
+    const s = nx * HV[0] + ny * HV[1] + nz * HV[2];
+    if (!noSpec && s > 0.992) return SPEC_HI;
+    if (!noSpec && s > 0.975) return bias < -0.1 ? IRONB[4] : SPEC_MID;
+    const l = 0.08 + 0.92 * lit(nx, ny, nz, LA);
+    return tone(IRONB, clamp((l - 0.2) * 1.1 + bias, 0, 1), x, y);
   }
+  // Hand-banded metal cylinder: cs = -1 at the lit (upper/outer) edge, +1 at the far edge.
+  // Dark turn at the lit edge, a hard specular streak, mid body, core shadow, then reflected light before the far edge.
+  function cylMetal(cs, bias, x, y, noSpec) {
+    if (cs < -0.9) return IRONB[bias > 0.2 ? 3 : 2];
+    if (cs < -0.76) return IRONB[bias > 0.1 ? 5 : 4];
+    if (cs < -0.5) { const d = Math.abs(cs + 0.63); return noSpec || d > 0.1 ? IRONB[bias < -0.1 ? 4 : 5] : d < 0.035 ? SPEC_HI : SPEC_MID; }
+    const v = cs < -0.28 ? 0.72 : cs < 0.1 ? 0.55 : cs < 0.45 ? 0.36 : cs < 0.66 ? 0.17 : cs < 0.86 ? 0.36 : 0.04;
+    return tone(IRONB, clamp(v + bias, 0, 1), x, y);
+  }
+  function wear(x, y) {                                          // scratches (bright nick + shadow) and dents
+    const cx = Math.floor(x / 11), cy = Math.floor(y / 9), h = hsh(cx * 7 + 3, cy * 13 + 5);
+    if (h < 0.16) {
+      const lx = x - cx * 11, ly = y - cy * 9, o = ((h * 97) | 0) % 4, al = h < 0.08 ? lx - ly : lx + ly - 8, x0 = ((h * 331) | 0) % 4, x1 = x0 + 3 + ((h * 71) | 0) % 5;
+      if (lx >= x0 && lx < x1) { if (al === o - 2) return 0.5; if (al === o - 1) return -0.3; }
+    }
+    const d = vnoise(x / 6 + 31, y / 6 + 7);
+    return d > 0.8 ? -0.22 : d > 0.74 ? -0.1 : 0;
+  }
+  function rivet(du, dv, bronze, x, y) {                         // 2 px domed rivet head: lit top-left, dark below
+    const d = du * du + dv * dv;
+    if (d > 1.9) return 0;
+    if (du + dv < -0.4) return bronze ? BRONZE[5] : SPEC_HI;
+    return d > 1.1 ? (bronze ? BRONZE[1] : IRONB[0]) : bronze ? BRONZE[3] : IRONB[4];
+  }
+
+  // Forearm: bell cuff along the axis (13,4) -> down-right; a = along, p = across.
+  const FAX = 13, FAY = 4, FUX = 0.6, FUY = 0.8, CUFF0 = 3, CUFF1 = 26, RIM1 = 29.5;
   function forearm(xm, Y, x, y, type) {
-    if (!cyl(xm, Y, 13, 4, 115, 140, 12.5, 27, 5)) return 0;
-    const a = CA, cs = CS; let l = 0.06 + 0.94 * lit(CNX, CNY, CNZ, LA);
-    const R = type === 'R', bare = R ? 62 : 72;
-    if (a < 9.5) {                                             // wrist: tendons
-      if (Math.abs(cs - 0.15) < 0.06 || Math.abs(cs + 0.22) < 0.05) l += 0.12;
-      else if (Math.abs(cs - 0.02) < 0.07) l -= 0.08;
-      return skin(l, x, y);
-    }
-    if (a > bare) {                                            // bare forearm: brachioradialis mass, veins, tattoo, scars, grime
-      const m = Math.sin(Math.PI * clamp((a - bare + 8) / 90, 0, 1));
-      l += 0.16 * Math.exp(-((cs + 0.38) ** 2) / 0.05) * m - 0.13 * Math.exp(-((cs - 0.12) ** 2) / 0.012) * m + 0.06 * Math.exp(-((cs - 0.5) ** 2) / 0.04);
-      const v1 = cs - 0.26 - 0.18 * Math.sin(a * 0.07), v2 = cs + 0.05 + 0.12 * Math.sin(a * 0.11 + 1);
-      if (Math.abs(v1) < 0.045 || Math.abs(v2) < 0.035) l += 0.14; else if ((v1 > 0.045 && v1 < 0.1) || (v2 > 0.035 && v2 < 0.08)) l -= 0.12;
-      if (R && a > 76 && a < 94) {                             // woad knotwork band
-        if (a < 77.6 || a > 92.4) return tone(WOAD, l * 0.8, x, y);
-        const k1 = Math.abs(mod(a * 0.55 + cs * 7, 3.4) - 1.7), k2 = Math.abs(mod(a * 0.55 - cs * 7, 3.4) - 1.7);
-        if (k1 < 0.42 || k2 < 0.42) return tone(WOAD, l * 0.9 + (k1 < 0.18 || k2 < 0.18 ? 0.1 : 0), x, y);
-      }
-      if (a > 100 && a < 124 && Math.abs(cs - 0.35 - (a - 112) * 0.04) < 0.05) return skin(0.9, x, y);   // an old white scar
-      if (!R && a > 96 && a < 104 && Math.abs(cs + 0.1 - (a - 100) * 0.07) < 0.035) return hex('#6a0c0a');   // a fresh cut
-      return grime(l, x, y) || skin(l, x, y);
-    }
-    if (a < 21) {                                              // leather cord wraps
-      const s = mod(a * 1.05 + cs * 3.2, 3.3);
-      if (s < 0.8) return tone(STRAP, l * 0.5, x, y);
-      return tone(CORD, l + (s < 1.5 ? 0.15 : 0) + (hsh(Math.round(a), Math.round(cs * 6)) - 0.5) * 0.15, x, y);
-    }
-    const wear = (vnoise(a * 0.25, cs * 4 + 5) - 0.5) * 0.3 + (hsh(x, y) < 0.04 ? -0.25 : 0);
-    if (R) {
-      if (a < 58) {                                            // studded, bronze-trimmed leather bracer
-        if (a < 23.5 || a > 55.5) return tone(BRONZE, l + 0.12 + (a < 22.2 || a > 56.8 ? 0.15 : -0.15), x, y);
-        for (let r = 0; r < 3; r++) for (let c = -1; c < 2; c++) {
-          const du = a - (30 + r * 9.5), dv = (cs - c * 0.5 - (r & 1) * 0.25) * 11, d2 = du * du + dv * dv;
-          if (d2 < 4.4) { const n = Math.sqrt(d2 / 4.4); return tone(BRONZE, 0.25 + 0.75 * lit(dv / 2.1, du / 2.1, Math.sqrt(1 - n * n), LA) + (n < 0.35 ? 0.2 : 0), x, y); }
-          if (d2 < 6) return tone(LEATH, l - 0.35, x, y);
+    const px = xm - FAX, py = Y - FAY, a = px * FUX + py * FUY, p = -px * FUY + py * FUX;
+    if (a < -8 || a > 170) return 0;
+    const R = type === 'R', ap = Math.abs(p);
+    let r, slope = 0;
+    if (a < CUFF0) r = 12.6;
+    else if (a < CUFF1) { const t = (a - CUFF0) / (CUFF1 - CUFF0); r = 12.8 + 9.6 * Math.pow(t, 1.7); slope = 9.6 * 1.7 * Math.pow(t, 0.7) / (CUFF1 - CUFF0); }
+    else if (a < RIM1) r = 23;
+    else r = 14.6 + (a - RIM1) * 0.07;
+    // decorations past the rim: a crown of spikes (sword arm) or a fur ruff (off-hand)
+    if (a >= RIM1 && a < RIM1 + 9) {
+      const e = a - RIM1;
+      if (R) {
+        const ang = Math.asin(clamp(p / 23, -1, 1)), j = ang / (Math.PI / 7), fr = j - Math.round(j), hw = (1 - e / 7.5) * 0.34;
+        if (e < 7.5 && ap < 23.5 && Math.abs(fr) < hw) {
+          const side = fr < 0 ? 0.28 : -0.12, tipk = e > 5.5 ? 0.2 : 0;
+          if (Math.abs(fr) > hw - 0.07 && fr < 0) return SPEC_MID;
+          return tone(IRONB, 0.42 + side + tipk - Math.abs(p) / 60, x, y);
         }
-        return tone(LEATH, l + wear + (Math.abs(cs) > 0.86 ? -0.2 : 0), x, y);
+      } else {
+        // shaggy ruff: strands flow toward the elbow with a sway; each strand has its own length and value, lighter tips
+        const sway = Math.sin(e * 0.7 + p * 0.3) * 0.9, si = Math.floor(p * 1.5 + sway), sh = hsh(si, 17), len = 4 + sh * 5.5;
+        if (e > -2.5 && e < len && ap < 25 + (e < 2 ? 0 : hsh(si, 5) * 2.5)) {
+          const cs = clamp(p / 25, -1, 1), l = 0.1 + 0.9 * lit(cs * -FUY, cs * FUX, Math.sqrt(1 - cs * cs), LA);
+          const edge = (p * 1.5 + sway) - si, tipk = e / len;
+          let v = l * 0.62 + (sh - 0.5) * 0.3 + (tipk > 0.55 ? 0.22 : 0) - (edge < 0.25 ? 0.28 : 0) - (e < 1.2 ? 0.25 : 0);
+          return tone(FUR, v, x, y);
+        }
       }
-      return tone(STRAP, l, x, y);
     }
-    if (a > 60) {                                              // fur trim at the elbow end
-      if (a > 70 + hsh(Math.round(cs * 16), 5) * 4) return skin(l, x, y);
-      return tone(FUR, l * 0.8 + (hsh(Math.round(a * 0.9 + cs * 3), Math.round(cs * 18)) - 0.5) * 0.55, x, y);
+    if (ap > r) return 0;
+    const cs = p / r, nz = Math.sqrt(Math.max(0, 1 - cs * cs));
+    let nx = cs * -FUY - slope * FUX, ny = cs * FUX - slope * FUY, nzz = nz; const ln = Math.hypot(nx, ny, nzz); nx /= ln; ny /= ln; nzz /= ln;
+    const w = wear(x, y);
+    if (a < CUFF0 + 3.2 && a > CUFF0 - 1) {                      // riveted leather wrist strap
+      const k = Math.round(cs * 3);
+      const rv = rivet((a - (CUFF0 + 1.1)) * 1.2, (cs - k / 3) * 9, true, x, y); if (rv) return rv;
+      return tone(STRAP, 0.25 + 0.75 * lit(nx, ny, nzz, LA) + (a < CUFF0 - 0.3 || a > CUFF0 + 2.6 ? -0.3 : 0), x, y);
     }
-    const lace = mod(a + cs * 7, 9), lace2 = mod(a - cs * 7, 9);   // laced leather bracer
-    if (cs > -0.45 && cs < 0.45 && (lace < 1.6 || lace2 < 1.6)) return tone(CORD, l * 0.8 + 0.12, x, y);
-    if (Math.abs(cs) > 0.45 && Math.abs(cs) < 0.58) l -= 0.25;
-    if (Math.abs(Math.abs(cs) - 0.72) < 0.08 && mod(a, 8) < 2.2) return tone(BRONZE, l + 0.2, x, y);
-    return tone(LEATH, l + wear, x, y);
+    if (a < CUFF0) return tone(LINER, 0.2 + 0.6 * lit(nx, ny, nzz, LA), x, y);
+    if (a < CUFF1) {                                             // the bell
+      if (a < CUFF0 + 4.4) return tone(BRONZE, 0.2 + 0.8 * lit(nx, ny, nzz, LA) + (a < CUFF0 + 3.5 ? 0.1 : -0.35), x, y);
+      for (const c of [-0.52, 0, 0.52]) {                        // three raised flutes
+        const d = cs - c;
+        if (Math.abs(d) < 0.034) return a > CUFF0 + 6 && lit(nx, ny, nzz, LA) > 0.45 ? SPEC_HI : SPEC_MID;
+        if (d > 0.034 && d < 0.09) return tone(IRONB, 0.05, x, y);
+      }
+      return cylMetal(cs, w + slope * 0.35 - 0.08, x, y);
+    }
+    if (a < RIM1) {                                              // rolled bronze rim with rivets (ridged on the off-hand)
+      const t = (a - CUFF1) / (RIM1 - CUFF1), tl = (t - 0.5) * 1.7;
+      const mx = cs * -FUY * 0.8 + FUX * tl, my = cs * FUX * 0.8 + FUY * tl, mz = Math.sqrt(Math.max(0.05, 1 - mx * mx - my * my));
+      if (!R && Math.abs(mod(Math.asin(clamp(cs, -1, 1)) * 5.5, 1) - 0.5) < 0.1) return BRONZE[1];
+      if (R) { const k = Math.round(cs * 4); const rv = rivet((t - 0.5) * 5, (cs - k / 4) * 16, false, x, y); if (rv && Math.abs(cs) < 0.95) return rv; }
+      const l = 0.1 + 0.9 * lit(mx, my, mz, LA);
+      if (t > 0.9) return BRONZE[0];
+      return l > 0.86 ? BRONZE[5] : tone(BRONZE, l * 0.95 + w * 0.5, x, y);
+    }
+    // mail sleeve with a riveted strap
+    const l = 0.08 + 0.92 * lit(nx, ny, nzz, LA);
+    if (a < RIM1 + 1.2) return IRONB[0];
+    if (a > 40 && a < 45) { const k = Math.round(cs * 2.5); const rv = rivet((a - 42.5) * 1.3, (cs - k / 2.5) * 11, true, x, y); if (rv) return rv; return tone(STRAP, l + (a < 40.8 || a > 44.2 ? -0.3 : 0), x, y); }
+    const mx = x % 3, my = (y + ((x / 3 | 0) & 1)) % 3;
+    if (mx === 1 && my === 1) return IRONB[0];
+    return tone(IRONB, l * 0.85 + (my === 0 ? 0.12 : -0.05), x, y);
   }
   const BCX = 13 + 0.6 * 50, BCY = 4 + 0.8 * 50, BR = 31;
   function buckler(xm, Y, x, y) {                            // round bronze buckler strapped to the off-hand
@@ -201,48 +243,106 @@
     if (Math.abs(dx + dy * 0.6 - 8) < 0.6 && d > 0.35 && d < 0.8) l -= 0.35;
     return tone(BRONZE, l, x, y);
   }
-  // Knuckle pads (heavy, scarred) and tendons on the back of the hand.
-  const YK = [-7.4, -2.4, 2.6, 7.6];
+  // Back-of-hand plate: a domed metacarpal plate with a raised centre ridge and two wrist lames.
+  const YK = [-7.6, -2.5, 2.6, 7.7];
   function backOfHand(xm, Y, x, y) {
-    if (xm < -9 || xm > 20 || Y < -13 || Y > 15) return 0;
-    const nx = (xm - 5) / 13, ny = (Y - 1) / 12.5, q = nx * nx + ny * ny;
+    if (xm < -10 || xm > 21 || Y < -14 || Y > 16) return 0;
+    const nx = (xm - 5.5) / 13.4, ny = (Y - 1) / 13, q = nx * nx + ny * ny;
     if (q > 1) return 0;
-    let l = 0.08 + 0.92 * lit(nx, ny, Math.sqrt(1 - q), LA);
-    for (let k = 0; k < 4; k++) {
-      const d = Math.hypot(xm - 1.2, Y - YK[k]) / 3.3;
-      if (d < 1) { l += 0.2 * (1 - d) * (Y < YK[k] ? 1 : 0.4); if (d > 0.8 && Y > YK[k]) l -= 0.15; }
-      if (xm > 4 && xm < 15 && Math.abs(Y - YK[k] * (1 - (xm - 4) / 20)) < 0.45) l += 0.09;
+    let nz = Math.sqrt(1 - q), mx = nx, my = ny;
+    const s = (xm - 5.5) * FUX + (Y - 1) * FUY, t = -(xm - 5.5) * FUY + (Y - 1) * FUX;
+    if (q > 0.88 && s > 6) return tone(BRONZE, 0.25 + 0.75 * lit(nx, ny, nz, LA) + (q > 0.95 ? -0.3 : 0.1), x, y);   // bronze-trimmed wrist edge
+    if (q > 0.9) return IRONB[q > 0.96 ? 1 : 3];
+    for (const b of [5.2, 9.2]) {                                // lame edges toward the wrist
+      const d = s - b;
+      if (d > -0.9 && d < 0) return IRONB[0];
+      if (d >= 0 && d < 0.8) return lit(nx, ny, nz, LA) > 0.3 ? SPEC_HI : SPEC_MID;
+      if (d >= 0.8 && d < 3) { const rv = rivet(d * 1.4 - 2.2, (Math.abs(t) - 7.2) * 1.3, true, x, y); if (rv) return rv; }
     }
-    if (Math.abs(xm - 1.5 - (Y + 2) * 0.35) < 0.35 && Y > -6 && Y < 3) return skin(0.92, x, y);   // knuckle scar
-    return grime(l, x, y) || skin(l, x, y);
+    if (s < 5.2) {                                               // centre ridge
+      if (t > -0.55 && t < 0.35) return lit(nx, ny, nz, LA) > 0.25 ? SPEC_HI : SPEC_MID;
+      if (t >= 0.35 && t < 1.3) return IRONB[0];
+      const k = t < 0 ? 0.35 : -0.25; mx += FUY * k; my -= FUX * k;
+    }
+    return iron(mx, my, nz, wear(x, y) + (s > 5.2 ? -0.06 : 0), x, y, s > 9.2);
   }
-  function finger(k) {                                         // segments, joint creases, nails; a bronze ring with a garnet on the ring finger
+  // Fingers: a tapered tip plate + 2 lames + a domed knuckle plate; each proximal lame overlaps the distal one
+  // (a lit lip on the overlapping edge, a dark groove under it). Leather liner shows at the sides.
+  const FL = [4.6, 9.2, 13.6];
+  function finger(k) {
     const yk = YK[k];
     return (xm, Y, x, y) => {
-      if (xm < -17 || xm > 9 || Y < yk - 5.5 || Y > yk + 6) return 0;
-      if (!cyl(xm, Y, -10.8 + k * 0.6, yk + 0.2, 4, yk + 0.7, 4.1, 4.4)) return 0;
-      const a = CA; let l = 0.1 + 0.9 * lit(CNX, CNY, CNZ, LA);
-      if (a < 2.6 && CS > -0.6 && CS < 0.3) return tone(NAIL, l + (CS < -0.45 || a < 0.6 ? -0.3 : 0.1), x, y);
-      if (Math.abs(a - 4.8) < 0.5 || Math.abs(a - 9.6) < 0.45) l -= 0.22;
-      else if (Math.abs(a - 5.9) < 0.6 || Math.abs(a - 10.6) < 0.6) l += 0.1;
-      if (k === 2 && a > 11.2 && a < 13.2) { if (Math.abs(a - 12.2) < 0.9 && Math.abs(CS + 0.25) < 0.28) return tone(GEMR, 0.85 - CS, x, y); return tone(BRONZE, l + 0.1, x, y); }
-      if (Math.abs(CS) > 0.86) l -= 0.12;
-      return grime(l, x, y) || skin(l, x, y);
+      if (xm < -19 || xm > 10 || Y < yk - 7 || Y > yk + 7.5) return 0;
+      if (!cyl(xm, Y, -11.4 + k * 0.7, yk + 0.2, 4.2, yk + 0.6, 4.6, 5)) return 0;
+      const a = CA, cs = CS;
+      if (a < 0 && Math.abs(cs) > 1 + a / 3) return 0;           // rounded tip
+      const ac = a - 1.6 * (1 - Math.sqrt(Math.max(0, 1 - cs * cs)));   // lame edges bow toward the tip
+      const seg = ac < FL[0] ? 0 : ac < FL[1] ? 1 : ac < FL[2] ? 2 : 3, w = wear(x, y);
+      for (let b = 0; b < 3; b++) {
+        const d = ac - FL[b];
+        if (d > -0.9 && d < 0) return Math.abs(cs) > 0.78 ? LINER[0] : IRONB[0];
+        if (d >= 0 && d < 0.8 && Math.abs(cs) < 0.8) return cs < -0.35 ? SPEC_HI : cs < 0.3 ? IRONB[5] : IRONB[3];
+      }
+      if (seg === 3) return tone(LINER, 0.3 + 0.4 * (1 - cs) * 0.5, x, y);   // under the knuckle plate
+      const half = seg === 0 ? 0.62 + 0.3 * clamp(a / FL[0], 0, 1) : 0.8;   // the tip plate tapers to a point
+      if (Math.abs(cs) > half) return tone(LINER, 0.15 + 0.4 * (cs < 0 ? 1 : 0.4), x, y);
+      const s0 = seg === 0 ? -3 : FL[seg - 1], s1 = FL[seg], la = (ac - s0) / (s1 - s0);
+      if (seg > 0) { const rv = rivet((ac - (s0 + 1.7)) * 1.2, (cs + 0.52) * 5.4, false, x, y); if (rv) return rv; }
+      const bias = 0.1 * Math.sin(Math.PI * la) - (la < 0.25 ? 0.16 : 0) + (seg === 1 ? 0.04 : 0) + w;
+      return cylMetal(cs / half, bias, x, y);
     };
   }
-  function thumb(xm, Y, x, y) {
-    if (xm < -13 || xm > 17 || Y < -18 || Y > -1) return 0;
-    if (!cyl(xm, Y, 11.5, -7.5, -7.5, -11.6, 5, 4.1)) return 0;
-    let l = 0.12 + 0.88 * lit(CNX, CNY, CNZ, LA);
-    if (CA > 15.5 && CNY < -0.1) return tone(NAIL, l + 0.1, x, y);
-    if (Math.abs(CA - 9.5) < 0.5) l -= 0.25;
-    return grime(l, x, y) || skin(l, x, y);
-  }
-  // Mask for the knuckle whitening (pale pads on the joints).
-  function knuckleMask(xm, Y) {
-    for (let k = 0; k < 4; k++) {
-      if (Math.hypot(xm - 1.6, (Y - YK[k] + 1) * 1.3) < 2.2) return 1;
+  // Knuckle plates: a row of domes over the finger bases, drawn above the fingers so all four read.
+  function knuckles(xm, Y, x, y) {
+    if (xm < 1 || xm > 11 || Y < -11 || Y > 11.5) return 0;
+    for (let k = 3; k >= 0; k--) {
+      const du = (xm - 5.2 - 0.7 * k) / 3, dv = (Y - YK[k] - 0.6) / 2.75, dq = du * du + dv * dv;
+      if (dq >= 1) continue;
+      const hl = Math.hypot(du + 0.38, dv + 0.42);
+      if (hl < 0.2) return SPEC_HI;
+      if (hl < 0.36) return SPEC_MID;
+      if (dq > 0.78) return dv > 0.2 || du > 0.3 ? IRONB[0] : IRONB[3];
+      return iron(du * 0.85, dv * 0.85, Math.sqrt(1 - dq * 0.72), wear(x, y) * 0.5 + 0.05, x, y, true);
     }
+    return 0;
+  }
+  // Knuckle-duster (sword hand): a bronze bar over the four knuckle plates with faceted pyramid studs.
+  function duster(xm, Y, x, y) {
+    if (Y < -11.5 || Y > 12.5) return 0;
+    const u = xm - 5.2 - (Y + 7) * 0.137;
+    for (let k = 0; k < 4; k++) {
+      const dv = Y - YK[k] - 0.5, du = u;
+      if (Math.abs(du) + Math.abs(dv) < 2.5) {
+        if (Math.abs(du) + Math.abs(dv) < 0.6) return BRONZE[5];
+        return du + dv < 0 ? (du < dv ? BRONZE[4] : BRONZE[3]) : (du < dv ? BRONZE[2] : BRONZE[1]);
+      }
+    }
+    if (Math.abs(u) > 1.2) return 0;
+    if (u < -0.5) return BRONZE[4];
+    if (u > 0.6) return BRONZE[1];
+    return hsh(x, y) < 0.12 ? BRONZE[1] : BRONZE[2];
+  }
+  function thumb(xm, Y, x, y) {
+    if (xm < -14 || xm > 18 || Y < -19 || Y > -1) return 0;
+    if (!cyl(xm, Y, 11.5, -7.5, -7.8, -11.8, 5.4, 4.5)) return 0;
+    const a = CA, cs = -CS, w = wear(x, y);
+    if (a > 19.2 && Math.abs(cs) > 1 - (a - 19.2) / 3.4) return 0;
+    if (Math.abs(cs) > 0.84 && a > 6.2) return tone(LINER, 0.15 + (cs < 0 ? 0.4 : 0.1), x, y);
+    const at = a + 1.4 * (1 - Math.sqrt(Math.max(0, 1 - cs * cs)));
+    for (const b of [6.2, 10.8, 15.2]) {                         // lames overlap toward the base
+      const d = b - at;
+      if (d > -0.9 && d < 0) return IRONB[0];
+      if (d >= 0 && d < 0.8) return b === 6.2 ? BRONZE[cs < -0.2 ? 5 : cs < 0.4 ? 3 : 1] : cs < -0.3 ? SPEC_HI : cs < 0.3 ? IRONB[5] : IRONB[3];
+    }
+    if (a < 6.2) {                                               // the big thumb plate, riveted
+      const rv = rivet((a - 3.2) * 1.1, (cs + 0.1) * 4.6, true, x, y); if (rv) return rv;
+      return cylMetal(cs, w + 0.04, x, y);
+    }
+    return cylMetal(cs / 0.84, w + 0.1 * Math.sin(Math.PI * mod(a - 6.2, 4.5) / 4.5) - 0.04, x, y);
+  }
+  // Mask for the knuckle glint (plates catch the light when the fist clenches).
+  function knuckleMask(xm, Y) {
+    for (let k = 0; k < 4; k++) if (Math.hypot(xm - 5.3 - 0.7 * k, (Y - YK[k] + 0.7) * 1.1) < 1.1) return 1;
     return 0;
   }
 
@@ -286,50 +386,81 @@
     const sc = f => (X, Y, x, y) => f(X * mir / HS, Y / HS, x, y);
     const body = [];
     if (torch) body.push([(X, Y, x, y) => shaftFn(X / TS, Y / TS, x, y), O_WOOD], [(X, Y, x, y) => headFn(X / TS, Y / TS, x, y), O_CHAR]);
-    body.push([sc((xm, Y, x, y) => forearm(xm, Y, x, y, type)), O_LEATH]);
+    body.push([sc((xm, Y, x, y) => forearm(xm, Y, x, y, type)), O_IRON]);
     if (type === 'B') body.push([sc(buckler), O_BRONZE]);
-    body.push([sc(backOfHand), O_SKIN]);
+    body.push([sc(backOfHand), O_IRON]);
     const fing = [];
-    for (let k = 3; k >= 0; k--) fing.push([sc(finger(k)), O_SKIN]);
-    fing.push([sc(thumb), O_SKIN]);
+    for (let k = 3; k >= 0; k--) fing.push([sc(finger(k)), O_IRON]);
+    fing.push([sc(knuckles), O_IRON]);
+    if (type === 'R') fing.push([sc(duster), O_BRONZE]);
+    fing.push([sc(thumb), O_IRON]);
     const pb = paint(w, h, T, body, 1e9), pf = paint(w, h, T, fing, 1e9);
-    const WHITE = hex('#ffffff'), KN = hex('#eec2a4'), rim = new Uint32Array(w * h), kn = new Uint32Array(w * h);
+    const pi = type === 'F' ? paint(w, h, T, [[sc(finger(0)), O_IRON], [sc(knuckles), O_IRON], [sc(thumb), O_IRON]], 1e9) : null;   // index + thumb, drawn over the cigarette
+    const WHITE = hex('#ffffff'), KN = hex('#f4f6ff'), rim = new Uint32Array(w * h), kn = new Uint32Array(w * h);
+    const sb = new Uint32Array(w * h), sf = new Uint32Array(w * h);
     const on = i => pb.d[i] || pf.d[i];
-    for (let y = 2; y < h; y++) for (let x = 0; x < w; x++) {  // rim light on the outer and upper edges
+    for (let y = 2; y < h; y++) for (let x = 0; x < w; x++) {  // rim light: a crisp 1 px line on the outer and upper edges, a softer second px
       const i = y * w + x; if (!on(i)) continue;
-      const xo = x + mir * 2;
-      if (xo < 0 || xo >= w || !on(i + mir * 2) || !on(i - w * 2)) rim[i] = WHITE;
+      const xo = x + mir;
+      if (xo < 0 || xo >= w || !on(i + mir) || !on(i - w)) rim[i] = WHITE;
+      else if (!on(i + mir * 2) || !on(i - w * 2)) rim[i] = 0x80ffffff;
+    }
+    for (let i = 0; i < w * h; i++) {                           // specular edge pixels take the sky colour
+      if (!pf.d[i] && (pb.d[i] === SPEC_HI || pb.d[i] === SPEC_MID)) sb[i] = pb.d[i] === SPEC_HI ? 0x70ffffff : WHITE;
+      if (pf.d[i] === SPEC_HI || pf.d[i] === SPEC_MID) sf[i] = pf.d[i] === SPEC_HI ? 0x70ffffff : WHITE;
+    }
+    let icv = null, ispec = null;
+    if (pi) {
+      const si = new Uint32Array(w * h);
+      for (let i = 0; i < w * h; i++) if (pi.d[i] && pf.d[i] === pi.d[i] && sf[i]) { si[i] = sf[i]; sf[i] = 0; }
+      icv = toCanvas(pi); ispec = toCanvas({ d: si, w, h });
     }
     const pk = paint(w, h, T, [[sc((xm, Y) => (knuckleMask(xm, Y) ? KN : 0)), 0]], 1e9);
-    for (let i = 0; i < w * h; i++) if (pk.d[i] && on(i)) kn[i] = KN;
+    for (let i = 0; i < w * h; i++) if (pk.d[i] && pf.d[i]) kn[i] = KN;
     const A = { cv: toCanvas(pb), fcv: toCanvas(pf), ox: -x0, oy: -y0, p: pb, blood: [], F: { p: pf, ox: -x0, oy: -y0, blood: [] },
-      rim: toCanvas({ d: rim, w, h }), kn: toCanvas({ d: kn, w, h }), tint: null, tintKey: -1 };
+      rim: toCanvas({ d: rim, w, h }), kn: toCanvas({ d: kn, w, h }), tint: null, tintKey: -1,
+      spec: toCanvas({ d: sb, w, h }), fspec: toCanvas({ d: sf, w, h }), stint: null, fstint: null, skey: -1, icv, ispec, istint: null, iblood: [] };
     return (ARMS[type] = A);
   }
   const arm = t => ARMS[t] || buildArm(t);
-  function rimTint(A, key, col) {                              // recolour the rim mask only when the scene colour changes
+  function tintMask(src, dst, col) {
+    if (!dst) { dst = document.createElement('canvas'); dst.width = src.width; dst.height = src.height; }
+    const g = dst.getContext('2d');
+    g.globalCompositeOperation = 'copy'; g.drawImage(src, 0, 0);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, dst.width, dst.height);
+    g.globalCompositeOperation = 'source-over';
+    return dst;
+  }
+  function rimTint(A, key, col) {                              // recolour the masks only when the scene colour changes
     if (A.tintKey === key) return A.tint;
-    if (!A.tint) { A.tint = document.createElement('canvas'); A.tint.width = A.rim.width; A.tint.height = A.rim.height; }
-    const g = A.tint.getContext('2d');
-    g.globalCompositeOperation = 'copy'; g.drawImage(A.rim, 0, 0);
-    g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, A.tint.width, A.tint.height);
-    g.globalCompositeOperation = 'source-over'; A.tintKey = key;
+    A.tint = tintMask(A.rim, A.tint, col); A.stint = tintMask(A.spec, A.stint, col); A.fstint = tintMask(A.fspec, A.fstint, col);
+    if (A.ispec) A.istint = tintMask(A.ispec, A.istint, col);
+    A.tintKey = key;
     return A.tint;
   }
-  // Blood that soaks the hands: overlays baked per level (8 steps) and wetness, darkest nearest the fist.
+  // Blood on the plates: it collects first in the grooves between the lames and the leather liner (dried),
+  // and runs down the plates in streaks when fresh. Overlays baked per level (8 steps) and wetness.
   const BLR = ramp(['#2a0204', '#4e0508', '#7a0a10', '#a8141a', '#d0302c']), BLD = ramp(['#1e0604', '#3a0c08', '#58160e', '#6e2214']), BL_H = hex('#f06a58');
   function armBlood(A, q) {
     if (A.blood[q]) return A.blood[q];
     const wet = q > 8, { d, w, h } = A.p, o = new Uint32Array(w * h), lvl = (q % 9) / 8 * 0.88, sc = HS / 2.2;
+    let gd = A.gd;
+    if (!gd) {                                                  // rows below the nearest groove above, per pixel (255 = none)
+      gd = A.gd = new Uint8Array(w * h);
+      for (let x = 0; x < w; x++) { let k = 255; for (let y = 0; y < h; y++) { const i = y * w + x; k = GROOVE.has(d[i]) ? 0 : Math.min(255, k + 1); gd[i] = k; } }
+    }
     for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++) {
       const c = d[i]; if (!c) continue;
-      const dd = Math.hypot(x - A.ox, (y - A.oy) * 0.9) / (170 * sc);
-      let th = 0.08 + dd * 1.4 + (vnoise(x / (26 * sc) + 3, y / (26 * sc)) - 0.5) * 0.9 + (vnoise(x / 6, y / 6) - 0.5) * 0.12;
+      const dd = Math.hypot(x - A.ox, (y - A.oy) * 0.9) / (170 * sc), gr = GROOVE.has(c);
+      let th = 0.14 + dd * 1.5 + (vnoise(x / (26 * sc) + 3, y / (26 * sc)) - 0.5) * 0.9 + (vnoise(x / 6, y / 6) - 0.5) * 0.12;
+      if (gr) th -= 0.42;
+      else { th += 0.3 + (vnoise(x / 5 + 9, y / 5) - 0.5) * 0.3; const k = gd[i]; if (k < 22 && hsh(x, 57) < (wet ? 0.34 : 0.14)) th -= (wet ? 0.62 : 0.4) * (1 - k / 22); }   // runs below each groove
       if (y > A.oy && hsh(x >> 1, 91) < 0.09) th -= 0.3 * vnoise(x / 3, y / 45);   // runs down the forearm
       const e = lvl - th;
       if (e < 0) continue;
-      const lum = ((c & 255) * 0.3 + ((c >> 8) & 255) * 0.59 + ((c >> 16) & 255) * 0.11) / 255;   // keep the form readable under the blood
-      o[i] = wet && hsh(x, y) < 0.045 && lum > 0.4 ? BL_H : tone(wet ? BLR : BLD, clamp(lum * (wet ? 1.2 : 0.95) + (e < 0.06 ? 0.2 : 0) - (e > 0.3 ? 0.12 : 0), 0, 1), x, y);
+      const lum = ((c & 255) * 0.3 + ((c >> 8) & 255) * 0.59 + ((c >> 16) & 255) * 0.11) / 255;   // keep the plate form readable under the blood
+      if (wet) o[i] = (c === SPEC_HI || (hsh(x, y) < 0.04 && lum > 0.35)) ? BL_H : tone(BLR, clamp(lum * 2.3 - 0.02 + (e < 0.05 ? 0.15 : 0), 0, 1), x, y);
+      else o[i] = tone(BLD, clamp((gr ? 0.1 : 0.3) + lum * 1.2 - (e > 0.3 ? 0.12 : 0), 0, 1), x, y);
     }
     return (A.blood[q] = toCanvas({ d: o, w, h }));
   }
@@ -345,14 +476,31 @@
     if (key !== rimKey) { rimKey = key; rimCol = 'rgb(' + R * 17 + ',' + G * 17 + ',' + B * 17 + ')'; }
     rimA = 0.3 + 0.4 * Math.max(k, warm);
   }
-  function drawArm(ctx, A, x, y, hq, flex, white) {
-    const X = x - A.ox, Y = y - A.oy;
+  function indexBlood(A, hq) {                                // the finger blood clipped to the index + thumb overlay
+    if (A.iblood[hq]) return A.iblood[hq];
+    const c = tintMask(armBlood(A.F, hq), null, '#000'), g = c.getContext('2d');
+    g.globalCompositeOperation = 'copy'; g.drawImage(armBlood(A.F, hq), 0, 0);
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(A.icv, 0, 0); g.globalCompositeOperation = 'source-over';
+    return (A.iblood[hq] = c);
+  }
+  function drawArm(ctx, A, x, y, hq, flex, white, rattle, cig) {
+    const X = x - A.ox, Y = y - A.oy, tint = rimTint(A, rimKey, rimCol);
+    let fx = X, fy = Y + flex;
+    if (rattle > 0.05) { fx += Math.round((rnd() - 0.5) * 2.4 * rattle); fy += Math.round((rnd() - 0.5) * 2.4 * rattle); }   // the plates tremble
     ctx.drawImage(A.cv, X, Y);
     if (hq > 0) ctx.drawImage(armBlood(A, hq), X, Y);
-    ctx.drawImage(A.fcv, X, Y + flex);
-    if (hq > 0) ctx.drawImage(armBlood(A.F, hq), X, Y + flex);
-    if (white > 0.02) { ctx.globalAlpha = Math.min(1, white) * 0.4; ctx.drawImage(A.kn, X, Y + flex); }
-    ctx.globalAlpha = rimA; ctx.drawImage(rimTint(A, rimKey, rimCol), X, Y);
+    ctx.globalAlpha = 0.35 + rimA * 0.5; ctx.drawImage(A.stint, X, Y); ctx.globalAlpha = 1;
+    ctx.drawImage(A.fcv, fx, fy);
+    if (hq > 0) ctx.drawImage(armBlood(A.F, hq), fx, fy);
+    ctx.globalAlpha = 0.35 + rimA * 0.5; ctx.drawImage(A.fstint, fx, fy); ctx.globalAlpha = 1;
+    if (cig && A.icv) {                                         // the cigarette sits over the middle finger, under the index
+      ctx.drawImage(CIG.cv, x - CIG.ox + CIG_BX, y - CIG.oy + CIG_BY);
+      ctx.drawImage(A.icv, fx, fy);
+      if (hq > 0) ctx.drawImage(indexBlood(A, hq), fx, fy);
+      ctx.globalAlpha = 0.35 + rimA * 0.5; ctx.drawImage(A.istint, fx, fy);
+    }
+    if (white > 0.02) { ctx.globalAlpha = Math.min(1, white) * (rattle > 0.05 && rnd() < 0.5 ? 1 : 0.7); ctx.drawImage(A.kn, fx, fy); }
+    ctx.globalAlpha = rimA; ctx.drawImage(tint, X, Y);
     ctx.globalAlpha = 1;
   }
 
@@ -625,7 +773,7 @@
   }
 
   // ── Cigarette: baked hand-rolled stick, live ember, smoke wisps, exhale cloud ──
-  const CIG_BX = 15, CIG_BY = -18, CIG_A = 48 * DEG, CIG_L = 46, CIG_TX = Math.round(Math.sin(CIG_A) * CIG_L), CIG_TY = Math.round(-Math.cos(CIG_A) * CIG_L);
+  const CIG_BX = 12, CIG_BY = -12, CIG_A = 60 * DEG, CIG_L = 46, CIG_TX = Math.round(Math.sin(CIG_A) * CIG_L), CIG_TY = Math.round(-Math.cos(CIG_A) * CIG_L);
   let CIG = null, PUFF = null;
   function buildCig() {
     const PAPER = ramp(['#5e5244', '#a0927a', '#d4c8ac', '#f2ead6']), ASH = ramp(['#34302e', '#625c58', '#948e86']), TOB = ramp(['#3a200c', '#6a4018']);
@@ -1343,16 +1491,15 @@
     const hq = Math.round(handLevel() * 8) + (wetness('handsWet') > 0.45 ? 9 : 0);
     const squeeze = Math.sin(clock * 0.9) > 0.72 ? 1 : 0, flexR = PL.blocking || charging ? 1 : atk ? 0 : squeeze;
     const whiteR = charging ? charge : PL.blocking ? 0.55 : 0, whiteL = PL.blocking ? 0.55 : 0;
-    drawArm(ctx, ARMS.R, Rx, Ry, hq, flexR, whiteR);
+    drawArm(ctx, ARMS.R, Rx, Ry, hq, flexR, whiteR, charging ? 0.4 + charge : 0);
     if (leftShown === 'G') {                                   // greatsword: second fist on the grip, below the right one
-      const G = ARMS.F; if (G) drawArm(ctx, G, Math.round(Rx - dx * 25 * WSC), Math.round(Ry - dy * 25 * WSC) + Math.round(swapK * swapK * 240), hq, flexR, whiteR);
+      const G = ARMS.F; if (G) drawArm(ctx, G, Math.round(Rx - dx * 25 * WSC), Math.round(Ry - dy * 25 * WSC) + Math.round(swapK * swapK * 240), hq, flexR, whiteR, charging ? 0.4 + charge : 0);
       else arm('F');
     } else {
       const LAr = ARMS[leftShown === 'C' ? 'F' : leftShown];
-      if (leftShown === 'C' && CIG) ctx.drawImage(CIG.cv, Lx - CIG.ox + CIG_BX, Ly - CIG.oy + CIG_BY);
       if (LAr) {
         if (leftShown === 'F' && FLASK.length && drinkT >= 0) { const f = FLASK[clamp(Math.round((drinkT - 0.12) / 0.35 * 4), 0, 4)]; ctx.drawImage(f.cv, Lx - f.o + 10, Ly - f.o - 40); }
-        drawArm(ctx, LAr, Lx, Ly, hq, PL.blocking ? 1 : Math.sin(clock * 0.9 + 2) > 0.8 ? 1 : 0, whiteL);
+        drawArm(ctx, LAr, Lx, Ly, hq, leftShown === 'C' ? 0 : PL.blocking ? 1 : Math.sin(clock * 0.9 + 2) > 0.8 ? 1 : 0, whiteL, 0, leftShown === 'C' && CIG);
       }
     }
     if (hq > 9 && rnd() < dt * (1.5 + handLevel() * 5)) {        // fresh blood drips between the fingers
