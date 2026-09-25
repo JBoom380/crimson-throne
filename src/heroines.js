@@ -256,7 +256,21 @@
   const U = { uT: { value: 0 }, uRimCol: { value: new T.Color(1.0, 0.42, 0.30) }, uRimK: { value: 0.9 }, uWarm: { value: new T.Vector3(0.035, 0.008, 0.018) } };
   const IDLE = `
     uniform float uT; uniform vec3 uChest; uniform float uPh;
+    uniform float uWalk; uniform float uWPh; uniform float uHipY; uniform float uKneeY;
+    vec3 ctWalk(vec3 p){
+      float side = p.x < 0.0 ? -1.0 : 1.0;
+      float wl = smoothstep(uHipY + 0.04, uHipY - 0.1, p.y) * (1.0 - smoothstep(0.2, 0.26, abs(p.x))) * smoothstep(0.004, 0.04, abs(p.x));
+      float ph = uWPh + (side > 0.0 ? 3.14159 : 0.0);
+      float kb = max(0.0, sin(ph + 1.3)) * 0.8 * uWalk * wl * smoothstep(uKneeY + 0.04, uKneeY - 0.05, p.y);
+      float c = cos(kb), s = sin(kb); vec2 q = vec2(p.y - uKneeY, p.z);
+      q = vec2(q.x * c - q.y * s, q.x * s + q.y * c); p.y = q.x + uKneeY; p.z = q.y;
+      float a = -sin(ph) * 0.42 * uWalk * wl; c = cos(a); s = sin(a); q = vec2(p.y - uHipY, p.z);
+      q = vec2(q.x * c - q.y * s, q.x * s + q.y * c); p.y = q.x + uHipY; p.z = q.y;
+      p.y += uWalk * 0.018 * abs(sin(uWPh)) * smoothstep(uHipY - 0.1, uHipY + 0.05, p.y);
+      return p;
+    }
     vec3 ctIdle(vec3 p, float sw){
+      if (uWalk > 0.001) p = ctWalk(p);
       float t = uT + uPh;
       float w = smoothstep(0.30, 1.05, p.y);
       p.x += sin(t*0.85) * 0.011 * w;
@@ -302,7 +316,7 @@
     }`;
   const ShaderChunk_toon = T.ShaderChunk.lights_toon_pars_fragment.replace(/getGradientIrradiance\(/g, 'ctGrad(');
   function heroMats(opts) {
-    const unis = { uChest: { value: new T.Vector3(0, 1.3, 0) }, uPh: { value: opts.phase || 0 }, uHC: { value: new T.Vector3(0, 1.7, 0) }, uSkinGloss: { value: opts.skinGloss || 0.8 } };
+    const unis = { uWalk: { value: 0 }, uWPh: { value: 0 }, uHipY: { value: 0.93 }, uKneeY: { value: 0.5 }, uChest: { value: new T.Vector3(0, 1.3, 0) }, uPh: { value: opts.phase || 0 }, uHC: { value: new T.Vector3(0, 1.7, 0) }, uSkinGloss: { value: opts.skinGloss || 0.8 } };
     function toon(kind) {
       const m = new T.MeshToonMaterial({ color: 0xffffff, gradientMap: GRAD, vertexColors: true, side: kind === 'soft' ? T.DoubleSide : T.FrontSide });
       if (kind === 'head') m.map = opts.faceTex;
@@ -768,6 +782,26 @@
     head: { jaw: 1.0, chin: 0.95, lips: 1.05 },
   };
 
+  // Selene the Moonbound (the companion bought from Nyx): blue-black high ponytail, pale-gold skin, a faded black scoop-neck
+  // flag crop tee (bare midriff), frayed denim cutoffs on a low brown belt, tan cowboy boots (opaque, same coverage rule as the others).
+  // No weapon: a beer bottle in the right hand, a cigarette in the raised left hand, a cigarette pack + lighter on the belt.
+  // Feet stay under the hips so the procedural walk (uWalk) reads cleanly; the bottle hangs outside the leg band (|x| > 0.26).
+  DEF.selene = {
+    skin: '#e4c296', skinGloss: 0.7, hair: '#121726', phase: 1.3,
+    shape: { bust: 0.88, hip: 0.98, thigh: 1.0, calf: 1.02, waist: 0.97, fist: { '-1': true, '1': false } },   // lean, athletic
+    pose: {
+      pel: [0.0, 0.91, 0.0], pelYaw: 0.05, pelPitch: 0.06, pelRoll: -0.05, weight: -1,
+      wYaw: 0.0, wPitch: -0.06, wRoll: 0.05, cYaw: 0.08, cPitch: -0.04, cRoll: 0.05,
+      hYaw: -0.15, hPitch: -0.06, hRoll: 0.06,
+      ank: { '-1': [-0.1, 0.104, 0.0], '1': [0.12, 0.106, 0.05] }, knee: { '-1': [0, 0, 1], '1': [0.15, 0, 1] },
+      fYaw: { '-1': -0.12, '1': 0.2 }, fPitch: { '-1': 0, '1': 0.02 },
+      wr: { '-1': [-0.29, 0.95, 0.09], '1': [0.2, 1.36, 0.16] }, elb: { '-1': [-1, -0.2, -0.4], '1': [1, -0.6, -0.4] },
+      hd: { '-1': [0, -1, 0.15], '1': [-0.1, 1, 0.25] }, hf: { '-1': [0, 0, 1], '1': [-0.6, 0, 0.8] },
+    },
+    face: { iris: '#a8c4ff', lid: 'rgba(40,40,90,0.9)', lidCol: '#232a52', blush: 'rgba(170,90,80,0.22)', brow: '#0c0e18', browAng: 0.3, browArch: 0.6, lips: '#6a1a3a', eyeTilt: 0.18, eyeOpen: 0.95, lidLow: 0.35, smirk: 0.6 },
+    head: { jaw: 1.0, chin: 1.02, lips: 1.08 },
+  };
+
   function surfPt(F, o, dir) { dir = nrm(dir); let p = o; for (let i = 0; i < 80 && F.at(p[0], p[1], p[2]) < 0; i++) p = add(p, scl(dir, 0.004)); return p; }
   // Per-heroine outfit: masks on the body field + skin paint
   function outfit(id, F, rig, D) {
@@ -825,6 +859,39 @@
         const A = rig.arm[s], ua = nrm(sub(A.elb, A.wr)), fa = { o: A.wr, R: basisY(ua, [0, 0, 1]) };
         F.mask(ARMS, MK.band(fa, q => q[1] - 0.03, 0.008), 0.005, { col: silver, pid: 4, gloss: 1.3 });
         F.mask(ARMS, MK.band({ o: A.elb, R: basisY(nrm(sub(A.sh, A.elb)), [0, 0, 1]) }, q => q[1] - 0.2, 0.008), 0.005, { col: silver, pid: 4, gloss: 1.3 });
+      }
+    }
+    if (id === 'selene') {
+      const tee = hx('#d6d0c2'), denim = hx('#3e5c8e'), fray = hx('#dcd8cc'), belt = hx('#5a3418'), boot = hx('#9a6436'), stitch = hx('#e0b878');
+      // crop tee: from the neckline (scooped at the front) down to just under the bust, short sleeves on the upper arms
+      const neckY = q => 0.19 - (q[2] > 0 ? 0.105 * Math.exp(-Math.pow(q[0] / 0.07, 2)) : 0);
+      F.mask(TOR, MK.and(MK.half(chs, q => q[1] - (by - 0.118)), MK.half(chs, q => neckY(q) - q[1])), 0.006, { col: tee, pid: 5, gloss: 0.1 });
+      F.mask(TOR, MK.band(chs, q => q[1] - (by - 0.118), 0.004), 0.004, { col: hx('#8a2024'), pid: 5, gloss: 0.1, pri: 1 });   // hem
+      // Stars and Stripes print, faded: bold red bands (7 across the top so they read at 640x360), a blue canton with star dots
+      const y0 = by - 0.118, sh = 0.029, tee0 = MK.and(MK.half(chs, q => q[1] - y0), MK.half(chs, q => neckY(q) - q[1]));
+      const redBand = MK.half(chs, q => { const t = (((q[1] - y0) % (2 * sh)) + 2 * sh) % (2 * sh); return t < sh ? Math.min(t, sh - t) : -Math.min(t - sh, 2 * sh - t); });
+      F.mask(TOR, MK.and(tee0, redBand), 0, { col: hx('#a42a2c'), pid: 5, gloss: 0.1, pri: 2 });
+      const canton = MK.half(chs, q => Math.min(-0.004 - q[0], q[0] + 0.19, q[1] - (y0 + sh * 3.2), q[2] + 0.02));
+      F.mask(TOR, MK.and(tee0, canton), 0, { col: hx('#28386c'), pid: 5, gloss: 0.1, pri: 3 });
+      const stars = MK.half(chs, q => { const gy = 0.021, gx = 0.022, row = Math.floor((q[1] - y0) / gy), ox = (row % 2) * gx * 0.5;
+        const dx = ((q[0] - ox) % gx + gx) % gx - gx / 2, dy = ((q[1] - y0) % gy + gy) % gy - gy / 2; return 0.0038 - Math.hypot(dx, dy); });
+      F.mask(TOR, MK.and(tee0, canton, stars), 0, { col: hx('#ece6d6'), pid: 0, gloss: 0.2, pri: 4 });
+      for (const s of [-1, 1]) {
+        const A = rig.arm[s], upv = nrm(sub(A.sh, A.elb)), fu = { o: A.elb, R: basisY(upv, [0, 0, 1]) }, lu = len(sub(A.sh, A.elb));
+        F.mask(ARMS, MK.and(MK.half(fu, q => q[1] - lu * 0.62), MK.cap(A.elb, A.sh, 0.1)), 0.006, { col: tee, pid: 5, gloss: 0.1 });   // this arm only
+      }
+      // daisy dukes: low-rise waist, hem just under the crotch at the front, lower at the back to cover the buttocks' curve
+      const hemY = q => -0.125 + 0.9 * Math.min(q[2], 0);
+      F.mask(TOR | LEGS, MK.and(MK.half(pel, q => (0.07 - 0.25 * q[2]) - q[1]), MK.half(pel, q => q[1] - hemY(q))), 0.007, { col: denim, pid: 2, gloss: 0.15 });
+      F.mask(TOR | LEGS, MK.band(pel, q => q[1] - hemY(q) - 0.004, 0.007), 0.006, { col: fray, pid: 5, gloss: 0.1, pri: 1 });           // frayed hem
+      F.mask(TOR | LEGS, MK.and(MK.band(pel, q => q[1] - (0.062 - 0.25 * q[2]), 0.013), MK.half(pel, q => 0.3 - Math.abs(q[0]))), 0.007, { col: belt, pid: 2, gloss: 0.4, pri: 1 });
+      F.mask(TOR, MK.ell(pel, [0, 0.055, 0.105], [0.034, 0.026, 0.05]), 0.016, { col: hx('#c8a050'), pid: 4, gloss: 1.3, pri: 2 });   // big buckle
+      // cowboy boots to mid-calf with stitching bands
+      for (const s of [-1, 1]) {
+        const L = rig.leg[s], up = nrm(sub(L.knee, L.ank)), fr = { o: L.ank, R: basisY(up, [0, 0, 1]) }, lk = len(sub(L.knee, L.ank));
+        F.mask(LEGS, MK.half(fr, q => lk * 0.58 - q[1]), 0.008, { col: boot, pid: 2, gloss: 0.5 });
+        F.mask(LEGS, MK.band(fr, q => q[1] - lk * 0.36 - 0.012 * Math.sin(Math.atan2(q[0], q[2]) * 4), 0.003), 0.003, { col: stitch, pid: 2, gloss: 0.4, pri: 1 });
+        F.mask(LEGS, MK.band(fr, q => q[1] - lk * 0.28 + 0.012 * Math.sin(Math.atan2(q[0], q[2]) * 4), 0.003), 0.003, { col: stitch, pid: 2, gloss: 0.4, pri: 1 });
       }
     }
     if (id === 'vesna') {
@@ -910,6 +977,35 @@
       const cc = new T.TorusGeometry(0.02, 0.006, 5, 12, PI * 1.4); cc.rotateZ(PI * 0.8);
       P.add(cc, M4(W(hd, [0, 0.062, 0.082]), hd.R), '#eef2ff', 4, 1.6);
     }
+    if (id === 'selene') {
+      // beer bottle held by the neck in the right fist
+      const hR = rig.arm[-1].hand, top = W(hR, [0, 0.03, 0.0]), dn = WD(hR, [0, 1, 0]);   // hand y points down the bottle
+      const neckTop = sub(top, scl(dn, 0.05)), neckBot = add(top, scl(dn, 0.05)), bodyBot = add(neckBot, scl(dn, 0.17));
+      P.add(new T.CylinderGeometry(1, 1, 1, 8), segM(neckTop, neckBot, 0.013), '#3a2008', 8, 1.4);
+      P.add(new T.CylinderGeometry(0.45, 1, 1, 8), segM(neckBot, add(neckBot, scl(dn, 0.04)), 0.031), '#4a2a0a', 8, 1.4);
+      P.add(new T.CylinderGeometry(1, 1, 1, 10), segM(add(neckBot, scl(dn, 0.04)), bodyBot, 0.031), '#5a3410', 8, 1.5);
+      P.add(new T.CylinderGeometry(1, 1, 1, 10), segM(add(neckBot, scl(dn, 0.08)), add(neckBot, scl(dn, 0.13)), 0.0325), '#d8c89a', 0, 0.3);
+      P.add(new T.CylinderGeometry(1, 1, 1, 8), segM(sub(neckTop, scl(dn, 0.008)), neckTop, 0.015), '#c8b060', 4, 1.3);
+      // cigarette between the fingers of the raised left hand
+      const hL = rig.arm[1].hand, c0 = W(hL, [0.0, 0.085, 0.015]), cd = WD(hL, [-1, 0.25, 0.3]);
+      P.add(new T.CylinderGeometry(1, 1, 1, 6), segM(c0, add(c0, scl(nrm(cd), 0.07)), 0.0045), '#f0ece4', 0, 0.2);
+      P.add(new T.SphereGeometry(1, 6, 5), M4(add(c0, scl(nrm(cd), 0.072)), I3, 0.0055), '#ff6a1a', 0, 2.0);
+      // cowboy boots: sole, stacked heel, pointed toe, shaft rim and a pull strap
+      for (const s of [-1, 1]) {
+        const L = rig.leg[s], f = L.foot, inn = -s, up = nrm(sub(L.knee, L.ank)), lk = len(sub(L.knee, L.ank));
+        P.add(new T.BoxGeometry(1, 1, 1), M4(W(f, [inn * 0.003, -0.086, 0.05]), f.R, [0.078, 0.022, 0.2]), '#3a2210', 2, 0.3);
+        P.add(new T.BoxGeometry(1, 1, 1), M4(W(f, [0, -0.1, -0.03]), f.R, [0.05, 0.05, 0.055]), '#4a2c14', 2, 0.3);
+        P.add(new T.ConeGeometry(1, 1, 6), segM(W(f, [inn * 0.006, -0.058, 0.13]), W(f, [inn * 0.01, -0.066, 0.2]), 0.034), '#9a6436', 2, 0.5);
+        const rimC = add(L.ank, scl(up, lk * 0.58)), rR = basisY(up, [0, 0, 1]);
+        P.add(new T.TorusGeometry(0.052, 0.009, 5, 16).rotateX(PI / 2), M4(rimC, rR, [1, 1, 1.05]), '#7a4a26', 2, 0.4);
+        P.add(new T.BoxGeometry(1, 1, 1), M4(add(rimC, WD(rig.pel, [s * 0.055, 0.015, 0])), rR, [0.008, 0.04, 0.018]), '#5a3418', 2, 0.3);
+      }
+      // cigarette pack + lighter tucked in the belt at the left hip
+      const bp = surfPt(F, W(pel, [0.1, 0.06, 0.02]), WD(pel, [0.8, 0, 0.6])), bR = mm(pel.R, ry(0.9));
+      P.add(new T.BoxGeometry(1, 1, 1), M4(add(bp, WD(pel, [0.012, 0, 0.008])), bR, [0.055, 0.075, 0.022]), '#b01c1c', 0, 0.4);
+      P.add(new T.BoxGeometry(1, 1, 1), M4(add(bp, WD(pel, [0.012, 0.03, 0.008])), bR, [0.056, 0.016, 0.023]), '#f0ece4', 0, 0.3);
+      P.add(new T.BoxGeometry(1, 1, 1), M4(add(bp, WD(pel, [0.005, -0.01, 0.045])), bR, [0.022, 0.045, 0.012]), '#c8c8d0', 4, 1.4);
+    }
     if (id === 'vesna') {
       const fur = hx('#4a4640'), furD = hx('#1c1a18');
       const furCol = (u, v) => mixc(fur, furD, hash3(u * 13, v * 17, 3) * 0.5 + (v > 0.85 ? 0.35 : 0));
@@ -954,6 +1050,10 @@
       lobes(8, 1.7, 4.6, 0.078, 0.02, 0.03, [0.04, 0.09, 0.036], 0.03);
       for (const s of [-1, 1]) F.cone(0, [s * 0.072, 0.03, -0.01], [s * 0.078, -0.13, -0.035], 0.034, 0.026, 0.04);
     }
+    if (id === 'selene') {                                                     // slicked back into a high crown knot
+      F.ell(0, O, [0, 0.105, -0.075], [0.042, 0.046, 0.044], 0.03);
+      F.ell(0, O, [0, 0.07, -0.06], [0.07, 0.06, 0.07], 0.03);
+    }
     if (id === 'vesna') {
       lobes(9, 1.4, 4.9, 0.1, 0.05, 0.04, [0.055, 0.08, 0.05], 0.03);
       lobes(8, 1.6, 4.7, 0.11, -0.04, 0.03, [0.05, 0.07, 0.05], 0.03);
@@ -978,10 +1078,12 @@
     };
     if (id === 'kaela') braid(W(hd, [0, -0.06, -0.1]), 0.6, 0.043, 0.5, 0.045, [0, 0, -0.02]);
     if (id === 'vesna') braid(W(hd, [0.06, -0.06, -0.09]), 0.55, 0.036, 0.6, 0.038, [0.02, 0, 0.1]);
+    if (id === 'selene') braid(W(hd, [0, 0.11, -0.1]), 0.72, 0.042, 0.8, 0.044, [0, 0.02, -0.09]);   // high warrior ponytail
     const C = {
       kaela: { n: 16, a0: 1.9, a1: 4.4, el: [-0.3, 0.6], len: [0.16, 0.3], w: 0.036, rows: 8, out: 0.04, taper: 0.4 },
       nyx: { n: 34, a0: 1.25, a1: 5.03, el: [-0.2, 1.0], len: [0.48, 0.64], w: 0.042, rows: 22, out: 0.03, taper: 0.5 },
       vesna: { n: 30, a0: 1.15, a1: 5.13, el: [-0.35, 1.0], len: [0.2, 0.38], w: 0.055, rows: 11, out: 0.1, taper: 0.4 },
+      selene: { n: 6, a0: 1.2, a1: 5.08, el: [0.0, 0.35], len: [0.1, 0.16], w: 0.03, rows: 6, out: 0.02, taper: 0.5 },
     }[id];
     const c0 = [0, 0.03, -0.02];
     for (let i = 0; i < C.n; i++) {
@@ -999,7 +1101,7 @@
       gridMesh(Sft, g, (u, v) => mixc(base, colD, (u < 0.2 || u > 0.8 ? 0.35 : 0) + v * 0.25), 7, 0.4, v => v * 0.8);
     }
     // crown strands: start at the hairline and sweep back over the mass
-    const TOPN = { kaela: [11, 0.26, 0.34], nyx: [13, 0.5, 0.64], vesna: [12, 0.3, 0.42] }[id];
+    const TOPN = { kaela: [11, 0.26, 0.34], nyx: [13, 0.5, 0.64], vesna: [12, 0.3, 0.42], selene: [12, 0.16, 0.22] }[id];
     for (let i = 0; i < TOPN[0]; i++) {
       const h1 = hash3(i, 11, 4), h2 = hash3(i, 2, 8);
       const a = -1.0 + 2.0 * (i + 0.5) / TOPN[0], el = 0.55 + 0.35 * h2;
@@ -1083,6 +1185,7 @@
     const mats = heroMats({ faceTex: B.faceTex, skinGloss: D.skinGloss, phase: D.phase });
     mats.unis.uChest.value.set(B.rig.chs.o[0], B.rig.chs.o[1] - 0.01, B.rig.chs.o[2]);
     mats.unis.uHC.value.set(...B.rig.head.o);
+    mats.unis.uHipY.value = (B.rig.leg[-1].hip[1] + B.rig.leg[1].hip[1]) / 2; mats.unis.uKneeY.value = (B.rig.leg[-1].knee[1] + B.rig.leg[1].knee[1]) / 2;
     const g = new T.Group(); g.name = 'heroine_' + id;
     const add2 = (geo, m, ink) => { if (!geo) return; const me = new T.Mesh(geo, m); me.castShadow = true; g.add(me); if (ink) { const o = new T.Mesh(geo, mats.ink); o.renderOrder = -1; g.add(o); } };
     add2(B.body, mats.body, true); add2(B.head, mats.head, true); add2(B.hair, mats.prop, true); add2(B.prop, mats.prop, true); add2(B.soft, mats.soft, false);
@@ -1094,6 +1197,7 @@
       const pl = new T.PointLight(0x9a80ff, 1.6, 3.5, 1.5); pl.position.copy(orb.position); g.add(pl);
       g.userData.orb = orb; g.userData.halo = halo;
     }
+    g.userData.walk = (amount, phase) => { mats.unis.uWalk.value = amount; mats.unis.uWPh.value = phase; };   // procedural leg swing (0 = idle)
     g.userData.id = id; g.userData.stats = { ms: B.ms, tris: B.tris, draws: g.children.filter(c => c.isMesh).length };
     g.userData.update = (dt, t) => {
       U.uT.value = t;
@@ -1102,5 +1206,5 @@
     return g;
   }
 
-  CT.heroines = { build, bake, IDS: ['kaela', 'nyx', 'vesna'], uniforms: U, DEF, clear() { for (const k in cache) delete cache[k]; } };
+  CT.heroines = { build, bake, IDS: ['kaela', 'nyx', 'vesna', 'selene'], uniforms: U, DEF, clear() { for (const k in cache) delete cache[k]; } };
 })();

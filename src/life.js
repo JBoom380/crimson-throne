@@ -526,18 +526,53 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     const e = Object.assign({ pool, x, z, y: H(x, z), yaw: 0, pitch: 0, roll: 0, s: 1, a0: rnd() * TAU, a1: 0, a2: 0, a3: 0, lift: 0, tint: null, tint2: null, sh: 0.45, vis: true, ph: rnd() * TAU }, o || {});
     ENTS.push(e); return e;
   }
-  function drop(e) { if (!e || e.gone) return; const i = ENTS.indexOf(e); if (i >= 0) { ENTS[i] = ENTS[ENTS.length - 1]; ENTS.pop(); } e.gone = true; if (e.inter) { uninter(e.inter); e.inter = null; } }
+  function drop(e) { if (!e || e.gone) return; const i = ENTS.indexOf(e); if (i >= 0) { ENTS[i] = ENTS[ENTS.length - 1]; ENTS.pop(); } e.gone = true; if (e.inter) { uninter(e.inter); e.inter = null; } kitDrop(e); }
   const hexT = h => { COL.set(h); return [COL.r, COL.g, COL.b]; };
+
+  // ── Humanoid kit (humanoid.js): travellers get skinned rigs; the pools stay as the fallback ──
+  const KROLE = { merchant: 'merchant', pilgrim: 'pilgrim', militia: 'militia', bard: 'bard', woodcutter: 'woodcutter', hunter: 'hunter', refugee: 'refugee', knight: 'knight' };
+  let KIT = null, KDT = 0;
+  function kitOn() { if (KIT === null) KIT = !!(CT.humanoid && typeof CT.humanoid.build === 'function'); return KIT; }
+  const hexOf = t => (t ? '#' + COL.setRGB(t[0], t[1], t[2]).getHexString() : null);
+  function kitSpec(role, seed, t1, t2) {
+    const pal = {};
+    const put = (k, v) => { if (v) pal[k] = v; };
+    if (role === 'militia' || role === 'knight') { put('accent', t1); if (role === 'militia') put('legs', t2); }
+    else { put('top', t1); if (role !== 'woodcutter' && role !== 'bard') put('cloth', t2); if (role === 'bard') put('legs', t2); }
+    return { preset: KROLE[role], seed: 1 + seed, pal };
+  }
+  function kitSpecs() { const out = []; for (const r in KROLE) for (let i = 0; i < 3; i++) out.push(kitSpec(r, i)); return out; }
+  function kitDraw(e, cam) {
+    const dx = e.x - cam.x, dz = e.z - cam.z, d2 = dx * dx + dz * dz;
+    if (d2 > 210 * 210) { if (e.rig) e.rig.root.visible = false; return false; }
+    if (!e.rig) {
+      if (e.kseed == null) e.kseed = (rnd() * 3) | 0;
+      try { e.rig = CT.humanoid.build(kitSpec(e.role, e.kseed, hexOf(e.tint), hexOf(e.tint2))); } catch (err) { console.warn('[life] humanoid kit failed, pools used', err); KIT = false; return false; }
+      root.add(e.rig.root);
+    }
+    const r = e.rig, H_ = CT.humanoid; r.root.visible = true;
+    if (e.dead) { if (!r.anim.dead) H_.kill(r, e.killDir || null); r.root.position.set(e.x, e.y, e.z); r.root.rotation.set(0, e.yaw, 0); }
+    else { r.root.position.set(e.x, e.y + e.lift, e.z); r.root.rotation.set(e.pitch, e.yaw, e.roll); }
+    r.root.scale.setScalar(e.s);
+    if (d2 < 90 * 90) {
+      H_.animate(r, KDT, time + e.ph, { speed: e.mode === 'lie' || e.downT > 0 ? 0 : e.spd, work: e.strum > 0 ? 'strum' : null, aggro: !!(e.fighter && e.foe) });
+      if (!e.dead && e.a3 > 0.01 && !(e.strum > 0)) { H_.add(r, 'shR', -e.a3 * 0.9, 0, -0.2 * e.a3); H_.add(r, 'elR', -0.35 * e.a3, 0, 0); H_.add(r, 'spine', 0.08 * e.a3, -0.2 * e.a3, 0); H_.applyPose(r); }
+    }
+    return true;
+  }
+  function kitDrop(e) { if (e && e.rig) { CT.humanoid.dispose(e.rig); e.rig = null; } }
 
   function render() {
     for (const k in POOLS) POOLS[k].n = 0;
     SHP.n = 0; GLP.n = 0;
     const cam = core.camera.position;
     for (let i = 0; i < ENTS.length; i++) {
-      const e = ENTS[i]; if (!e.vis) continue;
-      const pl = POOLS[e.pool]; if (!pl || pl.n >= pl.max) continue;
+      const e = ENTS[i]; if (!e.vis) { if (e.rig) e.rig.root.visible = false; continue; }
+      const kit = e.human && kitOn() && kitDraw(e, cam);
+      const pl = POOLS[e.pool]; if (!kit && (!pl || pl.n >= pl.max)) continue;
       const dx = e.x - cam.x, dz = e.z - cam.z, d2 = dx * dx + dz * dz;
-      if (d2 > pl.view * pl.view) continue;
+      if (d2 > (kit ? 210 * 210 : pl.view * pl.view)) continue;
+      if (!kit) {
       const j = pl.n++;
       E1.set(e.pitch, e.yaw, e.roll); Q1.setFromEuler(E1);
       M1.compose(V1.set(e.x, e.y + e.lift, e.z), Q1, S1.set(e.s, e.s, e.s)); M1.toArray(pl.arr, j * 16);
@@ -545,6 +580,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
       const t1 = e.tint, t2 = e.tint2;
       pl.t1[j * 3] = t1 ? t1[0] : 1; pl.t1[j * 3 + 1] = t1 ? t1[1] : 1; pl.t1[j * 3 + 2] = t1 ? t1[2] : 1;
       pl.t2[j * 3] = t2 ? t2[0] : 1; pl.t2[j * 3 + 1] = t2 ? t2[1] : 1; pl.t2[j * 3 + 2] = t2 ? t2[2] : 1;
+      }
       if (e.sh > 0 && (d2 < 3600 || e.bigShadow) && SHP.n < SHP.max) {
         const gy = e.gy != null ? e.gy : e.y, r = e.sh * e.s * (e.bigShadow ? 1 : 1 / (1 + Math.max(0, e.y + e.lift - gy) * 0.3));
         M1.makeScale(r, 1, r * (e.shL || 1)); M1.premultiply(M1b.makeRotationY(e.yaw)); M1.setPosition(e.x, gy + 0.06, e.z);
@@ -1118,6 +1154,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     return ent(v, x, z, Object.assign({ human: true, role: v, hp: 60, maxHp: 60, s: R(0.97, 1.06), sh: 0.38, shL: 1.2, rad: 0.4, mode: 'walk', actT: 0, atkCd: R(0.3, 1), scanT: 0, dmg: 10, fighter: false, pos: new T.Vector3(x, 0, z), spd: 0 }, o || {}));
   }
   function stepHuman(e, tx, tz, speed, dt, faceYaw, col) {
+    if (e.downT > 0 || e.mode === 'lie') speed = 0;
     const dx = tx - e.x, dz = tz - e.z, d = Math.hypot(dx, dz);
     let v = 0;
     if (d > 0.08 && speed > 0) {
@@ -1130,6 +1167,8 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     e.a1 += ((v > 0.15 ? clamp(0.22 + v * 0.14, 0, 0.95) : 0) - e.a1) * Math.min(1, dt * 8);
   }
   function animHuman(e, dt) {
+    if (e.downT > 0) { e.downT -= dt; const k = Math.min(1, (1.8 - e.downT) * 4, e.downT * 2.5); e.pitch = -1.35 * Math.max(0, k); e.lift = 0.1 * k; }
+    else if (e.protected && e.mode !== 'lie' && e.pitch) { e.pitch *= Math.exp(-dt * 6); e.lift = 0; }
     if (e.actT > 0) { e.actT -= dt; e.a3 = Math.sin(clamp(1 - e.actT / 0.55, 0, 1) * PI) * 2.3; }
     else if (e.strum > 0) { e.strum -= dt; e.a3 = 0.55 + Math.sin(time * 11) * 0.25; }
     else e.a3 *= Math.exp(-dt * 8);
@@ -1137,6 +1176,12 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
   }
   function hurtHuman(e, dmg, dir) {
     if (e.dead) return;
+    if (e.rig && dir) { CT.humanoid.hit(e.rig, dir, 1); e.killDir = { x: dir.x, z: dir.z }; }
+    if (e.protected) {   // important NPCs (traders, quest givers): knocked down, never killed
+      if (!(e.downT > 0) && e.mode !== 'lie' && rnd() < 0.4) e.downT = 1.8;
+      if (has('gore', 'spray')) CT.gore.spray(new T.Vector3(e.x, e.y + 1.2, e.z), new T.Vector3(dir.x, 0.3, dir.z).normalize(), 0.25);
+      return;
+    }
     e.hp -= dmg;
     if (has('gore', 'spray')) CT.gore.spray(new T.Vector3(e.x, e.y + 1.2, e.z), new T.Vector3(dir.x, 0.3, dir.z).normalize(), 0.5);
     if (e.hp <= 0) killHuman(e, true);
@@ -1144,13 +1189,14 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
   function killHuman(e, loud) {
     if (e.dead) return;
     e.dead = true; e.deadT = 0; e.a1 = 0; e.a3 = 0; e.sh = 0; e.fall = 0;
+    DEATHS[e.protected ? 'protected' : loud ? 'npc' : 'scripted']++;
     if (e.inter) { uninter(e.inter); e.inter = null; }
     if (loud) {
       if (has('gore', 'pool')) CT.gore.pool(e.x, e.z, 0.9);
       const d = Math.hypot(e.x - P.x, e.z - P.z);
       sfx('bandit_die', new T.Vector3(e.x, e.y + 1, e.z));
-      if (d < 70 && e.role !== 'militia') snd('scream', V1.set(e.x, e.y, e.z), 120);
-      if (d < 90 && time - lastDeathBark > 8) { lastDeathBark = time; say(`${e.name || ('The ' + LABEL[e.role].toLowerCase())} is cut down!`, 'info'); }
+      if (d < 40 && e.role !== 'militia') snd('scream', V1.set(e.x, e.y, e.z), 60);
+      if (e.name && d < 30) deathNote(`${e.name} is cut down!`);
     }
     DEADFOLK.push(e);
     e.inter = inter(e.x, e.z, `Search the fallen ${(LABEL[e.role] || 'traveller').toLowerCase()}`, o => {
@@ -1160,6 +1206,8 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     }, 2.2);
   }
   let lastDeathBark = -99;
+  const DEATHS = { protected: 0, npc: 0, scripted: 0 };
+  function deathNote(text) { if (time - lastDeathBark < 60) return; lastDeathBark = time; say(text, 'info'); }
   const DEADFOLK = [];
   function updDeadFolk(dt) {
     for (let i = DEADFOLK.length - 1; i >= 0; i--) {
@@ -1205,6 +1253,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
       if (m.hp > s.hp) m.hp = s.hp;   // 'return' regenerates: staged monsters keep their wounds
       s.hp = m.hp;
       if (m.stagT > 0 || m.rise > 0) continue;
+      if (pd > 120 && s.mode !== 'march') { if (!m.atk) holdM(m, null); s.hitAt = 0; continue; }   // no background battles
       switch (s.mode) {
         case 'hunt': {
           let v = s.v;
@@ -1214,7 +1263,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
           if (d > reach) { if (!m.atk) goTo(m, v.x, v.z); }
           else { if (!m.atk) holdM(m, yaw); if ((s.cd -= dt) <= 0 && mAttack(m)) { s.cd = R(1.4, 2.3); s.hitAt = 0.5; } }
           if (m.atk || d <= reach) { m.yaw = yaw; m.root.rotation.y = yaw; }
-          if (s.hitAt > 0 && (s.hitAt -= dt) <= 0 && d < reach + 1) hurtVictim(v, m);
+          if (s.hitAt > 0 && (s.hitAt -= dt) <= 0 && d < reach + 1 && Math.hypot(v.x - P.x, v.z - P.z) < 60) hurtVictim(v, m);
           break;
         }
         case 'hold': case 'toll': {
@@ -1238,6 +1287,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
   }
   // Fighters (watchmen, guards, knights) hit monsters through monsters.damage; the monster turns on them.
   function updFighter(e, dt, range) {
+    if (Math.hypot(e.x - P.x, e.z - P.z) > 120) { e.foe = null; return false; }   // far patrols do not fight
     if ((e.scanT -= dt) < 0) { e.scanT = 0.3; if (!e.foe || e.foe.dead || !e.foe.alive) e.foe = nearestMonster(e.x, e.z, range); }
     const m = e.foe;
     if (!m || m.dead || !m.alive) { e.foe = null; return false; }
@@ -1245,7 +1295,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     if (d > range * 1.4) { e.foe = null; return false; }
     if (d > reach) stepHuman(e, m.pos.x - dx / d * (reach - 0.3), m.pos.z - dz / d * (reach - 0.3), 3.8, dt, null, true);
     else { stepHuman(e, e.x, e.z, 0, dt, Math.atan2(dx, dz)); if ((e.atkCd -= dt) <= 0 && e.actT <= 0) { e.actT = 0.55; e.atkCd = R(1.1, 1.7); e.struck = false; } }
-    if (e.actT > 0 && !e.struck && e.actT < 0.16) { e.struck = true; if (d < reach + 0.8) npcStrike(e, m); }
+    if (e.actT > 0 && !e.struck && e.actT < 0.16) { e.struck = true; if (d < reach + 0.8 && Math.hypot(e.x - P.x, e.z - P.z) < 60) npcStrike(e, m); }   // far fights are only shown
     const min = (m.rad || 0.5) + 0.75;   // never stand inside the beast
     if (d < min && d > 1e-3) { e.x = m.pos.x - dx / d * min; e.z = m.pos.z - dz / d * min; }
     return true;
@@ -1253,7 +1303,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
   function npcStrike(e, m) {
     V1.set(m.pos.x - e.x, 0, m.pos.z - e.z); if (V1.lengthSq() < 1e-4) V1.set(0, 0, 1); V1.normalize();
     BUSY = true;
-    try { if (has('monsters', 'damage')) CT.monsters.damage(m, e.dmg * R(0.8, 1.2), V1, 'torso', false); } finally { BUSY = false; }
+    try { if (has('monsters', 'damage')) CT.monsters.damage(m, e.dmg * R(0.8, 1.2), V1, 'torso', false, { source: 'npc' }); } finally { BUSY = false; }
     if (Math.hypot(m.pos.x - P.x, m.pos.z - P.z) > 38) {   // it and its pack turn on the attacker, not on a far-away player
       for (const o of mons()) {
         if (o.dead || !o.aggro || Math.hypot(o.pos.x - m.pos.x, o.pos.z - m.pos.z) > 40 || Math.hypot(o.pos.x - P.x, o.pos.z - P.z) <= 38) continue;
@@ -1273,7 +1323,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     for (const ev of EVS) if (ev.people.length) teams.push(ev.people);
     for (const set of teams) {
       const e0 = set.find(e => e.human && !e.dead); if (!e0) continue;
-      if (Math.hypot(e0.x - P.x, e0.z - P.z) > 170) continue;
+      if (Math.hypot(e0.x - P.x, e0.z - P.z) > 110) continue;
       for (const m of mons()) {
         if (m.dead || !m.alive || STAGED.has(m) || m.aggro || m.garrison || m.isBoss || m.state === 'dormant') continue;
         if (Math.hypot(m.pos.x - P.x, m.pos.z - P.z) < 40) continue;
@@ -1321,7 +1371,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
         g.speed = 1.15; g.name = pick(NAMES.merchant);
         add(ent('ox', x, z, { beast: true, s: 1, sh: 0.7, shL: 1.8, rad: 0.9 }), 0, 0);
         add(ent('cart', x, z, { beast: true, cart: true, s: 1, sh: 0.9, shL: 1.6, tint: pick(PAL.canvas) }), 2.6, 0);
-        const mc = add(human('merchant', x, z, { name: g.name, tint: pick(PAL.rich), tint2: pick(PAL.tunic), hp: 50 }), 2.4, 1.5);
+        const mc = add(human('merchant', x, z, { name: g.name, tint: pick(PAL.rich), tint2: pick(PAL.tunic), hp: 50, protected: true }), 2.4, 1.5);
         if (rnd() < 0.7) add(human('militia', x, z, { tint: PAL.guard, tint2: PAL.harrowLegs, fighter: true, hp: 80, dmg: 9 }), 5.4, 0);
         g.trade = tradeInter(mc, g.name, 1);
         break;
@@ -1520,7 +1570,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     if (BUFF.t <= 0) { say('The blessing of the Old Gods fades.', 'info'); BUFF.kind = null; }
   }
   function onHit(d) {   // Wrath: the player's blows bite deeper (monsters.damage already applied the base hit)
-    if (BUFF.kind !== 'wrath' || BUSY || !d || d.corpse || d.blocked || d.phased || d.kill || !(d.damage > 0)) return;
+    if (BUFF.kind !== 'wrath' || BUSY || !d || d.byNpc || d.corpse || d.blocked || d.phased || d.kill || !(d.damage > 0)) return;
     const m = d.target; if (!m || !m.cfg || m.dead) return;
     m.hp = Math.max(1, m.hp - d.damage * 0.4);
   }
@@ -1626,7 +1676,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
         ev.cart = ent('cart', sp.x, sp.z, { yaw, s: 1, sh: 0.9, shL: 1.6, tint: pick(PAL.canvas), roll: late ? 0.5 : 0 }); ev.beasts.push(ev.cart);
         ev.ox = ent('ox', sp.x + fx_ * 2.6, sp.z + fz_ * 2.6, { yaw, s: 1, sh: 0.7, shL: 1.8, rad: 0.9, a2: 0.4 }); ev.beasts.push(ev.ox);
         const name = pick(NAMES.merchant);
-        ev.merchant = human('merchant', sp.x + nx * 1.8, sp.z + nz * 1.8, { name, tint: pick(PAL.rich), tint2: pick(PAL.tunic), hp: 55, yaw, tough: 0.3, loot: [['gold', RI(10, 25)], ['potion', 1]] });
+        ev.merchant = human('merchant', sp.x + nx * 1.8, sp.z + nz * 1.8, { name, tint: pick(PAL.rich), tint2: pick(PAL.tunic), hp: 55, yaw, tough: 0.3, protected: true, loot: [['gold', RI(10, 25)], ['potion', 1]] });
         const g1 = human('militia', sp.x - nx * 1.8, sp.z - nz * 1.8, { tint: PAL.guard, tint2: PAL.harrowLegs, fighter: true, hp: 90, dmg: 8, yaw });
         const g2 = human('militia', sp.x - fx_ * 3, sp.z - fz_ * 3, { tint: PAL.guard, tint2: PAL.harrowLegs, fighter: true, hp: 90, dmg: 8, yaw: yaw + PI });
         ev.people.push(ev.merchant, g1, g2); for (const e of ev.people) { e.team = ev.people; e.home = { x: e.x, z: e.z }; }
@@ -1638,9 +1688,10 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
           if (m) stage(m, late ? 'hold' : 'hunt', { set: ev.people, hx: sp.x + R(-3, 3), hz: sp.z + R(-3, 3) });
         }
         if (late) {
-          for (const e of ev.people) { killHuman(e, false); e.fall = 1; }
+          for (const e of ev.people) if (e !== ev.merchant) { killHuman(e, false); e.fall = 1; }
+          const M = ev.merchant; M.mode = 'lie'; M.pitch = -1.15; M.lift = 0.1;
           prop(ev, 'wheel', sp.x + nx * 2.5, sp.z + nz * 2.5, R(0, TAU));
-          ev.state = 'late'; lateWreck(ev);
+          ev.state = 'fight'; ev.late = true; lateWreck(ev);
           addCircle(sp.x, sp.z, RI(5, 7), R(14, 22), R(7, 11), 240);
           omen(ev, 'Crows wheel over the road ahead. Smoke rises from a wagon.', { syn: 'caw' });
         } else {
@@ -1652,19 +1703,19 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
       update(ev, dt) {
         const M = ev.merchant;
         if (ev.state === 'fight') {
-          if ((ev.clT = (ev.clT || 0) - dt) < 0 && ev.pd < 150) { ev.clT = R(0.6, 1.4); sfx(rnd() < 0.6 ? 'clang' : 'bandit_shout', omenPos(ev.x, ev.z, 30)); if (rnd() < 0.15 && !M.dead) snd('scream', V1.set(M.x, M.y + 1.5, M.z), 150); }
+          if (!ev.late && (ev.clT = (ev.clT || 0) - dt) < 0 && ev.pd < 150) { ev.clT = R(0.6, 1.4); sfx(rnd() < 0.6 ? 'clang' : 'bandit_shout', omenPos(ev.x, ev.z, 30)); if (rnd() < 0.15 && !M.dead) snd('scream', V1.set(M.x, M.y + 1.5, M.z), 150); }
           for (const e of ev.people) {
             if (e.dead) continue; animHuman(e, dt);
             if (e.fighter && updFighter(e, dt, 26)) continue;
-            if (e === M) { stepHuman(e, e.home.x, e.home.z, 2, dt, Math.atan2(ev.cart.x - e.x, ev.cart.z - e.z)); e.a2 = 0.3; continue; }
+            if (e === M) { if (e.mode !== 'lie') stepHuman(e, e.home.x, e.home.z, 2, dt, Math.atan2(ev.cart.x - e.x, ev.cart.z - e.z)); e.a2 = 0.3; continue; }
             stepHuman(e, e.home.x, e.home.z, 2.5, dt, ev.pd < 10 ? Math.atan2(P.x - e.x, P.z - e.z) : null, true);
           }
           if (M.dead) {
-            ev.state = 'lost'; say('The merchant is dead. The caravan is lost.', 'omen');
+            ev.state = 'lost'; if (ev.pd < 30) deathNote('The merchant is dead. The caravan is lost.');
             for (const m of liveMobs(ev)) { const s = STAGED.get(m); if (s) { s.mode = 'hold'; s.hx = ev.x + R(-3, 3); s.hz = ev.z + R(-3, 3); } }
             lateWreck(ev); addCircle(ev.x, ev.z, RI(4, 6), R(14, 20), R(7, 10), 200);
           } else if (deadAll(ev)) {
-            ev.state = 'saved'; resolve(ev, 'Caravan saved');
+            ev.state = 'saved'; resolve(ev, 'Caravan saved'); if (M.mode === 'lie') { M.mode = 'walk'; M.pitch = 0; M.lift = 0; }
             say(`${M.name}: The gods sent you! Take this, and my prices are yours to name.`);
             const bx = M.x + R(-1, 1), bz = M.z + R(-1, 1);
             chest(ev, bx, bz, `${M.name}'s thanks`, [['gold', RI(30, 60)], ['potion', RI(1, 2)]], 40);
@@ -1818,7 +1869,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
         const sp = roadSpot(70, 120, 0.8) || groundSpot(70, 115, 0.7); if (!sp) return null;
         const ev = newEv('knight', sp.x, sp.z, { life: 360 });
         const name = pick(NAMES.knight);
-        ev.kn = human('knight', sp.x, sp.z, { name, tint: pick(PAL.crest), tint2: pick(PAL.crest), fighter: true, hp: 260, maxHp: 260, dmg: 12, s: 1.06, tough: 0.3, loot: [['steelsword', rnd() < 0.7 ? 1 : 0], ['gold', RI(15, 30)]].filter(e => e[1] > 0) });
+        ev.kn = human('knight', sp.x, sp.z, { name, protected: true, tint: pick(PAL.crest), tint2: pick(PAL.crest), fighter: true, hp: 260, maxHp: 260, dmg: 12, s: 1.06, tough: 0.3, loot: [['steelsword', rnd() < 0.7 ? 1 : 0], ['gold', RI(15, 30)]].filter(e => e[1] > 0) });
         ev.kn.team = [ev.kn]; ev.people.push(ev.kn); ev.kn.home = { x: sp.x, z: sp.z };
         const n = isNight() ? 3 : 2;
         for (let k = 0; k < n; k++) { const a = k / n * TAU + R(-0.4, 0.4); const m = mob(ev, 'boneKnight', sp.x + Math.sin(a) * 6, sp.z + Math.cos(a) * 6, { pack: 9900 + DIR.started }); if (m) stage(m, 'hunt', { set: [ev.kn] }); }
@@ -1830,7 +1881,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
         const k = ev.kn;
         if (!k.dead) { animHuman(k, dt); if (!updFighter(k, dt, 25)) stepHuman(k, k.home.x, k.home.z, 2, dt, ev.pd < 12 ? Math.atan2(P.x - k.x, P.z - k.z) : null, true); }
         if (!ev.resolved && (ev.clT = (ev.clT || 0) - dt) < 0 && ev.pd < 150 && !k.dead) { ev.clT = R(0.5, 1.2); sfx(rnd() < 0.7 ? 'clang' : 'bone_rattle', omenPos(k.x, k.z, 30)); }
-        if (!ev.resolved && k.dead && !ev.fallen) { ev.fallen = true; say(`${k.name} has fallen.`, 'omen'); }
+        if (!ev.resolved && k.dead && !ev.fallen) { ev.fallen = true; if (ev.pd < 30) deathNote(`${k.name} has fallen.`); }
         if (!ev.resolved && deadAll(ev)) {
           if (!k.dead) {
             resolve(ev, 'Knight saved');
@@ -1873,7 +1924,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
         const sp = roadSpot(50, 95, 0.7); if (!sp) return null;
         const ox = sp.x + sp.tz * 2.2, oz = sp.z - sp.tx * 2.2;
         const ev = newEv('dying', ox, oz, { life: 420 });
-        const e = human('refugee', ox, oz, { tint: pick(PAL.rags), tint2: pick(PAL.rags), hp: 20, yaw: Math.atan2(sp.x - ox, sp.z - oz) + PI, pitch: -1.15, lift: 0.1, sh: 0, mode: 'lie' });
+        const e = human('refugee', ox, oz, { tint: pick(PAL.rags), tint2: pick(PAL.rags), hp: 20, yaw: Math.atan2(sp.x - ox, sp.z - oz) + PI, pitch: -1.15, lift: 0.1, sh: 0, mode: 'lie', protected: true });
         e.a1 = 0; ev.people.push(e); ev.man = e;
         if (has('gore', 'pool')) CT.gore.pool(ox, oz, 1.0);
         ev.ask = evInter(ev, ox, oz, 'Give a Healing Draught to the dying man', o => {
@@ -1889,7 +1940,6 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
       update(ev, dt) {
         const e = ev.man;
         if (!ev.bark && ev.pd < 14 && !ev.saved) { ev.bark = true; say('Dying man: Please... a draught... I have seen things... I can tell you where...'); }
-        if (!ev.saved && !e.dead && ev.t > 200) { killHuman(e, false); e.fall = 1; uninter(ev.ask); }
         if (!ev.saved && (ev.cT = (ev.cT || 0) - dt) < 0 && ev.pd < 70 && ev.pd > 8) { ev.cT = R(5, 9); snd('cry', V1.set(e.x, e.y + 0.5, e.z), 80); }
       },
     },
@@ -2066,6 +2116,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
       bat: dBat, fish: dFish, dragon: dDragon };
     for (const k in D) mkPool(k, D[k](), Math.max(1, Math.round(MAX[k] * (low ? 0.5 : 1))));
     for (const k in HUMANS) mkPool(k, HUMANS[k](), Math.max(2, Math.round(MAX[k] * (low ? 0.5 : 1))));
+    if (kitOn() && CT.humanoid.prewarm) { try { CT.humanoid.prewarm(kitSpecs()); } catch (e) { console.warn('[life] prewarm', e); } }
     SHP = simplePool(GP.disc, new T.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), low ? 60 : 120);
     GLP = simplePool(GP.oct, new T.MeshBasicMaterial({ color: new T.Color(3.2, 2.5, 1.2), transparent: true, blending: T.AdditiveBlending, depthWrite: false }), 24);
     FXA = makeFx(low ? 400 : 800, true); FXN = makeFx(low ? 400 : 800, false); FF = makeFireflies(low ? 24 : 48);
@@ -2111,7 +2162,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
     }
     lap(null);
     updFx(FXA, dt); updFx(FXN, dt); updFireflies(dt); lap('fx');
-    render(); lap('render');
+    KDT = dt; render(); lap('render');
     const ms = performance.now() - t0; PERF.ms += ms; PERF.n++; PERF.max = Math.max(PERF.max, ms);
   }
 
@@ -2130,7 +2181,7 @@ vColor.rgb *= mix(vec3(1.0), aTint2, step(1.5, aMask) * step(aMask, 2.5));
         ms: PERF.n ? +(PERF.ms / PERF.n).toFixed(3) : 0, msMax: +PERF.max.toFixed(2), calls, ents: ENTS.length, pools: sp, near,
         herds: HERDS.length, groups: GROUPS.map(g => g.kind), groupsSpawned, circles: CIRCLES.length, corpses: CORPSES.length, carcasses: CARCASS.length,
         events: { active: EVS.map(e => e.type + (e.resolved ? '*' : '') + '@' + Math.round(e.pd)), started: DIR.started, done: DIR.done, byType: DIR.byType, doneBy: DIR.doneBy, next: Math.round(DIR.next - DIR.acc), blocks: DIR.blocks },
-        monstersMet: MET.size, staged: STAGED.size, buff: BUFF.kind, fx: FXA.n + FXN.n,
+        monstersMet: MET.size, deaths: DEATHS, staged: STAGED.size, buff: BUFF.kind, fx: FXA.n + FXN.n,
       };
       if (reset) { PERF.ms = 0; PERF.n = 0; PERF.max = 0; }
       return out;

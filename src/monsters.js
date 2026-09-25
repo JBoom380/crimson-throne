@@ -758,6 +758,29 @@
     return { root, B };
   }
 
+  // ── Humanoid kit (humanoid.js): bandits, Grask, bone knights, ghouls ──────
+  // One skinned mesh per monster; the bones keep the names and pose slots used here.
+  const KIT = { bandit: 1, boneKnight: 1, ghoul: 1 };
+  function kitSpec(type, v, seed) {
+    if (type === 'bandit') return v.chief ? { preset: 'grask', height: 1.86, seed: 1 } : { preset: 'bandit', seed: 1 + seed % 3, helm: v.helm ? 'horned' : null, hood: !v.helm, right: v.axe ? 'axe' : 'sword' };
+    if (type === 'boneKnight') return { preset: 'boneKnight', height: 1.85, seed: 1 };
+    return { preset: 'ghoul', seed: 1 + seed % 3 };
+  }
+  function kitSpecs() {
+    const out = [{ preset: 'grask', height: 1.86, seed: 1 }, { preset: 'boneKnight', height: 1.85, seed: 1 }];
+    for (let i = 0; i < 3; i++) { out.push(kitSpec('ghoul', {}, i)); [0, 1].forEach(helm => [0, 1].forEach(axe => out.push(kitSpec('bandit', { helm, axe }, i)))); }
+    return out;
+  }
+  function kitRig(type, v) {
+    if (!KIT[type] || !CT.humanoid || typeof CT.humanoid.build !== 'function') return null;
+    try {
+      const r = CT.humanoid.build(Object.assign(kitSpec(type, v, (rnd() * 3) | 0), { unique: true }));
+      r.B.wpR.userData.r[0] = 0;                                                   // WREST below poses the weapon
+      if (type === 'ghoul') { r.B.spine.userData.r[0] = 0.55; r.B.head.userData.r[0] = -0.6; r.B.knL.userData.r[0] = r.B.knR.userData.r[0] = 0.25; r.B.hipL.userData.r[0] = r.B.hipR.userData.r[0] = -0.2; }
+      return { r, def: { rig: 'biped', hits: r.hits, sev: r.sev, sr: r.sr, tip: r.tip, hipY: r.hipY, lieH: r.lieH, kit: true } };
+    } catch (e) { console.warn('[monsters] humanoid kit failed, old rig used', e); KIT[type] = 0; return null; }
+  }
+
   // ── Spawn ──────────────────────────────────────────────────────────────────
   function spawn(type, x, z, opts) {
     if (!core || !CFG[type]) return null;
@@ -767,10 +790,11 @@
     if (type === 'wolf' && (opts.isAlpha || opts.alphaLook)) v.alpha = 1;
     if (type === 'bandit') { v.helm = opts.isChief ? 1 : (rnd() < 0.5 ? 1 : 0); v.axe = opts.isChief ? 1 : (rnd() < 0.45 ? 1 : 0); if (opts.isChief) v.chief = 1; }
     if (type === 'troll' && opts.isGuardian) v.guardian = 1;
-    const def = getDef(type, v);
-    const mat = toonMat(v.guardian ? 0x3a70c0 : beh.rim, type === 'wraith' ? 0.999 : 1);
+    const kr = kitRig(type, v);
+    const def = kr ? kr.def : getDef(type, v);
+    const mat = kr ? kr.r.mat : toonMat(v.guardian ? 0x3a70c0 : beh.rim, type === 'wraith' ? 0.999 : 1);
     const tint = 0.9 + rnd() * 0.16; mat.color.setRGB(tint, tint * (0.96 + rnd() * 0.06), tint * (0.95 + rnd() * 0.05));
-    const { root, B } = instantiate(def, mat);
+    const { root, B } = kr ? { root: kr.r.root, B: kr.r.B } : instantiate(def, mat);
     const vis = VIS[type] || 1;
     let scale = cfg.size * vis * (0.93 + rnd() * 0.14), hpK = 1, dmgK = 1, spdK = 1;
     if (opts.isAlpha || opts.alphaLook) { scale = 1.32 * vis; hpK = 2.6; dmgK = 1.5; spdK = 1.08; }
@@ -793,7 +817,7 @@
       circleA: rnd() * TAU, circleDir: rnd() < 0.5 ? 1 : -1, avoid: 0, avoidT: 0, blockT: 0, dodgeT: 0, fleeT: 0, crawl: false, disarmed: false,
       hipDrop: 0, lunge: 0, lastHit: null, lastPart: 'torso', pack: opts.pack || 0, spec: opts.spec || null, garrison: opts.garrison || null,
       isChief: !!opts.isChief, isAlpha: !!opts.isAlpha, isGuardian: !!opts.isGuardian, isBoss: !!cfg.boss, name: opts.name || null,
-      rise: opts.rise ? 1.2 : 0, phase2: false, engaged: false, corpseT: 90, fall: null, deathT: 0,
+      rise: opts.rise ? 1.2 : 0, phase2: false, engaged: false, corpseT: 90, fall: null, deathT: 0, hum: kr ? kr.r : null,
     };
     if (m.isChief) m.name = 'Grask Blackhand';
     if (m.isBoss) { m.name = 'The Bone King'; m.state = opts.dormant === false ? 'idle' : 'dormant'; }
@@ -809,6 +833,7 @@
   function removeMonster(m) {
     const i = list.indexOf(m); if (i >= 0) list.splice(i, 1);
     scene.remove(m.root); scene.remove(m.shadow);
+    if (m.hum && m.hum.skeleton) m.hum.skeleton.dispose();   // free the bone texture of the kit rig
     m.alive = false; m.mat.emissive.setRGB(0, 0, 0);
   }
 
@@ -995,6 +1020,7 @@
   function sever(m, part, dir, point, force) {
     const bn = m.def.sev[part]; if (!bn || m.lost[part]) return false;
     const bone = m.B[bn]; if (!bone || !bone.parent) return false;
+    if (m.hum) CT.humanoid.sever(m.hum, part);                                   // bake the limb onto its bone, hide it in the skin
     m.lost[part] = true;
     m.root.updateMatrixWorld(true);
     const parent = bone.parent, r = m.def.sr[part];
@@ -1030,6 +1056,7 @@
     for (const p of parts) if (m.def.sev[p] && !m.lost[p]) sever(m, p, V4.set(dir.x + (rnd() - 0.5) * 1.6, 0, dir.z + (rnd() - 0.5) * 1.6), point, 1.8);
     const c = m.B.spine || m.B.body;
     if (c) {                                                                       // the torso goes too
+      if (m.hum) CT.humanoid.sever(m.hum, 'torso');
       m.root.updateMatrixWorld(true);
       c.matrixWorld.decompose(V1, Q1, S1); c.parent.remove(c);
       c.position.copy(V1); c.quaternion.copy(Q1); c.scale.copy(S1); scene.add(c);
@@ -1099,9 +1126,11 @@
     for (const h of m.def.hits) if (h[0] === part && !m.lost[part] && m.B[h[1]] && m.B[h[1]].parent) { return m.B[h[1]].localToWorld(new T.Vector3(h[2], h[3], h[4])); }
     return new T.Vector3(m.pos.x, m.pos.y + 1 * m.scale, m.pos.z);
   }
-  function damage(m, amount, dir, part, heavy) {
+  function damage(m, amount, dir, part, heavy, opts) {
     const res = { killed: false, severed: false };
     if (!m || m.gibbed || !m.alive) return res;
+    const byNpc = !!(opts && opts.source === 'npc');                              // life.js patrols and guards
+    if (!byNpc) m.pHitT = playTime;
     part = part || m.lastPart || 'torso';
     dir = dir ? V4.copy(dir) : V4.set(Math.sin(m.yaw + PI), 0, Math.cos(m.yaw + PI));
     dir.y = 0; if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1); dir.normalize();
@@ -1114,20 +1143,20 @@
       else if (heavy && !m.isBoss && amount > 30 && m.type !== 'wraith') { gib(m, d, point); res.severed = true; }
       GORE.spray(point, V1.set(d.x, 0.4, d.z).normalize(), 0.6); sfx(m.beh.bone ? 'bone' : 'flesh', m.pos);
       m.kv.addScaledVector(d, heavy ? 2 : 0.8);
-      bus.emit('hit', { target: m, damage: 0, point, dir: d, part, heavy: !!heavy, kill: false, corpse: true });
+      bus.emit('hit', { target: m, damage: 0, point, dir: d, part, heavy: !!heavy, kill: false, corpse: true, byNpc });
       return res;
     }
     // wraiths phase unless the blade is holy
     if (m.beh.ghost && !canHurtGhost()) {
       fxBurst(FXG, point, 26, 3, ECTO[0], 0.9, 0.05, -0.5); m.flash = -0.6; m.aggro = true;
       sfx('wraith_shriek', m.pos);
-      bus.emit('hit', { target: m, damage: 0, point, dir: d, part, heavy: !!heavy, kill: false, phased: true });
+      bus.emit('hit', { target: m, damage: 0, point, dir: d, part, heavy: !!heavy, kill: false, phased: true, byNpc });
       return res;
     }
     if (m.state === 'dormant') wake(m);
     if (m.state === 'rising' || m.rise > 0) {                                     // invulnerable while rising
       fxBurst(FXG, point, 16, 5, 0xffa040, 0.4, 0.05, 6); sfx('clang', m.pos);
-      bus.emit('hit', { target: m, damage: 0, point, dir: d, part, heavy: !!heavy, kill: false, blocked: true });
+      bus.emit('hit', { target: m, damage: 0, point, dir: d, part, heavy: !!heavy, kill: false, blocked: true, byNpc });
       return res;
     }
     // blocks: a raised shield turns light blows; a heavy blow breaks the guard
@@ -1139,7 +1168,7 @@
       if (!heavy) {
         dmg *= 0.12; m.kv.addScaledVector(d, 1.2 / m.scale);
         m.hp -= dmg; if (m.hp <= 1) m.hp = 1;
-        bus.emit('hit', { target: m, damage: dmg, point, dir: d, part, heavy: false, kill: false, blocked: true });
+        bus.emit('hit', { target: m, damage: dmg, point, dir: d, part, heavy: false, kill: false, blocked: true, byNpc });
         m.aggro = true; if (m.state === 'idle' || m.state === 'wander') m.state = 'chase';
         return res;
       }
@@ -1192,7 +1221,7 @@
     if (m.lost.head && !killed) { m.hp = 0; }
     if (m.lost.legL && m.lost.legR && m.def.rig === 'quad') m.speed *= 0.5;
     const dead = m.hp <= 0;
-    bus.emit('hit', { target: m, damage: dmg, point, dir: d, part, heavy: !!heavy, kill: dead });
+    bus.emit('hit', { target: m, damage: dmg, point, dir: d, part, heavy: !!heavy, kill: dead, byNpc });
     if (dead) {
       let overkill = Math.max(0, dmg - Math.max(0, hpBefore));
       if (finisher) { overkill = Math.max(overkill, 51 + overkill); if (core.hitStop) core.hitStop(0.12); if (core.shake) core.shake(0.6, 0.3); }
@@ -1228,6 +1257,7 @@
     const ev = { monster: m, type: m.type, point: point.clone(), dir: d.clone(), overkill, xp, finisher: !!finisher };
     if (m.isChief) ev.chief = true; if (m.isAlpha) ev.alpha = true; if (m.isGuardian) ev.guardian = true; if (m.isBoss) ev.boss = true;
     if (m.name) ev.name = m.name;
+    if (!(m.pHitT != null && playTime - m.pHitT < 10)) ev.byNpc = true;         // no player blow in the last 10 s: not the player's kill
     if (m.spec && m.garrison) garrisonDeath(m);
     bus.emit('kill', ev);
   }
@@ -1653,6 +1683,7 @@
   function init(c) {
     core = c; scene = c.scene;
     shared();
+    if (CT.humanoid && typeof CT.humanoid.prewarm === 'function') { try { CT.humanoid.prewarm(kitSpecs()); } catch (e) { console.warn('[monsters] prewarm', e); } }
     FXS = makePts(core.quality === 'low' ? 500 : 1100, false); FXG = makePts(core.quality === 'low' ? 400 : 900, true);
     scene.add(FXS.mesh); scene.add(FXG.mesh);
     initGarrisons();

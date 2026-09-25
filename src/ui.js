@@ -409,8 +409,8 @@ window.CT = window.CT || {};
   };
   const now = () => (CT.core && CT.core.time != null ? CT.core.time : S.lastT);
   if (CT.bus) {
-    CT.bus.on('hit', d => { S.hitT = now(); S.hitKill = !!(d && d.kill); });
-    CT.bus.on('kill', () => { S.hitT = now(); S.hitKill = true; });
+    CT.bus.on('hit', d => { if (d && d.byNpc) return; S.hitT = now(); S.hitKill = !!(d && d.kill); });
+    CT.bus.on('kill', d => { if (d && d.byNpc) return; S.hitT = now(); S.hitKill = true; });
     CT.bus.on('playerHurt', d => {
       let wx = 0, wz = 0; const p = CT.player, src = d && d.from && (d.from.pos || d.from.position);
       if (src && p && p.pos) { wx = src.x - p.pos.x; wz = src.z - p.pos.z; }
@@ -474,8 +474,17 @@ window.CT = window.CT || {};
   const INV = { x: 28, y: 24, w: 1224, h: 672, lx: 424, ly: 104, lw: 440, lh: 548, dx: 896 };
   const INV_CLOSE = { label: 'CLOSE', act: { type: 'resume' }, x: 1082, y: 40, w: 150, h: 60 };
   const GROUPS = [['weapon', 'WEAPONS'], ['armor', 'ARMOUR'], ['charm', 'CHARMS'], ['potion', 'POTIONS'], ['loot', 'SPOILS']];
+  // Companion stash tab (npcs/rpg: Selene carries items; stash/unstash act directly on CT.rpg, no core action needed)
+  const compOwned = () => !!(CT.rpg && CT.rpg.companion && CT.rpg.companion.owned);
+  const compTab = () => S.invTab === 'comp' && compOwned();
+  function stashAct(a) {
+    if (!a || (a.type !== 'stash' && a.type !== 'unstash') || !CT.rpg) return false;
+    if (a.type === 'stash') CT.rpg.stash(a.id, 1); else CT.rpg.unstash(a.id, 1);
+    if (CT.audio && CT.audio.sfx) CT.audio.sfx('click');
+    return true;
+  }
   function invRows(v) {
-    const inv = v.rpg && Array.isArray(v.rpg.inventory) ? v.rpg.inventory : [], rows = [], ids = []; let y = 0;
+    const inv = compTab() ? CT.rpg.companion.stash : v.rpg && Array.isArray(v.rpg.inventory) ? v.rpg.inventory : [], rows = [], ids = []; let y = 0;
     GROUPS.forEach(([k, title]) => {
       const items = inv.filter(e => { if (!e || (e.count != null && e.count <= 0)) return false; const it = ITEMS()[e.id]; const kk = !it ? 'loot' : it.kind === 'quest' ? 'loot' : it.kind; return kk === k; });
       if (!items.length) return;
@@ -491,6 +500,7 @@ window.CT = window.CT || {};
   }
   function invAction(v, id) {
     const it = ITEMS()[id]; if (!it || !id) return null;
+    if (compTab()) return { label: 'TAKE BACK', act: { type: 'unstash', id } };
     const eq = equippedIds(v).includes(id);
     if (it.kind === 'weapon' || it.kind === 'armor' || it.kind === 'charm') return { label: eq ? 'EQUIPPED' : 'EQUIP', dis: eq, act: { type: 'equip', id } };
     if (it.kind === 'potion') return { label: 'DRINK', act: { type: 'use', id } };
@@ -499,6 +509,10 @@ window.CT = window.CT || {};
   function invBtns(v) {
     const R = invRows(v), id = invSelected(v, R), a = invAction(v, id), out = [INV_CLOSE];
     if (a) out.push(Object.assign(a, { x: INV.dx + 6, y: 598, w: 330, h: 64 }));
+    if (compOwned()) {
+      out.push({ label: 'PACK', tab: 'pack', on: !compTab(), x: 440, y: 36, w: 196, h: 54 }, { label: 'COMPANION', tab: 'comp', on: compTab(), x: 652, y: 36, w: 196, h: 54 });
+      if (!compTab() && id && CT.rpg.canStash && CT.rpg.canStash(id)) out.push({ label: 'GIVE TO SELENE', act: { type: 'stash', id }, x: INV.dx + 6, y: 526, w: 330, h: 60 });
+    }
     const over = R.total > INV.lh;
     if (over) { out.push({ label: '▲', scroll: -1, x: INV.lx + INV.lw - 50, y: INV.ly, w: 50, h: 64 }); out.push({ label: '▼', scroll: 1, x: INV.lx + INV.lw - 50, y: INV.ly + INV.lh - 64, w: 50, h: 64 }); }
     return { btns: out, R, over };
@@ -722,6 +736,9 @@ window.CT = window.CT || {};
     g.drawImage(lvlShield(76, 90), ox - 6 + 6, oy + 4);
     txt(g, 'LV', ox + 44, oy + 30, 12, '#e8c078', { sp: 2, lw: 3 });
     txt(g, String(st.level || 1), ox + 44, oy + 56, 32, '#fff0d0', { lw: 5 });
+    // ── AR-15 ammo counter (player.js exposes CT.player.ammo while the rifle is out) ──
+    const am = CT.player && CT.player.rifle && CT.player.ammo;
+    if (am) txt(g, am.mag + ' / ' + am.reserve, bx + BAR.w - 8, touch ? oy + 118 : oy - 14, 24, am.mag > 0 ? '#f4e0c0' : '#ff5040', { align: 'right', lw: 4 });
     g.restore();
   }
 
@@ -1134,12 +1151,13 @@ window.CT = window.CT || {};
       ls_.slice(0, 2).forEach((l, j) => txt(g, l, x + 50, y + 118 + j * 16, 13, id ? '#d8c8a8' : '#7a6a58', { weight: 'normal', lw: 3 }));
     });
     // middle: the pack
-    txt(g, 'PACK', 644, 64, 22, '#e8c078', { sp: 8, lw: 4 });
+    if (!compOwned()) txt(g, 'PACK', 644, 64, 22, '#e8c078', { sp: 8, lw: 4 });
     const { btns, R, over } = invBtns(v);
+    if (compTab()) { const c = CT.rpg.companion; txt(g, `SELENE CARRIES     SMOKES ${c.smokes}     BEERS ${c.beers}`, 644, 96, 12, '#a8c0e8', { sp: 3, lw: 3 }); }
     S.invScroll = clamp(S.invScroll, 0, Math.max(0, R.total - INV.lh));
     const sel = S.invSel, rw = INV.lw - (over ? 60 : 0);
     g.save(); g.beginPath(); g.rect(INV.lx - 4, INV.ly - 2, INV.lw + 8, INV.lh + 4); g.clip();
-    if (!R.rows.length) txt(g, 'Your pack is empty.', 644, 300, 20, '#9a8a70', { italic: true, weight: 'normal', lw: 3 });
+    if (!R.rows.length) txt(g, compTab() ? 'Selene carries nothing of yours.' : 'Your pack is empty.', 644, 300, 20, '#9a8a70', { italic: true, weight: 'normal', lw: 3 });
     R.rows.forEach(r => {
       const y = INV.ly + r.y - S.invScroll; if (y > INV.ly + INV.lh || y + r.h < INV.ly) return;
       if (r.hdr) { txt(g, r.hdr, INV.lx + 4, y + 16, 14, '#c89050', { align: 'left', sp: 5, lw: 3 }); g.fillStyle = 'rgba(200,144,80,0.3)'; g.fillRect(INV.lx + 110, y + 16, rw - 114, 1); return; }
@@ -1171,6 +1189,7 @@ window.CT = window.CT || {};
     btns.forEach(b => {
       if (b.scroll) { g.drawImage(btnSpr(b.w, b.h, false), b.x - 16, b.y - 16); txt(g, b.label, b.x + b.w / 2, b.y + b.h / 2, 18, '#d8c8a8', { lw: 3 }); return; }
       const hot = !v.isTouch && S.mouse && inside(b, S.mx, S.my);
+      if (b.tab) { drawBtn(g, b, b.on || hot, t, { px: 18, noPtr: true }); return; }
       drawBtn(g, b, hot || (b !== INV_CLOSE && !b.dis && !v.isTouch && !S.mouse), t, { px: 22, noPtr: b === INV_CLOSE });
     });
     if (!v.isTouch) txt(g, 'ARROWS  SELECT     ENTER  ' + ((invAction(v, sel) || {}).label || 'USE') + '     ESC  CLOSE', 644, 672, 11, '#8a7a60', { sp: 3, lw: 2 });
@@ -1367,6 +1386,8 @@ window.CT = window.CT || {};
         const { btns, R } = invBtns(v);
         b = pick(btns);
         if (b && b.scroll) { S.invScroll += b.scroll * 180; return null; }
+        if (b && b.tab) { S.invTab = b.tab; S.invScroll = 0; S.invSel = null; return null; }
+        if (b && stashAct(b.act)) return null;
         if (!b) {
           if (x >= INV.lx && x <= INV.lx + INV.lw && y >= INV.ly && y <= INV.ly + INV.lh) {
             const r = R.rows.find(r => r.id && y >= INV.ly + r.y - S.invScroll && y <= INV.ly + r.y - S.invScroll + r.h); if (r) S.invSel = r.id;
@@ -1414,10 +1435,12 @@ window.CT = window.CT || {};
       case 'VICTORY': return ok && S.lastT - S.stateT >= 3.6 ? { type: 'quitTitle' } : null;
       case 'INVENTORY': {
         if (k === 'Escape' || k === 'Tab' || k === 'i' || k === 'I') return { type: 'resume' };
+        if ((k === 'ArrowLeft' || k === 'ArrowRight' || k === 'c' || k === 'C') && compOwned()) { S.invTab = compTab() ? 'pack' : 'comp'; S.invScroll = 0; S.invSel = null; return null; }
+        if ((k === 'g' || k === 'G') && !compTab() && compOwned()) { stashAct({ type: 'stash', id: S.invSel }); return null; }
         const R = invRows(v), ids = R.ids; if (!ids.length) return null;
         let i = Math.max(0, ids.indexOf(invSelected(v, R)));
         if (up) i = (i + ids.length - 1) % ids.length; else if (dn) i = (i + 1) % ids.length;
-        else if (ok) { const a = invAction(v, S.invSel); return a && !a.dis ? Object.assign({}, a.act) : null; }
+        else if (ok) { const a = invAction(v, S.invSel); if (a && stashAct(a.act)) return null; return a && !a.dis ? Object.assign({}, a.act) : null; }
         S.invSel = ids[i];
         const row = R.rows.find(r => r.id === S.invSel);
         if (row) { if (row.y - 34 < S.invScroll) S.invScroll = Math.max(0, row.y - 34); if (row.y + row.h > S.invScroll + INV.lh) S.invScroll = row.y + row.h - INV.lh; }

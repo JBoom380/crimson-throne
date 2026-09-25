@@ -220,9 +220,9 @@
     const type = d.type || M(d).type; if (!type) return;
     const cfg = C.MONSTERS[type] || {};
     const xp = d.xp != null ? d.xp : cfg.xp || 0;
-    if (xp > 0) { bus.emit('notify', { text: `+${xp} XP`, kind: 'xp' }); rpg.addXp(xp); }
+    if (xp > 0 && !d.byNpc) { bus.emit('notify', { text: `+${xp} XP`, kind: 'xp' }); rpg.addXp(xp); }
     const chief = d.chief || isChief(M(d));
-    rpg.lootFor(type, chief ? Object.assign({ chief: true }, M(d)) : M(d)).forEach(e => rpg.grant(e.id, e.count));
+    if (!d.byNpc) rpg.lootFor(type, chief ? Object.assign({ chief: true }, M(d)) : M(d)).forEach(e => rpg.grant(e.id, e.count));
 
     // Main quest: never soft-locks; a later deed completes the earlier steps.
     const ms = qStage('throne');
@@ -272,6 +272,38 @@
     if (!npcsOk && ms === 0 && (d.id === 'camp' || d.id === 'crossing')) rpg.advanceQuest('throne', 1);
   }
 
+  // ── Companion (Selene, the Moon Pact bought from Nyx): state + her stash ────
+  // The player's pack stays unlimited: every module gives items through rpg.give with no failure path, and the game has
+  // under twenty item kinds, so a carry limit would only lose loot. Her stash is convenience storage: park spare gear and
+  // spoils with her, take them back anywhere. She also carries her own supply of smokes (heals) and beers (revives).
+  const COMP_MAX = { smokes: 12, beers: 6 };
+  const freshCompanion = () => ({ owned: false, following: false, stash: [], smokes: COMP_MAX.smokes, beers: COMP_MAX.beers, reviveCD: 0, healCD: 0 });
+  rpg.COMP_MAX = COMP_MAX;
+  rpg.companion = freshCompanion();
+  rpg.stashCount = id => (rpg.companion.stash.find(e => e.id === id) || { count: 0 }).count;
+  rpg.canStash = function (id) {
+    if (!I[id] || id === 'gold' || !rpg.has(id)) return false;
+    const eq = Object.values(rpg.equipped).includes(id);
+    return !(eq && rpg.count(id) <= 1);   // keep the equipped piece on the player
+  };
+  rpg.stash = function (id, count) {
+    const c = rpg.companion; if (!c.owned) return false;
+    const n = Math.min(count == null ? 1 : count | 0, rpg.count(id) - (Object.values(rpg.equipped).includes(id) ? 1 : 0));
+    if (n <= 0 || !rpg.canStash(id) || !rpg.take(id, n)) return false;
+    const e = c.stash.find(e => e.id === id); if (e) e.count += n; else c.stash.push({ id, count: n });
+    bus.emit('stash', { id, count: n, dir: 'give' });
+    return true;
+  };
+  rpg.unstash = function (id, count) {
+    const c = rpg.companion, e = c.stash.find(e => e.id === id); if (!e) return false;
+    const n = Math.min(count == null ? 1 : count | 0, e.count); if (n <= 0) return false;
+    e.count -= n; if (e.count <= 0) c.stash.splice(c.stash.indexOf(e), 1);
+    rpg.give(id, n);
+    bus.emit('stash', { id, count: n, dir: 'take' });
+    return true;
+  };
+  rpg.restockCompanion = function () { const c = rpg.companion; c.smokes = COMP_MAX.smokes; c.beers = COMP_MAX.beers; };
+
   // ── Save / load / reset ────────────────────────────────────────────────────
   rpg.save = function () {
     try {
@@ -279,6 +311,7 @@
         v: 1, stats: rpg.stats, inventory: rpg.inventory, equipped: rpg.equipped, tracked: rpg.tracked, flags: rpg.flags,
         quests: rpg.quests.map(q => ({ id: q.id, stage: q.stage, n: q.n || 0, done: q.done })),
         pois: ((CT.world && CT.world.pois) || []).filter(p => p.found).map(p => p.id),
+        companion: rpg.companion,
       }));
       return true;
     } catch (e) { return false; }
@@ -293,6 +326,9 @@
     rpg.quests = (d.quests || []).filter(q => QDEF[q.id]).map(q => refresh({ id: q.id, title: QDEF[q.id].title, stage: q.stage, n: q.n || 0, done: !!q.done, main: !!QDEF[q.id].main }));
     if (!rpg.quest('throne')) rpg.quests.unshift(refresh({ id: 'throne', title: QDEF.throne.title, stage: 0, n: 0, done: false, main: true }));
     rpg.tracked = d.tracked || 'throne';
+    rpg.companion = Object.assign(freshCompanion(), d.companion || {});
+    rpg.companion.stash = (rpg.companion.stash || []).filter(e => I[e.id] && e.count > 0).map(e => ({ id: e.id, count: e.count | 0 }));
+    if (CT.npcs && CT.npcs.companionSync) CT.npcs.companionSync();
     if (d.pois && CT.world && CT.world.pois) CT.world.pois.forEach(p => { if (d.pois.includes(p.id)) p.found = true; });
     victorySent = false; saveT = 0;
     const p = CT.player; if (p && 'hp' in p) { p.hp = rpg.stats.hpMax; if ('stamina' in p) p.stamina = rpg.stats.staminaMax; }
@@ -304,10 +340,12 @@
     (C.START_ITEMS || []).forEach(e => rpg.give(e.id, e.count));
     if (rpg.has('rustsword')) rpg.equipped.weapon = 'rustsword';
     rpg.quests = [refresh({ id: 'throne', title: QDEF.throne.title, stage: 0, n: 0, done: false, main: true })];
+    rpg.companion = freshCompanion();
     victorySent = false; saveT = 0;
     if (victoryTimer) { clearTimeout(victoryTimer); victoryTimer = null; }
     const p = CT.player; if (p && 'hp' in p) { p.hp = rpg.stats.hpMax; if ('stamina' in p) p.stamina = rpg.stats.staminaMax; }
     if (CT.npcs && CT.npcs.resetDialog) CT.npcs.resetDialog();
+    if (CT.npcs && CT.npcs.companionSync) CT.npcs.companionSync();
   };
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────

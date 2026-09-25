@@ -43,6 +43,7 @@ CT.config = {
     greatsword:  { name: 'Ironhand Greatsword', kind: 'weapon', style: 'greatsword', damage: 58, heavyMult: 2.4, speed: 0.65, reach: 3.1, arc: 2.1, bleed: 0.5, price: 300 },
     moonblade:   { name: 'Moonblade',           kind: 'weapon', style: 'sword',      damage: 50, heavyMult: 2.4, speed: 1.1,  reach: 2.7, arc: 1.8, bleed: 0.4, holy: true, price: 0 },
     crimson:     { name: 'The Crimson Edge',    kind: 'weapon', style: 'crimson',    damage: 80, heavyMult: 2.6, speed: 1.0,  reach: 3.0, arc: 2.0, bleed: 0.8, holy: true, price: 0 },
+    ar15:        { name: "AR-15 'Thunderstick'", kind: 'weapon', style: 'rifle', ranged: true, damage: 34, heavyMult: 1, speed: 1, reach: 120, arc: 0.03, bleed: 0.5, magazine: 30, price: 0, desc: 'A sky-iron relic of a fallen age. It speaks in thunder.' },
     banditblade: { name: 'Blackhand Sword',     kind: 'weapon', style: 'sword',      damage: 22, heavyMult: 2.2, speed: 1.0,  reach: 2.3, arc: 1.6, bleed: 0.25, price: 45 },
     banditaxe:   { name: 'Blackhand Axe',       kind: 'weapon', style: 'axe',        damage: 27, heavyMult: 2.3, speed: 0.9,  reach: 2.2, arc: 1.4, bleed: 0.4, price: 50 },
     orccleaver:  { name: 'Orcish Cleaver',      kind: 'weapon', style: 'axe',        damage: 36, heavyMult: 2.4, speed: 0.8,  reach: 2.3, arc: 1.5, bleed: 0.5, price: 90 },
@@ -58,6 +59,8 @@ CT.config = {
     pelt:        { name: 'Wolf Pelt',           kind: 'loot', price: 6 },
     alphapelt:   { name: 'Alpha Pelt',          kind: 'quest' },
     wraithdust:  { name: 'Wraith Dust',         kind: 'quest' },
+    ammo556:     { name: 'Sky-Iron Rounds',     kind: 'ammo', price: 2, desc: 'Brass-cased thunder for the Thunderstick.' },
+    skykey:      { name: 'Sky-Iron Key',        kind: 'quest', desc: 'Cold, heavy and not forged by any smith of Vael.' },
   },
 
   START_ITEMS: [{ id: 'rustsword', count: 1 }, { id: 'potion', count: 3 }, { id: 'gold', count: 10 }],

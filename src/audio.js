@@ -967,6 +967,29 @@ window.CT = window.CT || {};
       }
       tone(g, t, 'sine', 42, 28, 2.5, 0.4);
     },
+    beer(g, t) {   // a bottle clink, glugs, and a satisfied 'ahh'
+      PLUCK.chime(g, t, 86, 0.12, 0.2); gore(g, t + 0.004, 'clang', 0.05, 0.2, 2.2);
+      for (let i = 0; i < 5; i++) gore(g, t + 0.3 + i * 0.13, 'glug', 0.32, 0, rr(0.8, 1.0));
+      beast(g, t + 1.05, { dur: 0.5, f: [[0, 132], [0.5, 104]], noise: 0.9, nf: 1100, v: [[0, 'ah'], [0.5, 'ah']], lv: 0.2, att: 0.05, rel: 0.2 });
+    },
+    ar_shot(g, t) {   // a sharp crack, a punchy low thump, then a valley echo tail
+      const c = noiseThrough(g, t, 0.12, 'highpass', 0.7); c.f.value = 1800; c.v.setValueAtTime(1.0, t); c.v.setTargetAtTime(0, t + 0.002, 0.018);
+      const m = noiseThrough(g, t, 0.35, 'bandpass', 0.8); m.f.setValueAtTime(2400, t); m.f.exponentialRampToValueAtTime(500, t + 0.2); m.v.setValueAtTime(0.7, t); m.v.setTargetAtTime(0, t + 0.004, 0.05);
+      tone(g, t, 'sine', 150, 42, 0.22, 0.9);
+      tone(g, t, 'triangle', 90, 38, 0.18, 0.4);
+      for (let i = 0; i < 3; i++) {   // echoes off the valley walls, darker and quieter each time
+        const s0 = t + 0.18 + i * rr(0.22, 0.34), e = noiseThrough(g, s0, 0.9, 'lowpass', 0.7, i % 2 ? 0.35 : -0.35);
+        e.f.value = 1200 / (i + 1); e.v.setValueAtTime(0, s0); e.v.linearRampToValueAtTime(0.22 / (i + 1), s0 + 0.02); e.v.setTargetAtTime(0, s0 + 0.04, 0.16);
+      }
+    },
+    ar_dry(g, t) { const n = noiseThrough(g, t, 0.05, 'highpass', 2); n.f.value = 3500; n.v.setValueAtTime(0.35, t); n.v.setTargetAtTime(0, t + 0.002, 0.008); tone(g, t, 'square', 1800, 1200, 0.02, 0.05); },
+    ar_reload(g, t) {   // mag out, mag in (seated), the bolt slams home
+      const click = (s0, f, lv) => { const n = noiseThrough(g, s0, 0.08, 'bandpass', 3); n.f.value = f; n.v.setValueAtTime(lv, s0); n.v.setTargetAtTime(0, s0 + 0.003, 0.015); };
+      click(t + 0.15, 1500, 0.35); swish(g, t + 0.18, 0.2, 400, 900, 300, 0.08);
+      click(t + 1.05, 900, 0.3); click(t + 1.25, 1300, 0.55); tone(g, t + 1.25, 'sine', 180, 90, 0.08, 0.3);
+      click(t + 1.7, 2200, 0.35); click(t + 1.86, 1100, 0.6); tone(g, t + 1.86, 'sine', 220, 80, 0.1, 0.35);
+    },
+    ar_casing(g, t) { for (let i = 0; i < 3; i++) { const s0 = t + i * rr(0.06, 0.1); tone(g, s0, 'sine', rr(3800, 5200), rr(3000, 4200), 0.05, 0.08 / (i + 1)); } },
     drag(g, t) {   // paper and tobacco crackle over a soft rising inhale
       const n = noiseThrough(g, t, 1.3, 'bandpass', 1.1); n.f.setValueAtTime(500, t); n.f.exponentialRampToValueAtTime(2600, t + 1.0);
       n.v.setValueAtTime(0, t); n.v.linearRampToValueAtTime(0.1, t + 0.5); n.v.linearRampToValueAtTime(0.13, t + 0.95); n.v.setTargetAtTime(0, t + 1.0, 0.06);
@@ -987,7 +1010,7 @@ window.CT = window.CT || {};
       swish(g, t + 0.12, 0.35, 250, 900, 500, 0.2);
     },
   };
-  const SDUR = { drag: 1.6, exhale: 2.2, lighter: 0.8, charge: 1.8, chargeFull: 2.4, gib: 2.6, sever: 1.6, death: 3, drink: 1.8, levelup: 4, discover: 5.5, quest: 3, wolf_howl: 3.6, ghoul_moan: 2.8, troll_bellow: 3, troll_slam: 2, wraith_shriek: 2.6, boss_roar: 4, boss_laugh: 2.5, thunder: 6.5, parry: 2.6, clang: 1.6, orc_roar: 2, orc_die: 2 };
+  const SDUR = { beer: 2.2, ar_shot: 1.8, ar_reload: 2.4, ar_casing: 0.5, drag: 1.6, exhale: 2.2, lighter: 0.8, charge: 1.8, chargeFull: 2.4, gib: 2.6, sever: 1.6, death: 3, drink: 1.8, levelup: 4, discover: 5.5, quest: 3, wolf_howl: 3.6, ghoul_moan: 2.8, troll_bellow: 3, troll_slam: 2, wraith_shriek: 2.6, boss_roar: 4, boss_laugh: 2.5, thunder: 6.5, parry: 2.6, clang: 1.6, orc_roar: 2, orc_die: 2 };
   const LOOPS = { rain: 1, wind: 1, fire_loop: 1 };
 
   // ── Engine: master chain + reverb + music/sfx buses (works on any context) ─

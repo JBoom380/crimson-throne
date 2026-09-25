@@ -393,6 +393,36 @@
     return R;
   }
 
+  // ── Humanoid kit (humanoid.js): Bram, Old Mag and the villagers ───────────
+  // The old primitive rigs above stay as the fallback when CT.humanoid is missing.
+  const KIT_WORK = { hoe: 'hoe', sweep: 'sweep' };
+  const KIT_RIGHT = { hoe: 'hoe', sweep: 'broom', spear: 'spear', staff: 'staff' };
+  function kitSpec(id, v) {
+    if (id === 'bram') return { preset: 'smith', seed: 3, pal: { top: '#6a1c14', skin: '#c07a54', hair: '#1c1410', legs: '#2e241c', boots: '#1e1610', leather: '#5a3a20' }, hair: 'bald', beard: 'full' };
+    if (id === 'mag') return { preset: 'villagerF', seed: 8, height: 1.66, bulk: 1.22, belly: 0.5, age: 0.85, hair: 'bun', helm: 'kerchief', pal: { top: '#6a2420', skin: '#d49a78', hair: '#9a9088', cloth: '#d8ccb0' }, face: { smile: true } };
+    const pal = { top: v.top, legs: v.legs, skin: v.skin, hair: v.hair };
+    if (v.hood) pal.cloth = v.hood;
+    const sp = { preset: v.task === 'spear' ? 'militia' : v.fem ? 'villagerF' : 'villagerM', seed: hash(v.id) % 1000, pal, right: KIT_RIGHT[v.task] || null, left: null };
+    if (v.task === 'spear') Object.assign(sp, { right: 'spear', pal: Object.assign(pal, { top: '#8a7a58', accent: '#6e1410' }) });
+    if (v.fem) { sp.pal.top = v.top; if (v.skirt) sp.pal.top = v.skirt; }
+    if (v.hood) { sp.hood = true; sp.helm = null; }
+    if (v.old) sp.age = 0.75;
+    if (v.beard) sp.beard = v.old ? 'long' : 'full'; else if (!v.fem) sp.beard = 'stubble';
+    if (v.thick) sp.bulk = v.thick * 1.05;
+    if (v.apron) sp.extras = ['belt', 'apron'];
+    if (v.scale) sp.height = (v.fem ? 1.72 : 1.84) * v.scale;
+    return sp;
+  }
+  function kitRig(id, v) {
+    if (!CT.humanoid || typeof CT.humanoid.build !== 'function') return null;
+    try {
+      const R = CT.humanoid.build(kitSpec(id, v || {}));
+      R.kit = true; R.work = id === 'bram' ? 'hammer' : v && KIT_WORK[v.task];
+      return R;
+    } catch (e) { console.warn('[npcs] humanoid kit failed, old rig used', e); return null; }
+  }
+  npcs.kitSpecs = () => ['bram', 'mag'].map(id => kitSpec(id)).concat(VILLAGERS.map(v => kitSpec(v.id, v)));
+
   // ══════════════════════════════════════════════════════════════════════════
   // ── Cast and placement ─────────────────────────────────────────────────────
   // ══════════════════════════════════════════════════════════════════════════
@@ -454,7 +484,7 @@
     n.home = s && s.yaw != null ? s.yaw : n.yaw != null ? n.yaw : Math.atan2(P.x - x, P.z - z);
     n.fromSpot = !!s;
   }
-  function placeAll() { const used = new Set(); npcs.list.forEach(n => place(n, used)); npcs.list.forEach(n => { n.R.root.position.copy(n.pos); n.R.root.rotation.y = n.yawNow = n.home; }); }
+  function placeAll() { const used = new Set(); npcs.list.forEach(n => place(n, used)); placeSeleneHome(); npcs.list.forEach(n => { n.R.root.position.copy(n.pos); n.R.root.rotation.y = n.yawNow = n.home; }); if (COMP.n) npcs.companionSync(); }
 
   // ── Sculpted heroines (heroines.js); the primitive rigs stay as the fallback ──
   function heroRig(id) {
@@ -467,6 +497,286 @@
     g.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(m => { if (m.fog) { m.fog = false; m.needsUpdate = true; } }); });
     return { root: g, hero: true, hair: [], ik: [], ph: 0 };
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── Companion: Selene the Moonbound (the Moon Pact, bought from Nyx) ───────
+  // ══════════════════════════════════════════════════════════════════════════
+  // She follows 3 to 5 m behind and to one side, hangs back in fights (no combat), carries a stash, tosses the player a lit
+  // smoke below 50% hp (+30% over 2 s, 20 s cooldown) and revives the player with a beer once per 5 minutes.
+  const COMP = { n: null, vel: new T.Vector3(), pSpeed: 0, fpp: null, walkPh: 0, walkAmt: 0, stuckT: 0, side: -1, healLeft: 0, throwT: -1, idleT: 0, fxT: 7, fxStep: 0,
+    banterNext: 0, cool: {}, lastHurtT: -99, still: 0, lastPP: new T.Vector3(), bubble: null, bubbleT: 0, fx: [], proj: null, lastBlood: false, sipT: -1 };
+  const comp = () => (CT.rpg && CT.rpg.companion) || null;
+  const compOwned = () => { const c = comp(); return !!(c && c.owned); };
+  const compFollowing = () => { const c = comp(); return !!(c && c.owned && c.following); };
+  const hpMaxP = () => (CT.rpg && CT.rpg.stats ? CT.rpg.stats.hpMax : 100);
+  const SEL_L = { hand: [0.2, 1.42, 0.2], mouth: [0, 1.6, 0.1], head: [0, 2.08, 0] };   // model-space points (the cigarette hand, lips, bubble)
+  function seleneFallback() {   // primitive stand-in when heroines.js is missing
+    const R = human({ scale: 1.0, skin: '#e4c296', top: '#7c8698', sleeve: '#e4c296', legs: '#e4c296', boots: '#e4c296', belt: '#7c8698', shW: 0.95,
+      face: { eye: '#a8c4ff', brow: '#0c0e18', lips: '#6a1a3a', fem: true, smirk: true } });
+    hairCap(R, mat('#121726'), false); chain(R.head, [0, 0.1, -0.08], 6, 0.09, 0.04, 0.025, mat('#121726'));
+    return R;
+  }
+  function placeSeleneHome() {
+    const n = COMP.n, nyx = npcs.find('nyx'); if (!n) return;
+    if (nyx) {
+      const a = nyx.home + 1.3, v = new T.Vector3(nyx.pos.x + Math.sin(a) * 2.6, 0, nyx.pos.z + Math.cos(a) * 2.6);
+      if (CT.world && CT.world.collide) { const r = CT.world.collide(v, 0.45); if (r) v.copy(r); }
+      n.homePos = new T.Vector3(v.x, H(v.x, v.z), v.z); n.home = nyx.home - 0.4;
+    } else n.homePos = n.pos.clone();
+    if (!compFollowing()) n.pos.copy(n.homePos);
+  }
+  // Called by rpg.load/reset: put her home or at the player's side, hide her without a pact.
+  npcs.companionSync = function () {
+    const n = COMP.n; if (!n) return;
+    if (!n.homePos) placeSeleneHome();
+    const c = comp();
+    if (c && c.owned && c.following) compSummonTo(n, false); else if (n.homePos) n.pos.copy(n.homePos);
+    n.R.root.visible = !!(c && c.owned);
+    COMP.vel.set(0, 0, 0); COMP.healLeft = 0; COMP.throwT = -1; if (COMP.proj) COMP.proj.visible = false;
+  };
+  function playerFrame() {
+    const P = CT.player, pp = P && P.pos ? P.pos : core.camera.position, yaw = P && P.yaw != null ? P.yaw : core.camera.rotation.y;
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    return { pp, fx, fz, rx: -fz, rz: fx };
+  }
+  function compSummonTo(n, poof) {
+    const { pp, fx, fz, rx, rz } = playerFrame();
+    const v = new T.Vector3(pp.x - fx * 3.5 + rx * 1.8 * COMP.side, 0, pp.z - fz * 3.5 + rz * 1.8 * COMP.side);
+    if (CT.world && CT.world.collide) { const r = CT.world.collide(v, 0.45); if (r) v.copy(r); }
+    if (poof) fxPoof(n.pos);
+    n.pos.set(v.x, H(v.x, v.z), v.z); n.yawNow = Math.atan2(pp.x - v.x, pp.z - v.z);
+    if (poof) fxPoof(n.pos);
+    COMP.vel.set(0, 0, 0); COMP.stuckT = 0;
+  }
+  npcs.companionSummon = function () {
+    const c = comp(), n = COMP.n; if (!c || !n) return false;
+    c.owned = true; c.following = true; n.R.root.visible = true; compSummonTo(n, true);
+    bus.emit('notify', { text: 'Moonlight pools behind you. Selene steps out of it, lighting a cigarette.', kind: 'story' });
+    bus.emit('companion', { id: 'selene', following: true });
+    if (CT.rpg && CT.rpg.save) CT.rpg.save();
+    return true;
+  };
+  npcs.companionDismiss = function () {
+    const c = comp(), n = COMP.n; if (!c || !n || !c.owned) return false;
+    c.following = false; if (CT.rpg && CT.rpg.restockCompanion) CT.rpg.restockCompanion();
+    fxPoof(n.pos); if (!n.homePos) placeSeleneHome(); n.pos.copy(n.homePos); n.yawNow = n.home; fxPoof(n.pos);
+    COMP.vel.set(0, 0, 0); COMP.healLeft = 0;
+    bus.emit('companion', { id: 'selene', following: false });
+    if (CT.rpg && CT.rpg.save) CT.rpg.save();
+    return true;
+  };
+
+  // ── Revive: wrap the player's hurt so a killing blow never reaches die() while a beer is ready ──
+  function compInit() {
+    const P = CT.player;
+    if (P && typeof P.hurt === 'function' && !P.hurt._selene) {
+      const orig = P.hurt;
+      const wrapped = function (amount, dir, source) {
+        const c = comp(), n = COMP.n;
+        const ready = c && c.owned && c.following && c.beers > 0 && c.reviveCD <= 0 && P.alive !== false && n && n.dist < 45;
+        if (!ready) return orig.call(P, amount, dir, source);
+        const hp0 = P.hp; P.hp = hp0 + 1e5;
+        let r; try { r = orig.call(P, amount, dir, source); } finally {
+          const after = P.hp - 1e5;
+          if (after <= 0) { P.hp = Math.max(1, hpMaxP() * 0.4); compRevive(); } else P.hp = after;
+        }
+        return r;
+      };
+      wrapped._selene = true; P.hurt = wrapped;
+    }
+    bus.on('playerHurt', () => { COMP.lastHurtT = time; });
+    bus.on('poi', d => banterPoi(d));
+    bus.on('kill', d => { const m = d.monster || {}; if (d.overkill > 50 || d.chief || d.guardian || d.boss || d.type === 'troll' || m.isBoss) banter('kill'); });
+    bus.on('levelUp', () => banter('level'));
+    bus.on('notify', d => { if (d && d.text === 'Rush') banter('smoke'); });
+  }
+  function compRevive() {
+    const c = comp(); c.beers = Math.max(0, c.beers - 1); c.reviveCD = 300;
+    speak('Here, have a cold one.', true);
+    bus.emit('beerRevive', { hp: CT.player ? CT.player.hp : 0, beersLeft: c.beers });
+    if (core && core.shake) core.shake(0.4, 0.3);
+  }
+
+  // ── Per-frame ──────────────────────────────────────────────────────────────
+  const _v = new T.Vector3(), _w = new T.Vector3();
+  function compUpdate(n, dt, c, pp, live) {
+    const st = comp(), R = n.R;
+    const dx0 = pp.x - n.pos.x, dz0 = pp.z - n.pos.z; n.dist = Math.hypot(dx0, dz0);
+    if (!st || !st.owned) { R.root.visible = false; return; }
+    if (live) { st.reviveCD = Math.max(0, st.reviveCD - dt); st.healCD = Math.max(0, st.healCD - dt); }
+    let speed = 0;
+    if (st.following) speed = compFollow(n, dt, pp);
+    else {   // waiting at Nyx's hut
+      if (n.homePos && n.pos.distanceToSquared(n.homePos) > 0.01) n.pos.copy(n.homePos);
+      const want = n.dist < 8 ? Math.atan2(dx0, dz0) : n.home; turnTo(n, want, dt, 3);
+    }
+    n.pos.y = H(n.pos.x, n.pos.z);
+    R.root.visible = n.dist < 150;
+    R.root.position.copy(n.pos); R.root.rotation.y = n.yawNow;
+    // the "sip": a brief tilt back of the whole figure
+    if (COMP.sipT >= 0) { COMP.sipT += dt; R.root.rotation.x = -Math.sin(Math.min(1, COMP.sipT / 1.2) * PI) * 0.06; if (COMP.sipT > 1.2) { COMP.sipT = -1; R.root.rotation.x = 0; } }
+    COMP.walkAmt += (clamp(speed / 4.5, 0, 1.25) - COMP.walkAmt) * Math.min(1, dt * 8);
+    COMP.walkPh += dt * speed * 4.2;
+    const ud = R.root.userData;
+    if (ud.walk) ud.walk(COMP.walkAmt < 0.03 ? 0 : COMP.walkAmt, COMP.walkPh);
+    if (ud.update) ud.update(dt, time);
+    if (st.following && live) { compHeal(n, dt, st); compBanterTick(n, dt, pp); }
+    compIdleFx(n, dt, speed);
+    fxTick(dt); bubbleTick(n, dt);
+  }
+  function turnTo(n, want, dt, k) { let da = want - n.yawNow; while (da > PI) da -= TAU; while (da < -PI) da += TAU; n.yawNow += da * Math.min(1, dt * k); }
+  function compFollow(n, dt, pp) {
+    const { fx, fz, rx, rz } = playerFrame();
+    const combat = !!(CT.monsters && CT.monsters.inCombat);
+    const dxp = n.pos.x - pp.x, dzp = n.pos.z - pp.z, dp = Math.hypot(dxp, dzp);
+    // too far or stuck: reappear behind the player
+    if (dp > 60 || COMP.stuckT > 2.5) { compSummonTo(n, dp < 150); return 0; }
+    const back = combat ? 7.5 : 3.6, side = (combat ? 1.2 : 1.9) * COMP.side;
+    let tx = pp.x - fx * back + rx * side, tz = pp.z - fz * back + rz * side;
+    // stay out of the player's front arc: if she is ahead and close, swing wide around the side she is on
+    const front = (dxp * fx + dzp * fz) / (dp || 1);
+    if (dp < 5 && front > 0.2) { const sg = (dxp * rx + dzp * rz) >= 0 ? 1 : -1; tx = pp.x + rx * sg * 3 - fx * 1.5; tz = pp.z + rz * sg * 3 - fz * 1.5; }
+    const dx = tx - n.pos.x, dz = tz - n.pos.z, d = Math.hypot(dx, dz);
+    // match the player's measured pace, plus a catch-up term for the gap to her slot
+    if (COMP.fpp) { const ps = dt > 0 ? Math.hypot(pp.x - COMP.fpp.x, pp.z - COMP.fpp.z) / dt : 0; COMP.pSpeed += (Math.min(ps, 12) - COMP.pSpeed) * Math.min(1, dt * 4); } else COMP.fpp = new T.Vector3();
+    COMP.fpp.copy(pp);
+    const speed = d < 0.6 ? 0 : clamp(COMP.pSpeed + (d - 0.6) * 2.4, 0, 9.5);
+    _v.set(0, 0, 0); if (d > 0.01 && speed > 0) _v.set(dx / d * speed, 0, dz / d * speed);
+    COMP.vel.lerp(_v, Math.min(1, dt * 6));
+    const ox = n.pos.x, oz = n.pos.z;
+    n.pos.x += COMP.vel.x * dt; n.pos.z += COMP.vel.z * dt;
+    // personal space around the player (never inside the camera or the sword swing)
+    const qx = n.pos.x - pp.x, qz = n.pos.z - pp.z, q = Math.hypot(qx, qz);
+    if (q < 1.4 && q > 1e-3) { n.pos.x = pp.x + qx / q * 1.4; n.pos.z = pp.z + qz / q * 1.4; }
+    if (CT.world && CT.world.collide) { _w.set(n.pos.x, 0, n.pos.z); const r = CT.world.collide(_w, 0.4); if (r) { n.pos.x = r.x; n.pos.z = r.z; } }
+    const moved = dt > 0 ? Math.hypot(n.pos.x - ox, n.pos.z - oz) / dt : 0;
+    if (speed > 1.5 && moved < speed * 0.2) COMP.stuckT += dt; else COMP.stuckT = Math.max(0, COMP.stuckT - dt * 2);
+    const sp = moved;
+    if (sp > 0.5) turnTo(n, Math.atan2(COMP.vel.x, COMP.vel.z), dt, 8);
+    else if (dp < 9) turnTo(n, Math.atan2(-dxp, -dzp), dt, 3);
+    return sp;
+  }
+  // ── Heal: toss the player a lit smoke ──────────────────────────────────────
+  const HEAL_LINES = ['Here. Breathe.', 'Catch. Lit end away from your face.', 'Smoke break. Doctor\'s orders.', 'Breathe, hero. Slowly. There.', 'You look like hell. Here.'];
+  function compHeal(n, dt, st) {
+    const P = CT.player; if (!P || P.alive === false) { COMP.healLeft = 0; return; }
+    if (COMP.healLeft > 0 && typeof P.heal === 'function') { const k = Math.min(COMP.healLeft, hpMaxP() * 0.15 * dt); P.heal(k); COMP.healLeft -= k; }
+    if (COMP.throwT >= 0) { projTick(n, dt); return; }
+    const inBattle = (CT.monsters && CT.monsters.inCombat) || time - COMP.lastHurtT < 8;
+    if (inBattle && P.hp < hpMaxP() * 0.5 && st.healCD <= 0 && st.smokes > 0 && n.dist < 30) {
+      st.healCD = 20; st.smokes--; COMP.throwT = 0;
+      speak(HEAL_LINES[(hash('h' + Math.floor(time)) >>> 3) % HEAL_LINES.length], true);
+    } else if (inBattle && P.hp < hpMaxP() * 0.5 && st.healCD <= 0 && st.smokes <= 0) { banter('dry'); st.healCD = 20; }
+  }
+  function projTick(n, dt) {
+    if (!COMP.proj) {
+      const g = new T.Group(), cig = new T.Mesh(G.geo.cyl, basic('#f0ece4')); cig.scale.set(0.012, 0.09, 0.012); cig.rotation.z = PI / 2; g.add(cig);
+      const em = new T.Mesh(G.geo.sph, basic('#ff7a1a')); em.scale.setScalar(0.016); em.position.x = 0.05; g.add(em); group.add(g); COMP.proj = g;
+    }
+    const g = COMP.proj, k = Math.min(1, COMP.throwT / 0.55);
+    const a = n.R.root.localToWorld(_v.set(...SEL_L.hand)), cam = core.camera, b = _w.set(0, -0.28, -0.55).applyMatrix4(cam.matrixWorld);
+    g.visible = true; g.position.lerpVectors(a, b, k); g.position.y += Math.sin(k * PI) * 0.9; g.rotation.set(time * 9, time * 7, 0);
+    COMP.throwT += dt;
+    if (k >= 1) {
+      g.visible = false; COMP.throwT = -1; COMP.healLeft = hpMaxP() * 0.3;
+      const P = CT.player;
+      if (P && typeof P.drag === 'function') P.drag(true);   // hook for the player's cigarette Rush (not in player.js yet)
+      bus.emit('companionHeal', { amount: COMP.healLeft, by: 'selene' });
+      if (CT.audio && CT.audio.sfx) CT.audio.sfx('drag');
+    }
+  }
+  // ── Idle: the lighter flick, a smoke puff, a sip ───────────────────────────
+  function compIdleFx(n, dt, speed) {
+    if (!n.R.root.visible || n.dist > 40) return;
+    if (speed > 0.4) { COMP.fxT = Math.max(COMP.fxT, 2); return; }
+    COMP.fxT -= dt; if (COMP.fxT > 0) return;
+    const hand = n.R.root.localToWorld(_v.set(...SEL_L.hand)).clone(), mouth = n.R.root.localToWorld(_w.set(...SEL_L.mouth)).clone();
+    const step = COMP.fxStep++ % 3;
+    if (step === 0) { fxSpark(hand); COMP.fxT = 1.1; }
+    else if (step === 1) { for (let i = 0; i < 4; i++) fxSmoke(mouth, i * 0.12); COMP.fxT = 3; }
+    else { COMP.sipT = 0; COMP.fxT = 6 + (hash('s' + Math.floor(time)) % 6); }
+  }
+  function fxGet() {
+    let f = COMP.fx.find(f => f.life <= 0);
+    if (!f) { if (COMP.fx.length >= 28) return null; const m = new T.Mesh(G.geo.sph, new T.MeshBasicMaterial({ color: 0xcccccc, transparent: true, depthWrite: false })); m.visible = false; group.add(m); f = { m, life: 0 }; COMP.fx.push(f); }
+    return f;
+  }
+  function fxSmoke(p, delay) { const f = fxGet(); if (!f) return; Object.assign(f, { life: 2.2 + delay, max: 2.2, delay, kind: 'smoke', v: new T.Vector3((Math.random() - 0.5) * 0.12, 0.35, (Math.random() - 0.5) * 0.12), s0: 0.03 }); f.m.position.copy(p); f.m.material.color.set(0xb8b8c0); }
+  function fxSpark(p) { const f = fxGet(); if (!f) return; Object.assign(f, { life: 0.35, max: 0.35, delay: 0, kind: 'spark', v: new T.Vector3(0, 0.05, 0), s0: 0.03 }); f.m.position.copy(p); f.m.material.color.set(0xffc060); }
+  function fxPoof(p) { for (let i = 0; i < 10; i++) { const f = fxGet(); if (!f) return; const a = i / 10 * TAU; Object.assign(f, { life: 1.2, max: 1.2, delay: 0, kind: 'poof', v: new T.Vector3(Math.sin(a) * 0.8, 0.6 + (i % 3) * 0.3, Math.cos(a) * 0.8), s0: 0.08 }); f.m.position.set(p.x, p.y + 0.9, p.z); f.m.material.color.set(0xcfe0ff); } }
+  function fxTick(dt) {
+    COMP.fx.forEach(f => {
+      if (f.life <= 0) return; f.life -= dt;
+      if (f.delay > 0 && f.life > f.max) { f.m.visible = false; return; }
+      const k = 1 - Math.max(0, f.life) / f.max;
+      f.m.visible = f.life > 0; f.m.position.addScaledVector(f.v, dt);
+      f.m.scale.setScalar(f.s0 * (f.kind === 'smoke' ? 1 + k * 5 : f.kind === 'spark' ? 1 - k * 0.5 : 1 + k * 1.5));
+      f.m.material.opacity = f.kind === 'smoke' ? 0.45 * (1 - k) : 1 - k;
+    });
+  }
+  // ── Speech bubble over her head (plus the notify line) ─────────────────────
+  function speak(text, bubble) {
+    const n = COMP.n; if (!n) return;
+    say(n, text);
+    if (!bubble) return;
+    if (!COMP.bubble) {
+      const cv = canvas(512, 128), tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace;
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+      sp.scale.set(1.9, 0.475, 1); sp.renderOrder = 5; group.add(sp); COMP.bubble = { sp, cv, tex };
+    }
+    const B = COMP.bubble, g = B.cv.getContext('2d');
+    g.clearRect(0, 0, 512, 128); g.font = 'bold 34px Georgia, serif';
+    const words = text.split(' '), lines = ['']; words.forEach(w => { const t = (lines[lines.length - 1] + ' ' + w).trim(); if (g.measureText(t).width > 460 && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; });
+    const h = 22 + lines.length * 40;
+    g.fillStyle = 'rgba(12,14,30,0.86)'; g.strokeStyle = '#c8d4f0'; g.lineWidth = 4;
+    g.beginPath(); g.roundRect ? g.roundRect(8, 8, 496, h, 18) : g.rect(8, 8, 496, h); g.fill(); g.stroke();
+    g.fillStyle = '#eef2ff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    lines.slice(0, 2).forEach((l, i) => g.fillText(l, 256, 8 + 30 + i * 40));
+    B.tex.needsUpdate = true; COMP.bubbleT = 3.5;
+  }
+  function bubbleTick(n, dt) {
+    const B = COMP.bubble; if (!B) return;
+    COMP.bubbleT -= dt; B.sp.visible = COMP.bubbleT > 0 && n.R.root.visible;
+    if (B.sp.visible) { n.R.root.localToWorld(B.sp.position.set(...SEL_L.head)); B.sp.material.opacity = Math.min(1, COMP.bubbleT * 2); }
+  }
+  // ── Banter (rate-limited barks in her voice) ───────────────────────────────
+  const BANTER = {
+    fen: ['The fen. Mind the water, it bites.', 'Smells like wet regret out here. My favourite.'],
+    ruins: ['Old stones, old gods, old grudges. Watch the shadows.', 'Nice ruins. Somebody\'s empire died here. Let us not join it.'],
+    citadel: ['That is his house? Tacky. All that red.', 'Last stop. Finish your beer before you knock.'],
+    pass: ['Snow. Wonderful. My lighter hates this place.', 'Cold enough to freeze the smoke in your mouth.'],
+    camp: ['Bandits. Mind your purse. And mine.'],
+    wolfden: ['Wolves. Big ones. Try to keep your throat.'],
+    village: ['Civilisation. Do they sell beer here?', 'Look, people. Try not to scare them.'],
+    blood: ['Red moon. Everything out there is hungry tonight. Stay close.', 'Blood moon. I hate this sky. Keep your sword out.'],
+    kill: ['Messy. I like it.', 'Remind me never to owe you money.', 'Now that is how you end a conversation.', 'You got some on me. Again.'],
+    smoke: ['Get your own. Oh wait, you did.', 'Look at you, smoking like a professional sinner.', 'Share that, or I start charging.'],
+    low: ['You are leaking. Stop leaking.', 'Hold still, you idiot. Smokes are coming.'],
+    dry: ['I am out of smokes. Nyx\'s hut, or a tavern. Soon.'],
+    level: ['Look at you. Growing up.', 'Stronger already. I barely had to carry you.'],
+    idle: ['I could be drinking somewhere warm, you know.', 'Are we waiting for the moon to set? I can wait. I have beer.'],
+  };
+  function banter(kind, force) {
+    if (!compFollowing() || !COMP.n || (!force && (time < COMP.banterNext || time < (COMP.cool[kind] || 0)))) return false;
+    const L = BANTER[kind]; if (!L) return false;
+    COMP.banterNext = time + 18; COMP.cool[kind] = time + (kind === 'kill' ? 60 : 110);
+    COMP.bi = (COMP.bi || 0) + 1;
+    speak(L[COMP.bi % L.length], true);
+    return true;
+  }
+  function banterPoi(d) {
+    const p = poiOf(d && d.id); if (!p) return;
+    banter(p.type === 'swamp' ? 'fen' : p.type === 'village' ? 'village' : p.type === 'den' ? 'wolfden' : BANTER[p.id] ? p.id : p.type === 'ruins' ? 'ruins' : 'village');
+  }
+  function compBanterTick(n, dt, pp) {
+    const blood = !!(CT.sky && CT.sky.weather === 'bloodmoon');
+    if (blood && !COMP.lastBlood) banter('blood'); COMP.lastBlood = blood;
+    const P = CT.player;
+    if (P && P.hp < hpMaxP() * 0.3 && P.alive !== false) banter('low');
+    if (COMP.lastPP.distanceToSquared(pp) < 0.04) COMP.still += dt; else { COMP.still = 0; COMP.lastPP.copy(pp); }
+    if (COMP.still > 45) { COMP.still = 0; banter('idle'); }
+  }
+  npcs.companion = { banter, speak, get state() { return comp(); }, get npc() { return COMP.n; }, debug: COMP };
 
   // ── Shadow blob ────────────────────────────────────────────────────────────
   function blob(R) {
@@ -481,17 +791,22 @@
     core = c; shared();
     group = new T.Group(); group.name = 'npcs'; c.scene.add(group);
     const mk = (d, R, extra) => {
-      blob(R); if (!R.hero) compact(R.root); group.add(R.root);
+      blob(R); if (!R.hero && !R.kit) compact(R.root); group.add(R.root);
       R.ph = (hash(d.id) % 1000) / 159;
       return Object.assign({ id: d.id, name: d.name, kind: d.kind || 'villager', poi: d.poi, tags: d.tags, off: d.off, yaw: d.yaw, pos: new T.Vector3(), R, portrait: d.id, dlg: d.id, invulnerable: true, npc: true, barkT: 0 }, extra || {});
     };
-    CAST.forEach(d => npcs.list.push(mk(d, heroRig(d.id) || BUILD[d.id]())));
+    if (CT.humanoid && CT.humanoid.prewarm) { try { CT.humanoid.prewarm(npcs.kitSpecs()); } catch (e) { console.warn('[npcs] prewarm', e); } }
+    CAST.forEach(d => npcs.list.push(mk(d, heroRig(d.id) || (d.kind === 'trader' && kitRig(d.id)) || BUILD[d.id]())));
     VILLAGERS.forEach((v, i) => {
       v.seed = hash(v.id); v.scale = v.scale || (v.fem ? 0.93 : 1.0) + (v.seed % 5) * 0.012;
-      npcs.list.push(mk(Object.assign({ kind: 'villager', tags: v.task === 'spear' ? ['guard', 'villager'] : ['villager', 'merchant', 'guard'] }, v), buildVillager(v), { dlg: 'villager', lines: v.lines, task: v.task, portrait: v.id }));
+      npcs.list.push(mk(Object.assign({ kind: 'villager', tags: v.task === 'spear' ? ['guard', 'villager'] : ['villager', 'merchant', 'guard'] }, v), kitRig(v.id, v) || buildVillager(v), { dlg: 'villager', lines: v.lines, task: v.task, portrait: v.id }));
     });
+    // Selene the Moonbound: built once at init (hidden) so she never streams in with a shader-compile hitch
+    const sel = mk({ id: 'selene', name: 'Selene the Moonbound', kind: 'companion', poi: 'fen', tags: [], off: [97, -106], yaw: 0 }, heroRig('selene') || seleneFallback());
+    sel.R.root.visible = false; npcs.list.push(sel); COMP.n = sel;
     placeAll();
     placedFromSpots = npcs.list.some(n => n.fromSpot);
+    compInit();
   };
 
   const _pw = new T.Vector3(), _tl = new T.Vector3();
@@ -505,6 +820,7 @@
     const pp = CT.player && CT.player.pos ? CT.player.pos : c.camera.position;
     const live = c.state === 'PLAY';
     npcs.list.forEach(n => {
+      if (n.kind === 'companion') { compUpdate(n, dt, c, pp, live); return; }
       const R = n.R, dx = pp.x - n.pos.x, dz = pp.z - n.pos.z, d = Math.hypot(dx, dz);
       n.dist = d;
       R.root.visible = d < (R.hero ? 150 : 170);
@@ -515,6 +831,10 @@
       let da = want - n.yawNow; while (da > PI) da -= TAU; while (da < -PI) da += TAU;
       n.yawNow += da * Math.min(1, dt * (d < 8 ? 3 : 1.2)); R.root.rotation.y = n.yawNow;
       if (R.hero) { if (R.root.userData.update) R.root.userData.update(dt, time); }
+      else if (R.kit) {
+        if (n.talkT > 0) n.talkT -= dt;
+        if (d < 90) CT.humanoid.animate(R, dt, time + R.ph, { look: d < 8 ? clamp(Math.atan2(dx, dz) - n.yawNow, -0.9, 0.9) : null, pitch: d < 8 ? 0.08 : 0, talk: n.talkT > 0 || (c.state === 'DIALOG' && d < 4), work: d > 6 ? R.work : null });
+      }
       else if (d < 90) animate(n, time + R.ph, dt, d < 8 ? clamp(Math.atan2(dx, dz) - n.yawNow, -0.7, 0.7) : 0, d);
       if (live) barks(n, d);
     });
@@ -577,13 +897,13 @@
       F()[key] = true; barkNext = time + 6; say(n, line); n.talkT = 2.5;
     }
   }
-  function say(n, text) { bus.emit('notify', { text: `${n.kind === 'heroine' || n.id === 'bram' ? n.name.split(' ')[0] : n.name}: ${text}`, kind: 'bark' }); }
+  function say(n, text) { bus.emit('notify', { text: `${n.kind === 'heroine' || n.kind === 'companion' || n.id === 'bram' ? n.name.split(' ')[0] : n.name}: ${text}`, kind: 'bark' }); }
 
   // ── Interaction ────────────────────────────────────────────────────────────
   npcs.nearestInteractable = function (pos, maxDist) {
     if (!pos) return null;
     let best = null, bd = maxDist || 3.2;
-    npcs.list.forEach(n => { const d = Math.hypot(pos.x - n.pos.x, pos.z - n.pos.z); if (d < bd && Math.abs((pos.y || n.pos.y) - n.pos.y) < 4) { bd = d; best = n; } });
+    npcs.list.forEach(n => { if (n.kind === 'companion' && !compOwned()) return; const d = Math.hypot(pos.x - n.pos.x, pos.z - n.pos.z); if (d < bd && Math.abs((pos.y || n.pos.y) - n.pos.y) < 4) { bd = d; best = n; } });
     return best;
   };
   npcs.find = id => npcs.list.find(n => n.id === id) || null;
@@ -845,6 +1165,70 @@
       broke: () => node(['No coin, no ale. The Bone King himself would pay. Well. He would try to eat me first.'], [ch('back', 'Fair.', 'root'), bye()]),
       rumour: () => node(RUMOURS[F().magR || 0], [ch('rumour', 'Another rumour.', 'rumour', () => { F().magR = ((F().magR || 0) + 1) % RUMOURS.length; }), ch('back', 'Back.', 'root'), bye()]),
     }, shopNodes([['potion', 15], ['bigpotion', 45]], () => 'Healing draughts, fresh this week. The tonic is troll blood. Do not smell it first.', ['potion', 'loot'])),
+  };
+
+  // ── Selene the Moonbound: sultry, dry, loyal, grim jokes, smokes and beer ───
+  function stashList(give) {
+    const R = RPG(), c = comp(); if (!R || !c) return [];
+    const src = give ? R.inventory.filter(e => R.canStash(e.id)) : c.stash;
+    return src.slice(0, 4).map(e => ch((give ? 'give_' : 'take_') + e.id, `${give ? 'Give' : 'Take'} ${iname(e.id)}${e.count > 1 ? ' x' + e.count : ''}`, give ? 'give' : 'take', () => { if (give) R.stash(e.id, e.count); else R.unstash(e.id, e.count); }));
+  }
+  DLG.selene = {
+    start: () => !F().seleneMet ? 'meet' : 'root',
+    nodes: {
+      meet: () => node(['The moon sent me. Your coin keeps me. Do not confuse the two.',
+        'Selene. I carry your junk, I patch your holes, and I do not do mornings.'],
+        [ch('ok', 'Good to have you, Selene.', 'root', () => { F().seleneMet = true; }), ch('why', 'The moon sent me a bodyguard with a beer?', 'why', () => { F().seleneMet = true; })]),
+      why: () => node(['The moon has taste.', 'And I am not a bodyguard. I am the one who drags you home when you forget to duck.'], [ch('back', 'Fair enough.', 'root')]),
+      root: () => {
+        const c = comp() || {}, f = !!c.following;
+        const L = f ? (ms() >= 6 ? ['The Bone King is dust and I am out of excuses to drink. Just kidding. I never needed excuses.']
+            : c.beers <= 1 ? ['We are nearly dry. One beer between us and a slow death.', 'Nyx\'s hut, or Old Mag\'s. Soon.']
+            : ['Lead on. I will be three steps behind, judging your footwork.', `Smokes: ${c.smokes}. Beers: ${c.beers}. Enough to get us both killed slowly.`])
+          : ['Back for me? I knew you would miss the smell of smoke.', 'Say the word and I walk with you.'];
+        const cs = f ? [ch('give', 'Carry these for me.', 'give'), ch('take', 'Hand me my things.', 'take'), ch('supply', 'How are we on smokes and beer?', 'supply'), ch('wait', 'Wait for me at Nyx\'s hut.', 'waiting', () => { npcs.companionDismiss(); })]
+          : [ch('follow', 'Walk with me.', 'following', () => { const cc = comp(); if (cc) { cc.following = true; bus.emit('companion', { id: 'selene', following: true }); } }), ch('take', 'Hand me my things.', 'take'), ch('supply', 'How are we on smokes and beer?', 'supply')];
+        return node(L, cs.concat([bye()]));
+      },
+      give: () => { const l = stashList(true); return node([l.length ? 'Hand it over. I will try not to sell it.' : 'You have nothing I can carry. Your sword stays with you. Obviously.'], l.concat([ch('back', 'That is all.', 'root')])); },
+      take: () => { const l = stashList(false); return node([l.length ? 'Your things. Mostly unharmed.' : 'I am carrying nothing of yours. Just my smokes, and those are mine.'], l.concat([ch('back', 'That is all.', 'root')])); },
+      supply: () => { const c = comp() || {}; return node([`Smokes: ${c.smokes}. Beers: ${c.beers}.`, c.beers > 0 ? 'One cold one is always saved for you. For when you die. You will.' : 'No beer left. So please do not die.'], [ch('back', 'Good to know.', 'root'), bye()]); },
+      waiting: () => node(['Fine. I will be at the witch\'s hut, drinking her out of house and home.', 'Come find me when you miss me. You will.'], [bye('Stay out of trouble.')]),
+      following: () => node(['About time. Try to keep up.'], [bye('Let us go.')]),
+    },
+  };
+  // Nyx sells the Moon Pact once you have met her; she re-summons and restocks Selene for free.
+  const PACT_PRICE = 350;
+  Object.assign(DLG.nyx.nodes, {
+    pact: () => node(['The Moon Pact. There is a woman bound to the Pale Moon: Selene. She serves whoever holds the pact, for as long as the coin holds.',
+      `${PACT_PRICE} gold. She will carry your burdens and patch your wounds. She also smokes. I have stopped arguing with her.`],
+      [ch('buy_pact', `Seal the pact. (${PACT_PRICE} gold)`, 'pactDone', () => {
+        const c = comp(); if (!c || c.owned) return 'root';
+        if (gold() < PACT_PRICE) return 'pactBroke';
+        take('gold', PACT_PRICE); if (CT.rpg.restockCompanion) CT.rpg.restockCompanion(); npcs.companionSummon();
+      }), ch('back', 'Not yet.', 'root')]),
+    pactDone: () => node(['Done. The moon listens. Moonlight is gathering behind you.', 'Turn around slowly. She hates being startled, and she hates being stared at even more.'], [bye()]),
+    pactBroke: () => node(['Coin first, drowned one. The moon is sentimental. I am not.'], [ch('back', 'Another time.', 'root'), bye()]),
+  });
+  const nyxRoot = DLG.nyx.nodes.root;
+  DLG.nyx.nodes.root = () => {
+    const r = nyxRoot(), c = comp();
+    if (F().nyxMet && c) {
+      const pc = !c.owned ? ch('pact', 'Tell me of the Moon Pact.', 'pact')
+        : !c.following ? ch('summon', 'Call Selene to my side.', 'root', () => { npcs.companionSummon(); })
+        : ch('restock', 'Restock Selene\'s smokes and beer.', 'root', () => { if (CT.rpg.restockCompanion) CT.rpg.restockCompanion(); bus.emit('notify', { text: 'Selene: Smokes and cold ones. Bless you, witch.', kind: 'bark' }); });
+      const i = r.choices.findIndex(x => x.id === 'buy'); r.choices.splice(i < 0 ? r.choices.length - 1 : i, 0, pc);
+    }
+    return r;
+  };
+  const magBuy = DLG.mag.nodes.buy;
+  DLG.mag.nodes.buy = () => {
+    const r = magBuy(), c = comp();
+    if (c && c.owned) r.choices.splice(r.choices.length - 1, 0, ch('supply', 'Smokes and a six-pack for Selene. (12 gold)', 'buy', () => {
+      if (gold() < 12) { bus.emit('notify', { text: 'Not enough gold.', kind: 'info' }); return; }
+      take('gold', 12); if (CT.rpg.restockCompanion) CT.rpg.restockCompanion(); bus.emit('notify', { text: 'Selene is restocked: 12 smokes, 6 beers.', kind: 'loot' });
+    }));
+    return r;
   };
 
   // ── Villagers ──────────────────────────────────────────────────────────────
@@ -1159,6 +1543,45 @@
     [[CX - 9, 30], [CX - 9, 32], [CX + 8, 30], [CX + 8, 32], [CX - 6, 38], [CX + 5, 38], [CX - 3, 24], [CX + 2, 24]].forEach(([x, y]) => px(d, S.shade, x, y));
     px(d, '#c8c0b8', CX - 5, 12, 3, 1); px(d, '#c8c0b8', CX - 2, 6, 3, 1);
     return { rim: '#ffc070', rimSide: -1, top: '#ffd090', outline: '#0e0602', key: -1 };
+  };
+  PAINT.selene = function (b, f, d, rnd) {
+    // moonlit fen: deep teal night, a pale moon, low mist; cigarette smoke curling up past her cheek
+    b.fillStyle = lin(b, 0, 0, 0, PH, [[0, '#04060f'], [0.45, '#0e1c34'], [0.8, '#183644'], [1, '#081216']]); b.fillRect(0, 0, PW, PH);
+    for (let i = 0; i < 30; i++) px(b, rnd() < 0.3 ? '#d8e0ff' : '#5a6a90', (rnd() * PW) | 0, (rnd() * 44) | 0);
+    b.fillStyle = rad(b, 50, 16, 20, [[0, 'rgba(210,225,255,0.55)'], [1, 'rgba(120,140,220,0)']]); b.fillRect(0, 0, PW, PH);
+    ellP(b, '#e6ecf6', 50, 16, 9, 9); ellP(b, '#c4ccdc', 47, 14, 2.5, 2); ellP(b, '#ccd2e2', 53, 19, 2, 1.5);
+    strokes(b, rnd, 26, ['#2a4a58', '#3a5a66', '#1c3440'], 0, 56, PW, PH, 16, 3, 0.03, 0.5);
+    b.lineCap = 'round';
+    [[0.5, 1.4], [0.3, 1]].forEach(([a, w], k) => { b.globalAlpha = a; b.strokeStyle = '#c8ccd8'; b.lineWidth = w; b.beginPath(); b.moveTo(43, 40); b.bezierCurveTo(47 + k * 3, 32, 40 + k * 4, 26, 46 + k * 2, 16); b.bezierCurveTo(50, 10, 44 + k * 5, 6, 48, 0); b.stroke(); });
+    b.globalAlpha = 1;
+    const S = { base: '#e2bf92', shade: '#a47a58', deep: '#5e3e2c', light: '#f8dcb4' };
+    const hair = ['#131826', '#262f48', '#5e6e90'];
+    // high ponytail: rises from the crown, sweeps over and falls behind her left shoulder
+    blobP(f, hair[0], [[CX + 1, 12], [CX + 6, 4], [CX + 13, 3], [CX + 19, 10], [CX + 21, 24], [CX + 20, 44], [CX + 16, 56], [CX + 14, 40], [CX + 14, 22], [CX + 10, 12]]);
+    // bare shoulders; the silver-scale top only just shows at the bottom edge (straps + upper edge)
+    f.fillStyle = lin(f, CX - 26, 0, CX + 26, 0, [[0, S.light], [0.45, S.base], [1, S.shade]]);
+    blobP(f, f.fillStyle, [[CX - 10, 50], [CX + 10, 50], [CX + 25, 57], [CX + 29, 80], [CX - 29, 80], [CX - 25, 57]]);
+    // the flag crop tee: short sleeves at the shoulders, a scoop neck, faded Stars and Stripes
+    const teeP = [[CX - 30, 56], [CX - 22, 53], [CX - 12, 55], [CX - 7, 63], [CX, 69], [CX + 7, 63], [CX + 12, 55], [CX + 22, 53], [CX + 30, 56], [CX + 31, 80], [CX - 31, 80]];
+    fillP(f, '#d8d2c4', teeP);
+    f.save(); f.beginPath(); teeP.forEach(([x, y], k) => (k ? f.lineTo(x, y) : f.moveTo(x, y))); f.closePath(); f.clip();
+    for (let y = 54; y < 80; y += 4) { f.fillStyle = '#a42a2c'; f.fillRect(0, y, PW, 2); }
+    f.fillStyle = '#28386c'; f.fillRect(CX - 31, 53, 25, 13);
+    f.restore();
+    for (let y = 57; y < 66; y += 2) for (let x = CX - 28 + (y % 4 ? 1 : 0); x < CX - 8; x += 3) px(d, '#ece6d6', x, y);
+    f.strokeStyle = '#8a2024'; f.lineWidth = 0.8; f.beginPath(); f.moveTo(CX - 12, 55); f.lineTo(CX - 7, 63); f.lineTo(CX, 69); f.lineTo(CX + 7, 63); f.lineTo(CX + 12, 55); f.stroke();
+    [[CX - 12, 55], [CX - 8, 56], [CX + 8, 56], [CX + 12, 55]].forEach(([x, y]) => px(d, S.shade, x, y, 2, 1));   // collarbones
+    paintFace(f, d, { E: 30, hw: 8.5, jw: 2.2, skin: S, iris: '#9ab8ff', brow: '#0c0e18', browStyle: 'arched', lips: '#6e1a3c', smirk: true, fem: true, side: 1, shadow: '#3a3a6a' });
+    // hair: slicked back from the hairline, a sheen, two loose strands at the temples
+    blobP(f, hair[0], [[CX - 10, 22], [CX - 10, 14], [CX - 3, 10], [CX + 4, 10], [CX + 10, 14], [CX + 10, 22], [CX + 7, 16], [CX, 14], [CX - 7, 16]]);
+    f.strokeStyle = hair[2]; f.lineWidth = 0.8; f.beginPath(); f.moveTo(CX - 7, 15); f.quadraticCurveTo(CX - 1, 11, CX + 6, 13); f.stroke();
+    f.strokeStyle = hair[1]; f.beginPath(); f.moveTo(CX + 8, 16); f.quadraticCurveTo(CX + 14, 10, CX + 16, 6); f.stroke();
+    px(d, hair[1], CX - 10, 23, 1, 7); px(d, hair[1], CX + 9, 23, 1, 6);
+    px(d, '#c8d2ea', CX - 10, 35, 1, 2); px(d, '#c8d2ea', CX + 9, 35, 1, 2);   // small silver earrings
+    // the cigarette at the corner of her smirk, ember glowing
+    px(d, '#f0ece4', CX + 3, 39, 2, 1); px(d, '#f0ece4', CX + 5, 40, 2, 1); px(d, '#e8e0d0', CX + 7, 40, 1, 1);
+    px(d, '#ff6a1a', CX + 8, 40, 1, 1); px(d, '#ffd070', CX + 8, 39, 1, 1);
+    return { rim: '#a8d0ff', rimSide: 1, top: '#d0e4ff', outline: '#02040a', key: -1, keyCol: 'rgba(255,214,160,0.16)', darkCol: 'rgba(4,8,30,0.45)' };
   };
   PAINT.villager = function (b, f, d, rnd, id) {
     const h = hash(id), pick = (a, k) => a[(h >>> k) % a.length];

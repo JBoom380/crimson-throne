@@ -755,6 +755,22 @@
   }
   let GLOW_T, GLOW_R, GLOW_M, GLOW_F;
   const FLASK = [];
+  const BOTTLE = [];
+  function buildBottle(tilt) {                                // a brown glass beer bottle with a paper label
+    const a = tilt * DEG, k = 1 / HS, ca = Math.cos(a) * k, sa = Math.sin(a) * k, S = 130, h = S / 2;
+    const BR = ramp(['#1e0c04', '#4a2208', '#7a3c10', '#b0641e', '#f0b060']), LB = ramp(['#6a5a3a', '#c8b488', '#f0e4c0']);
+    const p = paint(S, S, [ca, sa, -h * ca - h * sa, -sa, ca, h * sa - h * ca], [[(u, v, x, y) => {
+      const vb = v + 8;
+      if (vb > -34 && vb < -30 && Math.abs(u) < 2.6) return tone(IRON, 0.6 - u * 0.1, x, y);   // cap
+      const r = vb < -18 ? 2.2 : vb < -10 ? 2.2 + (vb + 18) * 0.62 : 7.2;
+      if (vb < -30 || vb > 20 || Math.abs(u) > r) return 0;
+      const cs = u / r, l = 0.15 + 0.85 * lit(cs, 0, Math.sqrt(1 - cs * cs), LA);
+      if (vb > -2 && vb < 10) return tone(LB, l + (Math.abs(vb - 4) < 1 ? -0.3 : 0), x, y);
+      if (cs < -0.45 && cs > -0.7) return BR[4];
+      return tone(BR, l * 0.8, x, y);
+    }, hex('#0a0402')]], 1e9);
+    return { cv: toCanvas(p), o: h };
+  }
   function buildFlask(tilt) {
     const a = tilt * DEG, k = 1 / HS, ca = Math.cos(a) * k, sa = Math.sin(a) * k, S = 130, h = S / 2;
     const LIQ = ramp(['#3a0408', '#8a0c14', '#d02030', '#ff6a5a']), GL = ramp(['#1a2a2a', '#3e5a58', '#7aa09a', '#d8f0e8']), CK = ramp(['#3a220e', '#6a4424', '#9a6a3a']);
@@ -895,7 +911,7 @@
 
   // ── State ──────────────────────────────────────────────────────────────────
   let CORE = null, ready = false, curW = null, kindName = '';
-  const I = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, sprint: false, jump: false, attack: false, heavy: 0, heavyRelease: false, block: false, dodge: false, torch: false, usePotion: false, offhand1: false, offhand2: false, offhandCycle: false };
+  const I = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, sprint: false, jump: false, attack: false, heavy: 0, heavyRelease: false, block: false, dodge: false, torch: false, usePotion: false, offhand1: false, offhand2: false, offhandCycle: false, fire: false, reload: false };
   let fakeHeavy = 0;
   let atk = 0, atkK = 0, atkDur = 1, comboIdx = 0, comboTimer = 0, hitDone = false, buffered = false, whooshed = false, swingId = 0, heavyCharge = 0;
   let charging = false, charge = 0, fullFx = false, blockT = 0, guardBreakT = 0, blockKick = 0, parryT = 0, parryBurst = false;
@@ -903,7 +919,7 @@
   let hurtT = 0, grounded = true, sprinting = false, exhausted = false, stIdle = 9, hspeed = 0, inWater = 0, wasWater = false;
   let bobPh = 0, bobAmp = 0, dip = 0, kbx = 0, kbz = 0, lean = 0, deathT = 0, deathSide = 1, lastSave = null, poiT = 0;
   let ownBlade = 0, ownHands = 0, splashT = 0;
-  let dragT = -1, dragCD = 0, exhaleT = -1, exhaleBurst = false, rushT = 0, crashT = -1, dizzy = 0, turnV = 0, emberK = 0.7;
+  let beer = false, goldT = 0, dragT = -1, dragCD = 0, exhaleT = -1, exhaleBurst = false, rushT = 0, crashT = -1, dizzy = 0, turnV = 0, emberK = 0.7;
   const OFF_KEY = 'crimsonThrone.offhand';
   try { PL.offhand = localStorage.getItem(OFF_KEY) === 'torch' ? 'torch' : 'cig'; } catch (e) { PL.offhand = 'cig'; }
   const FWD = new THREE.Vector3(), RGT = new THREE.Vector3(), TMP = new THREE.Vector3();
@@ -923,11 +939,11 @@
     const s = (test && c.state) || core.input || {};
     I.moveX = +s.moveX || 0; I.moveY = +s.moveY || 0; I.lookDX = +s.lookDX || 0; I.lookDY = +s.lookDY || 0;
     I.sprint = !!s.sprint; I.jump = !!s.jump; I.attack = !!s.attack; I.heavy = +s.heavy || 0; I.heavyRelease = !!s.heavyRelease;
-    I.block = !!s.block; I.dodge = !!s.dodge; I.torch = !!s.torch; I.usePotion = !!s.usePotion; I.offhand1 = !!s.offhand1; I.offhand2 = !!s.offhand2; I.offhandCycle = !!s.offhandCycle;
+    I.block = !!s.block; I.dodge = !!s.dodge; I.torch = !!s.torch; I.usePotion = !!s.usePotion; I.offhand1 = !!s.offhand1; I.offhand2 = !!s.offhand2; I.offhandCycle = !!s.offhandCycle; I.fire = !!s.fire; I.reload = !!s.reload;
     if (test) {                                                // controls absent: honour the debug flags, pressed flags last one frame
       if (c._forceAttack) { c._forceAttack = false; I.attack = true; }
       if (c._forceHeavy) { c._forceHeavy = false; fakeHeavy = 0.001; }
-      if (c.state && c.state !== core.input) { const q = c.state; q.attack = q.jump = q.dodge = q.torch = q.usePotion = q.heavyRelease = q.interact = q.offhand1 = q.offhand2 = q.offhandCycle = false; q.lookDX = q.lookDY = 0; }
+      if (c.state && c.state !== core.input) { const q = c.state; q.attack = q.jump = q.dodge = q.torch = q.usePotion = q.heavyRelease = q.interact = q.offhand1 = q.offhand2 = q.offhandCycle = q.fire = q.reload = false; q.lookDX = q.lookDY = 0; }
     }
     if (fakeHeavy > 0) { fakeHeavy += dt; I.heavy = fakeHeavy; if (fakeHeavy >= 1.1) { I.heavy = 0; I.heavyRelease = true; fakeHeavy = 0; } }
   }
@@ -1010,6 +1026,7 @@
     return (sx * -Math.sin(PL.yaw) + sz * -Math.cos(PL.yaw)) / l > 0.15;
   }
   function die() {
+    aiming = false; reloadT = -1; if (CORE && CORE.camera) { fovNow = 70; CORE.camera.fov = 70; CORE.camera.updateProjectionMatrix(); }
     clearRush();
     PL.alive = false; PL.hp = 0; PL.blocking = false; PL.dodging = false; charging = false; atk = 0; drinkT = -1; deathT = 0;
     deathSide = Math.random() < 0.5 ? -1 : 1;
@@ -1059,6 +1076,23 @@
     if (!silent) sfx(o === 'cig' ? 'lighter' : 'torch', { on: true });
   }
   PL.setOffhand = function (o) { setOffhand(o === 'torch' ? 'torch' : 'cig'); };
+  // Selene's gifted smoke: a full drag (anim + stamina + RUSH), free ignores the cooldown and the off-hand.
+  PL.drag = function (free) {
+    if (!PL.alive || dragT >= 0) return false;
+    if (!free && (PL.offhand !== 'cig' || dragCD > 0 || PL.rifle)) return false;
+    dragT = 0; charging = false; if (atk && atkK > 0.5) atk = 0;
+    if (!ARMS.F) arm('F');
+    return true;
+  };
+  // Selene's beer revive: the left hand brings a bottle up for a chug; npcs.js does the heal.
+  function beerRevive() {
+    if (!PL.alive) return;
+    drinkT = 0; drinkDone = true; beer = true; drinkId = null; dragT = -1; goldT = 1.1;
+    PL.blocking = false; charging = false; atk = 0; hurtT = 0; kbx = kbz = 0;
+    if (CORE) CORE.hurtFlash = 0;
+    if (!ARMS.F) arm('F');
+    sfx('beer');
+  }
   PL.heal = function (amount) {
     if (!(amount > 0)) return 0;
     const before = PL.hp; PL.hp = Math.min(hpMax(), PL.hp + amount);
@@ -1087,9 +1121,11 @@
     GLOW_M = buildGlow(30, ['rgba(220,240,255,0.55)', 'rgba(150,200,255,0.4)', 'rgba(90,130,220,0.28)']);
     GLOW_F = buildGlow(30, ['rgba(255,230,150,0.65)', 'rgba(255,150,50,0.5)', 'rgba(230,70,20,0.35)']);
     curW = weapon(); kindName = kindOf(curW); setKind(kindName);
-    setTimeout(() => { try { arm('B'); arm('F'); for (let a = 0; a <= 120; a += 30) FLASK.push(buildFlask(a)); } catch (e) { console.error('[CT.player bake]', e); } }, 300);
+    setTimeout(() => { try { arm('B'); arm('F'); for (let a = 0; a <= 120; a += 30) { FLASK.push(buildFlask(a)); BOTTLE.push(buildBottle(a)); } } catch (e) { console.error('[CT.player bake]', e); } }, 300);
     PL.pos.set(C.START.x, hAt(C.START.x, C.START.z) + 0.05, C.START.z);
     PL.hp = hpMax(); PL.stamina = stMax();
+    if (CT.bus) CT.bus.on('kill', onGuardianKill);
+    if (CT.bus) CT.bus.on('beerRevive', beerRevive);
     if (CT.bus) CT.bus.on('kill', d => {
       if (!d || !d.point || !PL.alive || !CORE) return;
       if (Math.hypot(d.point.x - PL.pos.x, d.point.z - PL.pos.z) > 7) return;
@@ -1107,6 +1143,10 @@
     readInput(core, dt);
     curW = weapon();
     const kn = kindOf(curW); if (kn !== kindName) { kindName = kn; setKind(kn); }
+    const rifleNow = !!(curW && (curW.style === 'rifle' || curW.ranged));
+    if (rifleNow !== PL.rifle) { PL.rifle = rifleNow; reloadT = -1; aiming = false; dragT = -1; charging = false; atk = 0; }
+    vaultUpdate(dt);
+    if (PL.rifle && PL.alive) rifleUpdate(dt, core, cam); else aiming = false;
     PL.prompt = null;
     const sm = stMax();
     hurtT = Math.max(0, hurtT - dt * 4); parryT = Math.max(0, parryT - dt); blockKick = Math.max(0, blockKick - dt * 6); guardBreakT = Math.max(0, guardBreakT - dt);
@@ -1130,7 +1170,7 @@
     else if (dizzy > 0) dizzy = Math.max(0, dizzy - dt * 0.8 / 0.6);
     core.dizzy = dizzy;
     if (dragT >= 0 && (I.attack || I.block || I.dodge || I.heavy > 0.15 || I.usePotion)) dragT = -1;
-    if (PL.offhand === 'cig' && I.jump && dragT < 0 && dragCD <= 0 && !atk && !PL.blocking && dodgeT < 0 && !charging && drinkT < 0) dragT = 0;
+    if (PL.offhand === 'cig' && !PL.rifle && I.jump && dragT < 0 && dragCD <= 0 && !atk && !PL.blocking && dodgeT < 0 && !charging && drinkT < 0) dragT = 0;
     if (dragT >= 0) {
       const d0 = dragT; dragT += dt;
       if (d0 < 0.35 && dragT >= 0.35) sfx('drag');
@@ -1153,7 +1193,7 @@
         else if (has('rpg', 'use')) { const r = CT.rpg.use(drinkId); if (PL.hp === before && r !== false) PL.heal((C.ITEMS[drinkId] || {}).heal || 50); }
         else { PL.heal(50); sfx('drink'); }
       }
-      if (drinkT >= 0.8) drinkT = -1;
+      if (drinkT >= (beer ? 1.2 : 0.8)) { drinkT = -1; beer = false; }
     }
 
     // block
@@ -1198,7 +1238,7 @@
     // speed
     sprinting = I.sprint && my > 0.2 && !exhausted && PL.stamina > 0 && grounded && !PL.blocking && !charging && drinkT < 0;
     let speed = sprinting ? P.sprint : P.walk;
-    if (PL.blocking) speed *= 0.45; if (charging) speed *= 0.55; if (atk) speed *= atk === 2 ? 0.5 : 0.72; if (drinkT >= 0) speed *= 0.5;
+    if (PL.blocking) speed *= 0.45; if (charging) speed *= 0.55; if (atk) speed *= atk === 2 ? 0.5 : 0.72; if (drinkT >= 0) speed *= 0.5; if (aiming) speed *= 0.55;
     if (wl > 0.1) {                                            // slope: uphill is slow, steep is slower
       const dx = wx / wl, dz = wz / wl, g0 = hAt(PL.pos.x, PL.pos.z), s = (hAt(PL.pos.x + dx * 0.6, PL.pos.z + dz * 0.6) - g0) / 0.6;
       if (s > 0.35) speed *= clamp(1 - (s - 0.35) * 1.3, 0.25, 1);
@@ -1219,7 +1259,7 @@
     if (sprinting && wl > 0.1) { PL.stamina = Math.max(0, PL.stamina - P.sprintCost * dt * (rushT > 0 ? 0.7 : 1)); stIdle = 0; if (PL.stamina <= 0) exhausted = true; }
 
     // jump + gravity
-    if (I.jump && PL.offhand !== 'cig' && grounded && drinkT < 0 && !PL.blocking) { v.y = P.jump; grounded = false; useStamina(6); sfx('jump'); }
+    if (I.jump && (PL.offhand !== 'cig' || PL.rifle) && grounded && drinkT < 0 && !PL.blocking) { v.y = P.jump; grounded = false; useStamina(6); sfx('jump'); }
     v.y -= 20 * dt;
     const oy = PL.pos.y;
     PL.pos.x += (v.x + kbx) * dt; PL.pos.z += (v.z + kbz) * dt; PL.pos.y += v.y * dt;
@@ -1253,7 +1293,9 @@
     PL.roll = Math.sin(bobPh) * 0.008 * bobAmp + lean + Math.sin(core.time * 0.7) * 0.0436 * dizzy;
     cam.position.set(PL.pos.x, PL.pos.y + P.eye + (Math.abs(Math.sin(bobPh)) - 0.5) * 0.07 * bobAmp - dip - (charging ? charge * 0.05 : 0), PL.pos.z);
     if (exhaleT >= 0) { const k = Math.sin(Math.PI * exhaleT / 2.5); PL.roll += Math.sin(core.time * 1.3) * 0.016 * k; }
-    cam.rotation.set(PL.pitch + hurtT * 0.05 + Math.sin(core.time * 0.45) * 0.03 * dizzy + (exhaleT >= 0 ? Math.sin(core.time * 0.9) * 0.012 * Math.sin(Math.PI * exhaleT / 2.5) : 0), PL.yaw, PL.roll);
+    cam.rotation.set(PL.pitch + recoilP + hurtT * 0.05 + Math.sin(core.time * 0.45) * 0.03 * dizzy + (exhaleT >= 0 ? Math.sin(core.time * 0.9) * 0.012 * Math.sin(Math.PI * exhaleT / 2.5) : 0), PL.yaw + recoilY, PL.roll);
+    const fovT = PL.rifle && aiming ? 45 : 70;
+    if (Math.abs(fovNow - fovT) > 0.05) { fovNow += (fovT - fovNow) * Math.min(1, dt * 12); cam.fov = fovNow; cam.updateProjectionMatrix(); }
     torch(dt, core);
 
     // save point tracking
@@ -1271,6 +1313,10 @@
   }
   function torch(dt, core) {
     const tl = core.torchLight; if (!tl) return;
+    if (PL.rifle) {                                            // both hands on the rifle: no torch; the muzzle flash lights the scene
+      if (muzzleT > 0) { tl.intensity = 9; tl.distance = 35; } else { tl.intensity += ((PL.alive ? 0.5 : 0) - tl.intensity) * Math.min(1, dt * 14 || 0); tl.distance = 12; }
+      return;
+    }
     const cig = PL.offhand === 'cig';
     const target = !PL.alive ? 0 : cig ? 0.12 + 0.06 * emberK + (dragT > 0.3 && dragT < 1.3 ? 0.3 : 0) : PL.torchLit ? (3 + 2 * flick) * (K && K.twoHand ? 0.7 : 1) : 0;
     tl.intensity += (target - tl.intensity) * Math.min(1, dt * 14 || 0);
@@ -1283,6 +1329,302 @@
     cam.position.set(PL.pos.x, PL.pos.y + P.eye - (P.eye - 0.28) * e + bounce, PL.pos.z);
     cam.rotation.set(PL.pitch * (1 - k) + 0.18 * k, PL.yaw + deathSide * 0.25 * ease(k), PL.roll);
     torch(dt, CORE);
+  }
+
+  // ── AR-15 'Thunderstick': a sky-iron relic. Semi-auto hitscan, ADS, reload, tracers, casings ──
+  const AR_MAG = 30, AR_RANGE = 120;
+  let aiming = false, adsK = 0, fireCD = 0, reloadT = -1, recoilP = 0, recoilY = 0, fireK = 0, dryK = 0, muzzleT = 0;
+  let casingN = 0, casingSfxT = -1, tracerT = 0, tracerX1 = 0, tracerY1 = 0, tracerHit = false, arMagLocal = AR_MAG, fovNow = 70;
+  const DIR = new THREE.Vector3(), TR = new THREE.Vector3();
+  PL.rifle = false; PL.ammo = { mag: 0, reserve: 0 };
+  const flags = () => (CT.rpg && CT.rpg.flags) || null;
+  function arMag() { const f = flags(); return f && typeof f.arMag === 'number' ? f.arMag : arMagLocal; }
+  function setMag(n) { arMagLocal = n; const f = flags(); if (f) f.arMag = n; }
+  function arReserve() { return CT.rpg && typeof CT.rpg.count === 'function' ? CT.rpg.count('ammo556') || 0 : 0; }
+  function rifleUpdate(dt, core, cam) {
+    fireCD -= dt; dryK = Math.max(0, dryK - dt * 5); fireK = Math.max(0, fireK - dt * 10); muzzleT -= dt; tracerT -= dt;
+    recoilP *= Math.exp(-dt * 9); recoilY *= Math.exp(-dt * 9);
+    if (casingSfxT >= 0) { casingSfxT -= dt; if (casingSfxT < 0) sfx('ar_casing'); }
+    aiming = I.block && reloadT < 0 && !sprinting && dodgeT < 0 && drinkT < 0 && PL.alive;
+    const res = arReserve();
+    if (reloadT >= 0) {                                         // mag out, a fresh mag in at 1.3 s, the charging handle, done at 2.2 s
+      const r0 = reloadT; reloadT += dt;
+      if (r0 < 1.3 && reloadT >= 1.3) { const n = Math.min(AR_MAG - arMag(), res); if (n > 0 && CT.rpg && CT.rpg.take && CT.rpg.take('ammo556', n)) setMag(arMag() + n); }
+      if (reloadT >= 2.2) reloadT = -1;
+    } else if ((I.reload || (I.fire && arMag() <= 0 && res > 0)) && arMag() < AR_MAG && res > 0 && drinkT < 0) { reloadT = 0; sfx('ar_reload'); }
+    if (I.fire && reloadT < 0 && fireCD <= 0 && drinkT < 0 && dodgeT < 0) {
+      fireCD = 0.09;
+      if (arMag() <= 0) { sfx('ar_dry'); dryK = 1; }
+      else { setMag(arMag() - 1); shoot(core, cam); }
+    }
+    PL.ammo.mag = arMag(); PL.ammo.reserve = arReserve();
+    I.attack = false; I.heavy = 0; I.heavyRelease = false; I.block = false;   // no melee while the rifle is out
+  }
+  function shoot(core, cam) {
+    camVectors();
+    const w = curW || {}, spread = aiming ? 0.0025 : 0.014 + Math.min(0.02, hspeed * 0.003);
+    DIR.set(FWD.x + (rnd() - 0.5) * spread * 2, FWD.y + (rnd() - 0.5) * spread * 2, FWD.z + (rnd() - 0.5) * spread * 2).normalize();
+    const org = cam.position;
+    let dist = AR_RANGE, hit = null;
+    if (has('world', 'raycast')) { const g = CT.world.raycast(org, DIR, AR_RANGE); if (g && g.dist > 0) dist = g.dist; }
+    if (has('monsters', 'hitTest')) {
+      const hits = CT.monsters.hitTest(org, DIR, dist, 0.03) || [];
+      for (let i = 0; i < hits.length; i++) {
+        const h = hits[i], m = h && h.monster; if (!m || m.dead || m.alive === false || !h.point) continue;
+        TR.subVectors(h.point, org); const along = TR.dot(DIR); if (along < 0 || along > dist) continue;
+        TR.addScaledVector(DIR, -along);
+        if (TR.length() > 0.55 * (m.scale || 1) + 0.3) continue;   // the round must pass close to that body part
+        hit = h; dist = along; break;
+      }
+    }
+    TR.copy(org).addScaledVector(DIR, dist);
+    if (hit) {
+      const m = hit.monster, head = hit.part === 'head';
+      let dmg = (w.damage || 34) * (dist > 60 ? 1 - 0.5 * Math.min(1, (dist - 60) / 60) : 1) * (head ? 2.5 : 1) * (m.type === 'boneKing' ? 0.5 : 1);
+      dmg = Math.round(dmg);
+      const r = (has('monsters', 'damage') && CT.monsters.damage(m, dmg, DIR.clone(), hit.part, head)) || {};
+      impactFx(hit.point, 0, head, r.killed || r.severed);
+      sfx('flesh', { pos: hit.point }); if (head || r.killed) sfx('bone', { pos: hit.point });
+      core.hitStop(head ? 0.05 : 0.025);
+      if (r.killed && head) core.shake(0.6, 0.25);
+    } else if (dist < AR_RANGE) {                                // the round strikes the ground or rock: sparks
+      TMP.copy(TR).project(cam); if (TMP.z < 1) { const x = (TMP.x + 1) * W / 2, y = (1 - TMP.y) * H / 2; for (let i = 0; i < 6; i++) sp(x, y, (rnd() - 0.5) * 160, -rnd() * 120, 0.2 + rnd() * 0.2, 0); }
+    }
+    TMP.copy(TR).project(cam);                                   // the tracer ends where the round stopped
+    tracerX1 = (TMP.x + 1) * W / 2; tracerY1 = (1 - TMP.y) * H / 2; tracerT = 0.05; tracerHit = !!hit;
+    if (TMP.z > 1) { tracerX1 = W / 2; tracerY1 = H / 2; }
+    // the thunder carries: everything within 60 m comes
+    const L = CT.monsters && CT.monsters.list;
+    if (L) for (let i = 0; i < L.length; i++) {
+      const o = L[i]; if (!o || o.dead || o.alive === false || o.state === 'dormant' || !o.pos) continue;
+      if (Math.hypot(o.pos.x - PL.pos.x, o.pos.z - PL.pos.z) < 60) { o.aggro = true; if (o.state === 'idle' || o.state === 'wander' || o.state === 'patrol' || o.state === 'return') o.state = 'chase'; }
+    }
+    recoilP += aiming ? 0.02 : 0.034; recoilY += (rnd() - 0.5) * 0.012; fireK = 1; muzzleT = 0.06; casingN++; casingSfxT = 0.32;
+    core.shake(aiming ? 0.18 : 0.26, 0.12);
+    sfx('ar_shot', { pos: org });
+    emit('shot', { weapon: curW, pos: org });
+  }
+
+  // Rifle sprites: a hip view (a black M4 in pseudo-perspective, the muzzle toward the centre) and an ADS rear view.
+  const GUN = ramp(['#060608', '#0e0f12', '#18191e', '#24262c', '#34373f', '#4a4e58', '#6a707c']);
+  const AR_S = 1.5, AR_TH = 22 * DEG, AR_UG = 246, AR_LEN = 336;
+  const ARD = [Math.cos(AR_TH), Math.sin(AR_TH)], ARN = [-Math.sin(AR_TH), Math.cos(AR_TH)];
+  const arTaper = U => 0.55 + 0.45 * clamp(U, 0, AR_LEN) / AR_LEN;
+  function arToScreen(U, V, out) { const a = AR_S * (U - AR_UG), p = AR_S * arTaper(U) * V; out[0] = a * ARD[0] + p * ARN[0]; out[1] = a * ARD[1] + p * ARN[1]; return out; }
+  const box = (U, V, u0, u1, v0, v1) => U >= u0 && U <= u1 && V >= v0 && V <= v1;
+  function edgeL(V, v0, v1, l) { return V < v0 + 1.4 ? l + 0.28 : V > v1 - 1.2 ? l - 0.2 : l; }
+  function rifleBody(U, V, x, y) {
+    const cylL = (c, r) => { const q = clamp((V - c) / r, -1, 1); return 0.2 + 0.55 * (1 - (q + 0.45) * (q + 0.45)); };
+    if (box(U, V, 0, 16, -3.8, 3.8)) return U > 3 && U < 13 && mod(U, 4) < 1.4 && V < 0 ? GUN[0] : tone(GUN, cylL(0, 3.8), x, y);    // flash hider
+    if (box(U, V, 16, 70, -2.6, 2.6)) return tone(GUN, cylL(0, 2.6) + 0.05, x, y);                                                    // barrel
+    if (box(U, V, 58, 70, -4, 4)) return tone(GUN, edgeL(V, -4, 4, 0.35), x, y);                                                       // gas block
+    if (V > -20 && V < -4 && Math.abs(U - 65) < 1.4) return tone(GUN, 0.5, x, y);                                                      // front sight post
+    if (V > -14 && V < -4 && Math.abs(U - 65) < 2 + (V + 14) * 0.4 && !(Math.abs(U - 65) < (V + 14) * 0.4 - 1.2 && V > -11)) return tone(GUN, 0.38 - (U - 65) * 0.02, x, y);
+    if (box(U, V, 70, 172, -13, -10)) return mod(U, 4) < 2 ? tone(GUN, 0.62, x, y) : V > -11.6 ? tone(GUN, 0.4, x, y) : 0;             // top rail
+    if (box(U, V, 70, 172, -10, 10)) {                                                                                                    // handguard with vents
+      if (mod(U, 9) < 3.4 && (Math.abs(V + 3.5) < 1.6 || Math.abs(V - 4) < 1.6)) return GUN[0];
+      return tone(GUN, cylL(-1, 10.5), x, y);
+    }
+    if (box(U, V, 170, 176, -11.5, 11.5)) return tone(GUN, cylL(0, 11.5) + 0.12, x, y);                                               // delta ring
+    if (box(U, V, 195, 230, -16, -11)) return tone(GUN, edgeL(V, -16, -11, 0.3), x, y);                                               // optic mount
+    if (box(U, V, 188, 236, -28, -16)) {                                                                                                  // red-dot tube
+      if (U < 191) return V < -22 ? hex('#8a2030') : hex('#3a4a6a');
+      return tone(GUN, cylL(-22, 6.2) + (Math.abs(U - 212) < 3 ? 0.12 : 0), x, y);
+    }
+    if (box(U, V, 250, 262, -14, -10)) return tone(GUN, edgeL(V, -14, -10, 0.45), x, y);                                              // charging handle
+    if (box(U, V, 176, 258, -11, 7)) {                                                                                                    // upper receiver
+      if (box(U, V, 205, 228, -4, 2)) return tone(GUN, 0.12, x, y);                                                                  // ejection port
+      if (Math.hypot(U - 244, V - 1.5) < 3.4) return tone(GUN, 0.6, x, y);                                                              // forward assist
+      return tone(GUN, edgeL(V, -11, 7, 0.34) + (hsh(x, y) < 0.03 ? 0.15 : 0), x, y);
+    }
+    if (box(U, V, 188, 252, 7, 16)) return tone(GUN, edgeL(V, 7, 16, 0.26), x, y);                                                   // lower receiver
+    if (box(U, V, 218, 240, 16, 22) && (U < 219.8 || U > 238.2 || V > 20.4)) return tone(GUN, 0.3, x, y);                            // trigger guard
+    if (box(U, V, 224, 227, 14, 20)) return tone(GUN, 0.45, x, y);                                                                     // trigger
+    if (V > 12 && V < 48) { const uc = 240 + (V - 12) * 0.35; if (Math.abs(U - uc) < 7 - (V > 44 ? (V - 44) * 1.2 : 0)) return tone(GUN, 0.22 + (U < uc - 4 ? 0.2 : 0) + (mod(V, 4) < 1 ? -0.08 : 0), x, y); }   // pistol grip
+    if (box(U, V, 256, 300, -6.5, 2.5)) return tone(GUN, cylL(-2, 4.5), x, y);                                                         // buffer tube
+    if (U >= 286 && U <= 336 && V >= -9 && V <= 8 + (U - 286) * 0.2) {                                                                   // stock
+      if (U > 330) return tone(GUN, 0.1, x, y);
+      if (box(U, V, 296, 322, -4, 2)) return tone(GUN, 0.12, x, y);
+      return tone(GUN, edgeL(V, -9, 18, 0.3), x, y);
+    }
+    return 0;
+  }
+  function rifleMag(U, V, x, y) {                                // the curved 30-round magazine
+    if (V < 14 || V > 62) return 0;
+    const t = (V - 14) / 48, uf = 192 - t * 12 - t * t * 8;
+    if (U < uf || U > uf + 22) return 0;
+    if (V > 58) return tone(GUN, 0.42, x, y);
+    return tone(GUN, 0.2 + (U < uf + 3 ? 0.22 : 0) + (mod(V, 7) < 1 ? -0.08 : 0), x, y);
+  }
+  function bakeRifle(fn) {
+    let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9; const o = [0, 0];
+    for (const U of [0, AR_LEN]) for (const V of [-30, 64]) { arToScreen(U, V, o); mnx = Math.min(mnx, o[0]); mxx = Math.max(mxx, o[0]); mny = Math.min(mny, o[1]); mxy = Math.max(mxy, o[1]); }
+    const ox = Math.ceil(-mnx) + 3, oy = Math.ceil(-mny) + 3, w = Math.ceil(mxx) + ox + 3, h = Math.ceil(mxy) + oy + 3;
+    const T = [ARD[0], ARD[1], -(ox * ARD[0] + oy * ARD[1]), ARN[0], ARN[1], -(ox * ARN[0] + oy * ARN[1])];
+    const p = paint(w, h, T, [[(a, pp, x, y) => { const U = a / AR_S + AR_UG; return fn(U, pp / (AR_S * arTaper(U)), x, y); }, hex('#000000')]], 1e9);
+    return { cv: toCanvas(p), ox, oy };
+  }
+  function bakeADS() {                                           // rear view: the red-dot ring centred on the screen, receiver and stock below
+    const w = 240, h = 260, cx = 120, cy = 34, p = { d: new Uint32Array(w * h), w, h };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.hypot(dx, dy); let c = 0;
+      if (r < 34 && r > 26) c = tone(GUN, 0.3 + (dx + dy < -20 ? 0.3 : 0) - (r > 32.5 ? 0.15 : 0), x, y);
+      else if (r >= 34 && r < 35.5) c = GUN[0];
+      else if (y > cy + 26 && y < cy + 50 && Math.abs(dx) < 16) c = tone(GUN, 0.28 + (Math.abs(dx) > 14 ? -0.1 : 0), x, y);   // mount
+      else if (y >= cy + 50) {                                                                                               // receiver, charging handle, stock
+        const hw = 22 + (y - cy - 50) * 0.42;
+        if (Math.abs(dx) < hw) c = tone(GUN, 0.18 + (dx < -hw + 3 ? 0.25 : 0) + (y < cy + 54 ? 0.3 : 0) + (Math.abs(dx) < 6 && y < cy + 70 ? 0.2 : 0), x, y);
+        else if (Math.abs(dx) < hw + 1.2) c = GUN[0];
+      }
+      p.d[y * w + x] = c;
+    }
+    return { cv: toCanvas(p), ox: cx, oy: cy };
+  }
+  const MFLASH = [];
+  function buildMuzzle() {
+    for (let k = 0; k < 3; k++) {
+      const S = 48, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d'), R = CT.rng(77 + k);
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const dx = x + 0.5 - S / 2, dy = y + 0.5 - S / 2, r = Math.hypot(dx, dy) / (S / 2), a = Math.atan2(dy, dx);
+        const spike = 0.35 + 0.65 * Math.pow(Math.abs(Math.cos(a * (3 + k))), 6) * (0.7 + 0.3 * R());
+        if (r > spike) continue;
+        const q = r / spike; g.fillStyle = q < 0.3 ? '#fffbe8' : q < 0.6 ? '#ffd060' : '#ff7a20'; if (q > 0.85 && bay(x, y) > 0.5) continue;
+        g.fillRect(x, y, 1, 1);
+      }
+      MFLASH.push(cv);
+    }
+  }
+  let RIFLE = null, RMAG = null, RADS = null;
+  function ensureRifle() { if (!RIFLE) { RIFLE = bakeRifle(rifleBody); RMAG = bakeRifle(rifleMag); RADS = bakeADS(); buildMuzzle(); } }
+  const P2 = [0, 0];
+  function line(ctx, x0, y0, x1, y1) {                          // a crisp 1 px line
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0;
+    for (let i = 0; i <= n; i += 1) { const k = n ? i / n : 0; ctx.fillRect((x0 + (x1 - x0) * k) | 0, (y0 + (y1 - y0) * k) | 0, 1, 1); }
+  }
+  let rgx = 566, rgy = 298;
+  function drawRifle(ctx, dt) {
+    ensureRifle(); if (!ARMS.F) arm('F');
+    adsK += ((aiming ? 1 : 0) - adsK) * Math.min(1, dt * 12);
+    const wk = clamp(hspeed / 4.5, 0, 1.3), idle = 1 - Math.min(1, wk);
+    let tx = 566, ty = 298;
+    if (sprinting) { tx = 620; ty = 390; }
+    rgx += (tx - rgx) * Math.min(1, dt * 9); rgy += (ty - rgy) * Math.min(1, dt * 9);
+    let ox = rgx + Math.sin(bobPh) * 5 * wk * (1 - adsK) + Math.sin(clock * 0.9) * 1.2 * idle, oy = rgy + Math.cos(2 * bobPh) * 4 * wk * (1 - adsK) + Math.sin(clock * 1.7) * 1.6 * idle;
+    if (dizzy > 0) { ox += Math.sin(clock * 0.8) * 8 * dizzy; oy += Math.cos(clock * 0.6) * 6 * dizzy; }
+    if (hurtT > 0) { ox += 12 * hurtT; oy += 18 * hurtT; }
+    ox += ARD[0] * 12 * fireK; oy += ARD[1] * 12 * fireK - 5 * fireK;             // recoil pushes the rifle back into the shoulder
+    if (dryK > 0) oy += 2 * dryK;
+    let rl = 0;                                                                     // reload tilt
+    if (reloadT >= 0) { rl = reloadT < 0.25 ? reloadT / 0.25 : reloadT > 1.95 ? Math.max(0, (2.2 - reloadT) / 0.25) : 1; ox += 14 * rl; oy += 22 * rl; }
+    if (!PL.alive) { const k = Math.min(1, deathT / 0.9); oy += 420 * k * k; }
+    const hq = Math.round(handLevel() * 8) + (wetness('handsWet') > 0.45 ? 9 : 0);
+    updateRim(dt);
+    const hip = adsK < 0.5;
+    if (hip) {
+      const lift = adsK * 2;                                                        // on the way up to the sights
+      ox -= 90 * lift; oy -= 40 * lift;
+      const X = Math.round(ox), Y = Math.round(oy);
+      // magazine: seated, dropping out, or coming back in with the left hand
+      let mx = X, my = Y, showMag = true;
+      if (reloadT >= 0.25 && reloadT < 1.0) { const k = (reloadT - 0.25) / 0.45; my += 420 * k * k; mx += 20 * k; showMag = k < 1; }
+      else if (reloadT >= 1.0 && reloadT < 1.3) { const k = 1 - (reloadT - 1.0) / 0.3; my += 120 * k * k; }
+      if (showMag) ctx.drawImage(RMAG.cv, mx - RMAG.ox, my - RMAG.oy);
+      ctx.drawImage(RIFLE.cv, X - RIFLE.ox, Y - RIFLE.oy);
+      // hands: the right fist on the pistol grip; the left under the handguard, at the mag or the charging handle during a reload
+      arToScreen(244, 26, P2); const gx = X + P2[0], gy = Y + P2[1];
+      arToScreen(100, 8, P2); let lx = X + P2[0], ly = Y + P2[1];
+      if (reloadT >= 0) {
+        const at = (U, V) => { arToScreen(U, V, P2); return [X + P2[0], Y + P2[1]]; };
+        const hg = [lx, ly], mg = at(204, 40), ch = at(256, -12), off = [lx - 60, ly + 260];
+        const lerp2 = (a, b, k) => { lx = a[0] + (b[0] - a[0]) * k; ly = a[1] + (b[1] - a[1]) * k; };
+        const r = reloadT;
+        if (r < 0.25) lerp2(hg, mg, ease(r / 0.25));
+        else if (r < 0.5) lerp2(mg, mg, 0);
+        else if (r < 0.9) lerp2(mg, off, ease((r - 0.5) / 0.4));
+        else if (r < 1.3) { const k = ease((r - 0.9) / 0.4); lerp2(off, mg, k); if (r >= 1.0) { const m = [mg[0], mg[1] + 120 * (1 - (r - 1.0) / 0.3) ** 2]; lerp2(m, m, 0); } }
+        else if (r < 1.55) lerp2(mg, ch, ease((r - 1.3) / 0.25));
+        else if (r < 1.85) { const k = Math.sin(Math.PI * (r - 1.55) / 0.3); lerp2(ch, [ch[0] + ARD[0] * 26, ch[1] + ARD[1] * 26], k); }
+        else lerp2(ch, hg, ease(Math.min(1, (r - 1.85) / 0.35)));
+      }
+      drawArm(ctx, ARMS.F, Math.round(lx), Math.round(ly), hq, 1, 0, 0, false);
+      drawArm(ctx, ARMS.R, Math.round(gx), Math.round(gy), hq, 1, 0, 0, false);
+      arToScreen(0, 0, P2); fx0 = X + P2[0]; fy0 = Y + P2[1];
+      arToScreen(216, -1, P2); ejx = X + P2[0]; ejy = Y + P2[1];
+    } else {
+      const k = (adsK - 0.5) * 2, X = W / 2 + Math.round((ox - rgx) * 0.4), Y = Math.round(H / 2 + (1 - k) * 140 + (oy - rgy) * 0.5 - 2 * fireK);
+      ctx.drawImage(RADS.cv, X - RADS.ox, Y - RADS.oy);
+      if (reloadT < 0) { ctx.fillStyle = '#ff2a1a'; ctx.fillRect(X - 1, Y - 1, 2, 2); ctx.globalAlpha = 0.5; ctx.fillRect(X - 2, Y, 4, 1); ctx.fillRect(X, Y - 2, 1, 4); ctx.globalAlpha = 1; }
+      drawArm(ctx, ARMS.F, X - 70, Y + 150, hq, 1, 0, 0, false);
+      drawArm(ctx, ARMS.R, X + 72, Y + 176, hq, 1, 0, 0, false);
+      fx0 = X; fy0 = Y - 40; ejx = X + 30; ejy = Y + 60;
+    }
+    // muzzle flash, tracer, casings
+    if (muzzleT > 0) {
+      const f = MFLASH[(rnd() * 3) | 0];
+      ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(f, Math.round(fx0 - 24), Math.round(fy0 - 24)); ctx.drawImage(GLOW_F, Math.round(fx0 - 30), Math.round(fy0 - 30)); ctx.globalCompositeOperation = 'source-over';
+    }
+    if (tracerT > 0) { ctx.fillStyle = '#fff4c0'; line(ctx, fx0, fy0, tracerX1, tracerY1); ctx.fillStyle = '#ffb040'; line(ctx, fx0 + 1, fy0, tracerX1 + 1, tracerY1); if (tracerHit) flash(tracerX1, tracerY1, 0, true); tracerHit = false; }
+    while (casingN > 0) { casingN--; sp(ejx, ejy, 120 + rnd() * 90, -150 - rnd() * 80, 0.9, 6); }
+  }
+  let fx0 = 320, fy0 = 180, ejx = 400, ejy = 260;
+
+  // ── The Sky-Iron Vault: a steel bunker door half-buried in the snow of the Frozen Teeth ──
+  // The Moonblade guardian drops the Sky-Iron Key; the vault gives the AR-15 and 120 rounds.
+  const VAULT = { x: -220, z: -760, io: null, group: null, door: null, open: 0, seen: false };
+  function buildVault(core) {
+    let bx = VAULT.x, bz = VAULT.z, bs = 1e9;                  // settle on the flattest ground near (-220, -760)
+    for (let dz = -48; dz <= 48; dz += 6) for (let dx = -48; dx <= 48; dx += 6) {
+      const x = -220 + dx, z = -760 + dz, h = hAt(x, z);
+      const sl = Math.abs(hAt(x + 4, z) - h) + Math.abs(hAt(x - 4, z) - h) + Math.abs(hAt(x, z + 4) - h) + Math.abs(hAt(x, z - 4) - h) + Math.hypot(dx, dz) * 0.02;
+      if (sl < bs) { bs = sl; bx = x; bz = z; }
+    }
+    VAULT.x = bx; VAULT.z = bz;
+    const T = THREE, g = new T.Group(), y = hAt(VAULT.x, VAULT.z);
+    const steel = new T.MeshLambertMaterial({ color: 0x5a6068 }), dark = new T.MeshLambertMaterial({ color: 0x23262b });
+    const conc = new T.MeshLambertMaterial({ color: 0x7a766e }), snow = new T.MeshLambertMaterial({ color: 0xe8eef4 });
+    const cv = document.createElement('canvas'); cv.width = 64; cv.height = 8; const c = cv.getContext('2d');
+    for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#1a1a1a' : '#c8a020'; c.beginPath(); c.moveTo(i * 8, 0); c.lineTo(i * 8 + 8, 0); c.lineTo(i * 8 + 4, 8); c.lineTo(i * 8 - 4, 8); c.fill(); }
+    const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace; tex.magFilter = T.NearestFilter;
+    const frame = new T.Mesh(new T.BoxGeometry(6, 4.2, 1.6), conc); frame.position.set(0, 1.1, 0); g.add(frame);
+    const stripe = new T.Mesh(new T.BoxGeometry(6.02, 0.35, 1.62), new T.MeshLambertMaterial({ map: tex })); stripe.position.set(0, 3.0, 0); g.add(stripe);
+    const hole = new T.Mesh(new T.BoxGeometry(3.6, 3, 1.2), dark); hole.position.set(0, 1.0, 0.3); g.add(hole);
+    const pivot = new T.Group(); pivot.position.set(-1.8, 1.0, 0.95); g.add(pivot);
+    const door = new T.Mesh(new T.BoxGeometry(3.6, 3, 0.35), steel); door.position.set(1.8, 0, 0); pivot.add(door);
+    const wheel = new T.Mesh(new T.TorusGeometry(0.55, 0.08, 6, 12), dark); wheel.position.set(1.8, 0, 0.25); pivot.add(wheel);
+    for (let i = 0; i < 6; i++) { const b = new T.Mesh(new T.CylinderGeometry(0.09, 0.09, 0.12, 6), dark); b.rotation.x = Math.PI / 2; b.position.set(0.3 + (i % 3) * 1.5, i < 3 ? 1.25 : -1.25, 0.22); pivot.add(b); }
+    const mound = new T.Mesh(new T.SphereGeometry(5, 10, 6), snow); mound.scale.set(1.3, 0.55, 1.1); mound.position.set(0, -0.4, -2.4); g.add(mound);
+    const drift = new T.Mesh(new T.SphereGeometry(2.2, 8, 5), snow); drift.scale.set(1.4, 0.45, 0.9); drift.position.set(2.8, -0.3, 1.2); g.add(drift);
+    g.position.set(VAULT.x, y - 1.3, VAULT.z); g.rotation.set(-0.12, 0.6, 0.05);
+    core.scene.add(g); VAULT.group = g; VAULT.door = pivot;
+    const f = flags(); if (f && f.skyVaultOpen) VAULT.open = 1;
+  }
+  function useVault(o) {
+    const r = CT.rpg, f = flags();
+    if (f && f.skyVaultOpen) { emit('notify', { text: 'The vault is empty. Only dust and the smell of old iron.', kind: 'info' }); return; }
+    if (!r || typeof r.has !== 'function' || !r.has('skykey')) { emit('notify', { text: 'The iron door will not move. There is a keyhole, cold as the grave.', kind: 'info' }); sfx('ar_dry'); return; }
+    if (r.take) r.take('skykey', 1);
+    if (f) { f.skyVaultOpen = true; if (typeof f.arMag !== 'number') f.arMag = AR_MAG; }
+    if (r.grant) { r.grant('ar15', 1); r.grant('ammo556', 120); }
+    emit('notify', { text: "The Sky-Iron Vault groans open. Inside, wrapped in oilcloth: the AR-15 'Thunderstick'.", kind: 'story' });
+    sfx('ar_reload'); if (CORE) CORE.shake(0.4, 0.6);
+    if (r.save) r.save();
+  }
+  function vaultUpdate(dt) {
+    if (!VAULT.group && CORE && CORE.scene) buildVault(CORE);
+    if (!VAULT.io && CT.interactables && typeof CT.interactables.add === 'function') VAULT.io = CT.interactables.add({ x: VAULT.x, z: VAULT.z, radius: 5.5, label: 'Open the Sky-Iron Vault', onUse: useVault });
+    const f = flags();
+    if (VAULT.door) { const tgt = f && f.skyVaultOpen ? 1 : 0; VAULT.open += (tgt - VAULT.open) * Math.min(1, dt * 1.2); VAULT.door.rotation.y = -1.9 * VAULT.open; }
+    if (!VAULT.seen && Math.hypot(PL.pos.x - VAULT.x, PL.pos.z - VAULT.z) < 30) {
+      VAULT.seen = true;
+      if (!(f && f.skyVaultSeen)) { if (f) f.skyVaultSeen = true; emit('notify', { text: 'DISCOVERED: The Sky-Iron Vault', kind: 'discover' }); sfx('discover'); }
+    }
+  }
+  function onGuardianKill(d) {
+    const m = (d && d.monster) || {};
+    if (!(d && (d.guardian || d.isGuardian || m.isGuardian || m.guardian))) return;
+    const r = CT.rpg, f = flags(); if (!r || !f || f.skyKeyDropped) return;
+    f.skyKeyDropped = true;
+    setTimeout(() => { if (r.grant) r.grant('skykey', 1); emit('notify', { text: "A strange iron key falls from the guardian's chest...", kind: 'story' }); }, 1800);
   }
 
   // ── Swing poses ────────────────────────────────────────────────────────────
@@ -1368,6 +1710,7 @@
     if (!(dt > 0)) dt = 0; else if (dt > 0.1) dt = 0.1;
     clock += dt;
     ctx.imageSmoothingEnabled = false;
+    if (PL.rifle) drawRifle(ctx, dt); else {
     const wk = clamp(hspeed / 4.5, 0, 1.3), idle = 1 - Math.min(1, wk), two = K.twoHand;
 
     // right hand base pose, smoothed
@@ -1402,12 +1745,12 @@
     curRx = rx; curRy = ry; curRa = ra;
 
     // left hand: torch, buckler, flask fist or (greatsword) the second hand on the grip
-    const want = two ? 'G' : drinkT >= 0 ? 'F' : PL.offhand === 'cig' ? 'C' : PL.torchLit ? 'T' : 'B';
+    const want = two ? 'G' : drinkT >= 0 ? 'F' : PL.offhand === 'cig' || dragT >= 0 ? 'C' : PL.torchLit ? 'T' : 'B';
     if (leftShown !== want) { swapK += dt * (want === 'F' ? 9 : 6); if (swapK >= 1) { swapK = 1; leftShown = want; if ((want === 'B' || want === 'F' || want === 'C') && !ARMS[want === 'C' ? 'F' : want]) arm(want === 'C' ? 'F' : want); } }
     else swapK = Math.max(0, swapK - dt * (want === 'F' ? 9 : 5));
     let ltx = 104, lty = 266;
     if (leftShown === 'B') { ltx = 226; lty = 238; }
-    if (leftShown === 'F') { const k = drinkT >= 0 ? ease(clamp(drinkT / 0.3, 0, 1)) : 0; ltx = 230 + 70 * k; lty = 340 - 60 * k; }
+    if (leftShown === 'F') { const k = drinkT >= 0 ? ease(clamp(drinkT / 0.3, 0, 1)) * (beer && drinkT > 1.0 ? 1 - (drinkT - 1.0) / 0.2 : 1) : 0; ltx = 230 + 70 * k; lty = 340 - 60 * k; }
     if (leftShown === 'C') {
       ltx = 150; lty = 262;
       if (dragT >= 0) { const k = dragT < 0.35 ? ease(dragT / 0.35) : dragT < 1.25 ? 1 : 1 - ease(Math.min(1, (dragT - 1.25) / 0.35)); ltx += (298 - ltx) * k; lty += (362 - lty) * k; }
@@ -1506,7 +1849,7 @@
     } else {
       const LAr = ARMS[leftShown === 'C' ? 'F' : leftShown];
       if (LAr) {
-        if (leftShown === 'F' && FLASK.length && drinkT >= 0) { const f = FLASK[clamp(Math.round((drinkT - 0.12) / 0.35 * 4), 0, 4)]; ctx.drawImage(f.cv, Lx - f.o + 10, Ly - f.o - 40); }
+        if (leftShown === 'F' && FLASK.length && drinkT >= 0) { const f = beer && BOTTLE.length ? BOTTLE[clamp(Math.round((drinkT - 0.15) / 0.45 * 4), 0, 4)] : FLASK[clamp(Math.round((drinkT - 0.12) / 0.35 * 4), 0, 4)]; ctx.drawImage(f.cv, Lx - f.o + 10, Ly - f.o - 40); }
         drawArm(ctx, LAr, Lx, Ly, hq, leftShown === 'C' ? 0 : PL.blocking ? 1 : Math.sin(clock * 0.9 + 2) > 0.8 ? 1 : 0, whiteL, 0, leftShown === 'C' && CIG);
       }
     }
@@ -1529,12 +1872,14 @@
     // 7. parry and block sparks
     if (parryBurst) { parryBurst = false; for (let i = 0; i < 28; i++) { const a = rnd() * 6.283, v = 80 + rnd() * 260; sp(bmx, bmy, Math.cos(a) * v, Math.sin(a) * v - 40, 0.2 + rnd() * 0.35, 0); } flash(bmx, bmy, 1, false); }
     if (blockKick > 0.9 && rnd() < 0.6) for (let i = 0; i < 3; i++) sp(bmx + (rnd() - 0.5) * 20, bmy, (rnd() - 0.5) * 200, -rnd() * 160, 0.25, 0);
+    }
     // 8. particles
     for (let i = 0; i < NP; i++) {
       if (ql[i] <= 0) continue;
       ql[i] -= dt; const ty = qt[i], f = ql[i] / qm[i];
       if (ty === 0) { qvx[i] *= 1 - dt * 3; qvy[i] = qvy[i] * (1 - dt * 3) + 260 * dt; }
       else if (ty === 1 || ty === 3) qvy[i] += 620 * dt;
+      else if (ty === 6) { qvy[i] += 900 * dt; qvx[i] *= 1 - dt; }
       else if (ty === 5) { qvx[i] += Math.sin(clock * 2.3 + i * 1.7) * 22 * dt; qvy[i] *= 1 - dt * 0.25; qx[i] -= turnV * 360 * dt; qy[i] += hspeed * 5 * dt; }
       else { qvx[i] += Math.sin(clock * 4 + i) * 24 * dt; qvy[i] *= 1 - dt * 0.5; }
       qx[i] += qvx[i] * dt; qy[i] += qvy[i] * dt;
@@ -1543,6 +1888,7 @@
       else if (ty === 1) { ctx.fillStyle = f > 0.7 ? '#c01a1e' : f > 0.35 ? '#8a0a10' : '#5a0408'; const s = f > 0.5 ? 3 : 2; ctx.fillRect(x, y, s, s); }
       else if (ty === 2) { ctx.fillStyle = f > 0.78 ? '#fff6c8' : f > 0.52 ? '#ffc640' : f > 0.28 ? '#ff7a1c' : '#b82a14'; ctx.fillRect(x, y, 1, f > 0.85 ? 2 : 1); }
       else if (ty === 3) { ctx.fillStyle = f > 0.5 ? '#d8f0ff' : '#7aa8c8'; ctx.fillRect(x, y, 1, 2); }
+      else if (ty === 6) { ctx.fillStyle = f > 0.5 ? '#f0c050' : '#a07020'; if ((i + (clock * 24 | 0)) & 1) ctx.fillRect(x, y, 2, 1); else ctx.fillRect(x, y, 1, 2); }
       else if (ty === 5) { ctx.globalAlpha = 0.5 * f; ctx.fillStyle = f > 0.6 ? '#b8b4ae' : '#8a8680'; ctx.fillRect(x, y, 1, f > 0.75 ? 2 : 1); ctx.globalAlpha = 1; }
       else { ctx.fillStyle = f > 0.5 ? '#eef6ff' : '#8ab4ff'; ctx.fillRect(x, y, 1, 1); }
     }
@@ -1551,12 +1897,14 @@
       const r = Math.round((fl.big ? 14 : 8) * (0.5 + fl.t * 4));
       star(ctx, fl.x, fl.y, r, fl.red ? '#ff5030' : '#ffe890');
     }
+    if (goldT > 0) { goldT -= dt; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, goldT) * 0.28; ctx.fillStyle = '#ffb040'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+    if (PL.rifle) drawSmoke(ctx, dt);
     if (parryT > 0.15) { ctx.globalAlpha = (parryT - 0.15) * 1.6; ctx.fillStyle = '#fff8e0'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     PL.drawMs = PL.drawMs * 0.95 + (performance.now() - t0) * 0.05;
   };
 
   // Debug snapshot for tests.
-  PL.debugState = function () { return { atk, atkK, comboIdx, charging, charge, blockT, dodgeT, drinkT, kind: K && K.id, stamina: PL.stamina, exhausted, blade: bladeLevel(), hands: handLevel(), ms: PL.drawMs, lastSave: lastSave && lastSave.id, offhand: PL.offhand, dragT, dragCD, exhaleT, rushT, crashT, dizzy }; };
+  PL.debugState = function () { return { atk, atkK, comboIdx, charging, charge, blockT, dodgeT, drinkT, kind: K && K.id, stamina: PL.stamina, exhausted, blade: bladeLevel(), hands: handLevel(), ms: PL.drawMs, lastSave: lastSave && lastSave.id, offhand: PL.offhand, dragT, dragCD, exhaleT, rushT, crashT, dizzy, rifle: PL.rifle, aiming, adsK, reloadT, mag: arMag(), reserve: arReserve() }; };
   PL.debugBlood = function (b, h) { bloodOv = b; handsOv = h == null ? b : h; };
   // Freeze a pose for screenshots: type 1 light (idx 0..2), 2 heavy, k = normalised swing time; charge/block/drink via opts.
   PL.debugPose = function (type, idx, k, o) {
@@ -1564,6 +1912,7 @@
     charging = !!o.charge; charge = o.charge || 0; PL.blocking = !!o.block; drinkT = o.drink != null ? o.drink : -1;
     hurtT = o.hurt || 0; parryT = o.parry || 0; if (o.parry) parryBurst = true; dodgeT = o.dodge != null ? o.dodge : -1; dodgeSide = o.side || 1;
     if (o.torch != null) PL.torchLit = o.torch;
+    if (o.ads != null) { aiming = !!o.ads; adsK = o.ads ? 1 : 0; } if (o.reload != null) reloadT = o.reload; if (o.fire) { muzzleT = 0.06; fireK = 1; tracerT = 0.05; tracerX1 = 330; tracerY1 = 170; casingN += 2; }
     if (o.offhand) PL.offhand = o.offhand; dragT = o.drag != null ? o.drag : -1; exhaleT = o.exhale != null ? o.exhale : -1; if (o.exhale != null) exhaleBurst = true;
   };
 })();

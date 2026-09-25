@@ -258,7 +258,7 @@
   // ── Loop ───────────────────────────────────────────────────────────────────
   let last = performance.now();
   function frame(now) {
-    const realDt = Math.min(0.05, (now - last) / 1000); last = now;
+    const realDt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
     core.time += realDt;
     S.stopT = Math.max(0, S.stopT - realDt);
     const dt = S.stopT > 0 ? 0 : realDt;
