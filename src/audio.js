@@ -967,8 +967,27 @@ window.CT = window.CT || {};
       }
       tone(g, t, 'sine', 42, 28, 2.5, 0.4);
     },
+    drag(g, t) {   // paper and tobacco crackle over a soft rising inhale
+      const n = noiseThrough(g, t, 1.3, 'bandpass', 1.1); n.f.setValueAtTime(500, t); n.f.exponentialRampToValueAtTime(2600, t + 1.0);
+      n.v.setValueAtTime(0, t); n.v.linearRampToValueAtTime(0.1, t + 0.5); n.v.linearRampToValueAtTime(0.13, t + 0.95); n.v.setTargetAtTime(0, t + 1.0, 0.06);
+      for (let i = 0; i < 16; i++) {
+        const s = t + rr(0.02, 1.0), c = noiseThrough(g, s, 0.05, 'highpass', 0.8, rr(-0.15, 0.15));
+        c.f.value = rr(2500, 6000); c.v.setValueAtTime(rr(0.05, 0.16), s); c.v.setTargetAtTime(0, s + 0.002, rr(0.004, 0.012));
+      }
+    },
+    exhale(g, t) {   // a long, gentle, breathy whoosh
+      const n = noiseThrough(g, t, 1.9, 'bandpass', 0.6); n.f.setValueAtTime(1500, t); n.f.exponentialRampToValueAtTime(450, t + 1.5);
+      n.v.setValueAtTime(0, t); n.v.linearRampToValueAtTime(0.16, t + 0.18); n.v.setTargetAtTime(0, t + 0.35, 0.4);
+      const l = noiseThrough(g, t, 1.9, 'lowpass', 0.7); l.f.value = 380; l.v.setValueAtTime(0, t); l.v.linearRampToValueAtTime(0.1, t + 0.2); l.v.setTargetAtTime(0, t + 0.4, 0.35);
+    },
+    lighter(g, t) {   // flint strike, then a small flame whoosh
+      const f = noiseThrough(g, t, 0.08, 'highpass', 1.2); f.f.value = 4200; f.v.setValueAtTime(0.35, t); f.v.setTargetAtTime(0, t + 0.003, 0.012);
+      tone(g, t, 'square', 3200, 1800, 0.03, 0.05);
+      const f2 = noiseThrough(g, t + 0.09, 0.06, 'highpass', 1.2); f2.f.value = 5000; f2.v.setValueAtTime(0.2, t + 0.09); f2.v.setTargetAtTime(0, t + 0.093, 0.01);
+      swish(g, t + 0.12, 0.35, 250, 900, 500, 0.2);
+    },
   };
-  const SDUR = { charge: 1.8, chargeFull: 2.4, gib: 2.6, sever: 1.6, death: 3, drink: 1.8, levelup: 4, discover: 5.5, quest: 3, wolf_howl: 3.6, ghoul_moan: 2.8, troll_bellow: 3, troll_slam: 2, wraith_shriek: 2.6, boss_roar: 4, boss_laugh: 2.5, thunder: 6.5, parry: 2.6, clang: 1.6, orc_roar: 2, orc_die: 2 };
+  const SDUR = { drag: 1.6, exhale: 2.2, lighter: 0.8, charge: 1.8, chargeFull: 2.4, gib: 2.6, sever: 1.6, death: 3, drink: 1.8, levelup: 4, discover: 5.5, quest: 3, wolf_howl: 3.6, ghoul_moan: 2.8, troll_bellow: 3, troll_slam: 2, wraith_shriek: 2.6, boss_roar: 4, boss_laugh: 2.5, thunder: 6.5, parry: 2.6, clang: 1.6, orc_roar: 2, orc_die: 2 };
   const LOOPS = { rain: 1, wind: 1, fire_loop: 1 };
 
   // ── Engine: master chain + reverb + music/sfx buses (works on any context) ─

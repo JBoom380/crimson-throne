@@ -82043,8 +82043,27 @@ window.CT = window.CT || {};
       }
       tone(g, t, 'sine', 42, 28, 2.5, 0.4);
     },
+    drag(g, t) {   // paper and tobacco crackle over a soft rising inhale
+      const n = noiseThrough(g, t, 1.3, 'bandpass', 1.1); n.f.setValueAtTime(500, t); n.f.exponentialRampToValueAtTime(2600, t + 1.0);
+      n.v.setValueAtTime(0, t); n.v.linearRampToValueAtTime(0.1, t + 0.5); n.v.linearRampToValueAtTime(0.13, t + 0.95); n.v.setTargetAtTime(0, t + 1.0, 0.06);
+      for (let i = 0; i < 16; i++) {
+        const s = t + rr(0.02, 1.0), c = noiseThrough(g, s, 0.05, 'highpass', 0.8, rr(-0.15, 0.15));
+        c.f.value = rr(2500, 6000); c.v.setValueAtTime(rr(0.05, 0.16), s); c.v.setTargetAtTime(0, s + 0.002, rr(0.004, 0.012));
+      }
+    },
+    exhale(g, t) {   // a long, gentle, breathy whoosh
+      const n = noiseThrough(g, t, 1.9, 'bandpass', 0.6); n.f.setValueAtTime(1500, t); n.f.exponentialRampToValueAtTime(450, t + 1.5);
+      n.v.setValueAtTime(0, t); n.v.linearRampToValueAtTime(0.16, t + 0.18); n.v.setTargetAtTime(0, t + 0.35, 0.4);
+      const l = noiseThrough(g, t, 1.9, 'lowpass', 0.7); l.f.value = 380; l.v.setValueAtTime(0, t); l.v.linearRampToValueAtTime(0.1, t + 0.2); l.v.setTargetAtTime(0, t + 0.4, 0.35);
+    },
+    lighter(g, t) {   // flint strike, then a small flame whoosh
+      const f = noiseThrough(g, t, 0.08, 'highpass', 1.2); f.f.value = 4200; f.v.setValueAtTime(0.35, t); f.v.setTargetAtTime(0, t + 0.003, 0.012);
+      tone(g, t, 'square', 3200, 1800, 0.03, 0.05);
+      const f2 = noiseThrough(g, t + 0.09, 0.06, 'highpass', 1.2); f2.f.value = 5000; f2.v.setValueAtTime(0.2, t + 0.09); f2.v.setTargetAtTime(0, t + 0.093, 0.01);
+      swish(g, t + 0.12, 0.35, 250, 900, 500, 0.2);
+    },
   };
-  const SDUR = { charge: 1.8, chargeFull: 2.4, gib: 2.6, sever: 1.6, death: 3, drink: 1.8, levelup: 4, discover: 5.5, quest: 3, wolf_howl: 3.6, ghoul_moan: 2.8, troll_bellow: 3, troll_slam: 2, wraith_shriek: 2.6, boss_roar: 4, boss_laugh: 2.5, thunder: 6.5, parry: 2.6, clang: 1.6, orc_roar: 2, orc_die: 2 };
+  const SDUR = { drag: 1.6, exhale: 2.2, lighter: 0.8, charge: 1.8, chargeFull: 2.4, gib: 2.6, sever: 1.6, death: 3, drink: 1.8, levelup: 4, discover: 5.5, quest: 3, wolf_howl: 3.6, ghoul_moan: 2.8, troll_bellow: 3, troll_slam: 2, wraith_shriek: 2.6, boss_roar: 4, boss_laugh: 2.5, thunder: 6.5, parry: 2.6, clang: 1.6, orc_roar: 2, orc_die: 2 };
   const LOOPS = { rain: 1, wind: 1, fire_loop: 1 };
 
   // ── Engine: master chain + reverb + music/sfx buses (works on any context) ─
@@ -89062,7 +89081,6 @@ window.CT = window.CT || {};
   }
   const toneH = (r, l) => r[Math.round(clamp(l, 0, 1) * (r.length - 1))];
 
-  const SKIN = ramp(['#3a160c', '#6a2e18', '#9c4f2a', '#c87846', '#e8a468', '#ffd49a']);
   const LEATH = ramp(['#2a1408', '#4a2610', '#6e3c1a', '#935828', '#b87a40']);
   const STRAP = ramp(['#1e0e06', '#3a1c0c', '#5a3016', '#7c4a24']);
   const BRONZE = ramp(['#3a1c06', '#6a3a0e', '#a0621c', '#d0922e', '#f2c25a', '#fff0b0']);
@@ -89122,44 +89140,76 @@ window.CT = window.CT || {};
     return true;
   }
 
-  // ── Arms: heroic tanned forearms (local origin = centre of the fist) ───────
+  // ── Arms: Frazetta barbarian forearms (local origin = centre of the fist) ──
+  // Skin: 8 tones with a warm subsurface red in the shadows. Gear: cord wraps, a studded bronze-trimmed leather
+  // bracer and a woad tattoo band (sword arm); a laced bracer with a fur trim (off-hand). Grime, cuts, oiled highlights.
+  const SKIN = ramp(['#22080a', '#4a140f', '#782a18', '#a4462a', '#c46a40', '#de925c', '#f2b884', '#ffdcac']);
+  const WOAD = ramp(['#0c1830', '#18305a', '#264a82', '#3a64a4']);
+  const CORD = ramp(['#2a1a0c', '#4e3218', '#7a5228', '#a47640']);
+  const FUR = ramp(['#1a120a', '#34261a', '#58442e', '#806848', '#a89070']);
+  const NAIL = ramp(['#6a3a2a', '#b8806a', '#e8b8a0', '#fff0e0']);
   const LA = norm3(-0.5, -0.62, 0.6);
+  const skin = (l, x, y) => tone(SKIN, l, x, y);
+  function grime(l, x, y) {                                   // dirt, sweat and oiled highlights on bare skin
+    const g = vnoise(x / 9 + 11, y / 9);
+    if (g > 0.76) return skin(l - (g - 0.76) * 0.8, x, y);
+    if (l > 0.87) return SKIN[7];
+    if (hsh(x, y) < 0.012) return SKIN[1];
+    return 0;
+  }
   function forearm(xm, Y, x, y, type) {
-    if (!cyl(xm, Y, 13, 4, 115, 140, 11.5, 25, 3.5)) return 0;
-    const a = CA; let l = 0.1 + 0.9 * lit(CNX, CNY, CNZ, LA);
-    if (a < 11) return toneH(SKIN, l);
-    const bare = type === 'R' ? 66 : 70;
-    if (a > bare) {                                                          // bare forearm: veins, muscle ridge, an old scar
-      const v1 = Math.abs(CS - 0.18 - 0.2 * Math.sin(a * 0.07)), v2 = Math.abs(CS + 0.32 + 0.12 * Math.sin(a * 0.1 + 1));
-      if (v1 < 0.05 || v2 < 0.04) l += 0.12; else if (v1 < 0.09 || v2 < 0.07) l -= 0.07;
-      l += 0.08 * Math.cos(CS * 2.4 - 0.5) - 0.04;
-      if (a > 96 && a < 118 && Math.abs(CS - (a - 107) * 0.045) < 0.055) return SKIN[4];
-      return toneH(SKIN, l);
+    if (!cyl(xm, Y, 13, 4, 115, 140, 12.5, 27, 5)) return 0;
+    const a = CA, cs = CS; let l = 0.06 + 0.94 * lit(CNX, CNY, CNZ, LA);
+    const R = type === 'R', bare = R ? 62 : 72;
+    if (a < 9.5) {                                             // wrist: tendons
+      if (Math.abs(cs - 0.15) < 0.06 || Math.abs(cs + 0.22) < 0.05) l += 0.12;
+      else if (Math.abs(cs - 0.02) < 0.07) l -= 0.08;
+      return skin(l, x, y);
     }
-    if (type === 'R') {
-      if (a < 24) {                                                          // leather wrist wraps
-        const s = mod(a * 0.9 + CS * 5, 4.5);
-        if (s < 0.9) return tone(STRAP, l * 0.6, x, y);
-        return tone(LEATH, l + (s < 1.7 ? 0.12 : 0), x, y);
+    if (a > bare) {                                            // bare forearm: brachioradialis mass, veins, tattoo, scars, grime
+      const m = Math.sin(Math.PI * clamp((a - bare + 8) / 90, 0, 1));
+      l += 0.16 * Math.exp(-((cs + 0.38) ** 2) / 0.05) * m - 0.13 * Math.exp(-((cs - 0.12) ** 2) / 0.012) * m + 0.06 * Math.exp(-((cs - 0.5) ** 2) / 0.04);
+      const v1 = cs - 0.26 - 0.18 * Math.sin(a * 0.07), v2 = cs + 0.05 + 0.12 * Math.sin(a * 0.11 + 1);
+      if (Math.abs(v1) < 0.045 || Math.abs(v2) < 0.035) l += 0.14; else if ((v1 > 0.045 && v1 < 0.1) || (v2 > 0.035 && v2 < 0.08)) l -= 0.12;
+      if (R && a > 76 && a < 94) {                             // woad knotwork band
+        if (a < 77.6 || a > 92.4) return tone(WOAD, l * 0.8, x, y);
+        const k1 = Math.abs(mod(a * 0.55 + cs * 7, 3.4) - 1.7), k2 = Math.abs(mod(a * 0.55 - cs * 7, 3.4) - 1.7);
+        if (k1 < 0.42 || k2 < 0.42) return tone(WOAD, l * 0.9 + (k1 < 0.18 || k2 < 0.18 ? 0.1 : 0), x, y);
       }
-      if (a < 61) {                                                          // bronze bracer, embossed ridges and rivets
-        if (a < 26.5 || a > 58.5) return tone(BRONZE, l + 0.2, x, y);
-        if (a < 27.6 || a > 57.4) return tone(BRONZE, l - 0.35, x, y);
-        if ((Math.abs(a - 32) < 1.5 || Math.abs(a - 53) < 1.5) && Math.abs(Math.abs(CS) - 0.66) < 0.08) return BRONZE[5];
-        for (let c = -0.42; c < 0.5; c += 0.42) { const d = CS - c; if (Math.abs(d) < 0.07) l += 0.24; else if (d > 0.07 && d < 0.15) l -= 0.22; }
-        if (hsh(x, y) < 0.03) l -= 0.25;
-        return tone(BRONZE, l, x, y);
+      if (a > 100 && a < 124 && Math.abs(cs - 0.35 - (a - 112) * 0.04) < 0.05) return skin(0.9, x, y);   // an old white scar
+      if (!R && a > 96 && a < 104 && Math.abs(cs + 0.1 - (a - 100) * 0.07) < 0.035) return hex('#6a0c0a');   // a fresh cut
+      return grime(l, x, y) || skin(l, x, y);
+    }
+    if (a < 21) {                                              // leather cord wraps
+      const s = mod(a * 1.05 + cs * 3.2, 3.3);
+      if (s < 0.8) return tone(STRAP, l * 0.5, x, y);
+      return tone(CORD, l + (s < 1.5 ? 0.15 : 0) + (hsh(Math.round(a), Math.round(cs * 6)) - 0.5) * 0.15, x, y);
+    }
+    const wear = (vnoise(a * 0.25, cs * 4 + 5) - 0.5) * 0.3 + (hsh(x, y) < 0.04 ? -0.25 : 0);
+    if (R) {
+      if (a < 58) {                                            // studded, bronze-trimmed leather bracer
+        if (a < 23.5 || a > 55.5) return tone(BRONZE, l + 0.12 + (a < 22.2 || a > 56.8 ? 0.15 : -0.15), x, y);
+        for (let r = 0; r < 3; r++) for (let c = -1; c < 2; c++) {
+          const du = a - (30 + r * 9.5), dv = (cs - c * 0.5 - (r & 1) * 0.25) * 11, d2 = du * du + dv * dv;
+          if (d2 < 4.4) { const n = Math.sqrt(d2 / 4.4); return tone(BRONZE, 0.25 + 0.75 * lit(dv / 2.1, du / 2.1, Math.sqrt(1 - n * n), LA) + (n < 0.35 ? 0.2 : 0), x, y); }
+          if (d2 < 6) return tone(LEATH, l - 0.35, x, y);
+        }
+        return tone(LEATH, l + wear + (Math.abs(cs) > 0.86 ? -0.2 : 0), x, y);
       }
       return tone(STRAP, l, x, y);
     }
-    const lace = mod(a + CS * 7, 9), lace2 = mod(a - CS * 7, 9);                // off-hand: laced leather bracer
-    if (CS > -0.45 && CS < 0.45 && (lace < 1.6 || lace2 < 1.6)) return tone(BRONZE, l * 0.7 + 0.15, x, y);
-    if (Math.abs(CS) > 0.45 && Math.abs(CS) < 0.58) l -= 0.25;
-    if (a < 13 || a > bare - 3) l += 0.14;
-    return tone(LEATH, l, x, y);
+    if (a > 60) {                                              // fur trim at the elbow end
+      if (a > 70 + hsh(Math.round(cs * 16), 5) * 4) return skin(l, x, y);
+      return tone(FUR, l * 0.8 + (hsh(Math.round(a * 0.9 + cs * 3), Math.round(cs * 18)) - 0.5) * 0.55, x, y);
+    }
+    const lace = mod(a + cs * 7, 9), lace2 = mod(a - cs * 7, 9);   // laced leather bracer
+    if (cs > -0.45 && cs < 0.45 && (lace < 1.6 || lace2 < 1.6)) return tone(CORD, l * 0.8 + 0.12, x, y);
+    if (Math.abs(cs) > 0.45 && Math.abs(cs) < 0.58) l -= 0.25;
+    if (Math.abs(Math.abs(cs) - 0.72) < 0.08 && mod(a, 8) < 2.2) return tone(BRONZE, l + 0.2, x, y);
+    return tone(LEATH, l + wear, x, y);
   }
   const BCX = 13 + 0.6 * 50, BCY = 4 + 0.8 * 50, BR = 31;
-  function buckler(xm, Y, x, y) {                                            // round bronze buckler strapped to the off-hand
+  function buckler(xm, Y, x, y) {                            // round bronze buckler strapped to the off-hand
     const dx = xm - BCX, dy = (Y - BCY) * 1.08, d = Math.hypot(dx, dy) / BR;
     if (d >= 1) return 0;
     const nx = dx / BR, ny = dy / BR;
@@ -89172,34 +89222,52 @@ window.CT = window.CT || {};
     if (Math.abs(d - 0.72) < 0.05 && mod(ang / (Math.PI / 6), 1) < 0.2) return BRONZE[5];
     if (mod(d * 9, 1) < 0.12) l -= 0.12;
     l += (vnoise(xm * 0.35, Y * 0.35) - 0.5) * 0.3;
-    if (Math.abs(dx + dy * 0.6 - 8) < 0.6 && d > 0.35 && d < 0.8) l -= 0.35;   // a gash from an old fight
+    if (Math.abs(dx + dy * 0.6 - 8) < 0.6 && d > 0.35 && d < 0.8) l -= 0.35;
     return tone(BRONZE, l, x, y);
   }
-  function backOfHand(xm, Y) {
-    if (xm < -9 || xm > 19 || Y < -12 || Y > 14) return 0;
-    const nx = (xm - 5) / 12.5, ny = (Y - 1) / 11.5, q = nx * nx + ny * ny;
+  // Knuckle pads (heavy, scarred) and tendons on the back of the hand.
+  const YK = [-7.4, -2.4, 2.6, 7.6];
+  function backOfHand(xm, Y, x, y) {
+    if (xm < -9 || xm > 20 || Y < -13 || Y > 15) return 0;
+    const nx = (xm - 5) / 13, ny = (Y - 1) / 12.5, q = nx * nx + ny * ny;
     if (q > 1) return 0;
-    let l = 0.12 + 0.88 * lit(nx, ny, Math.sqrt(1 - q), LA);
-    if (Math.abs(xm - 1) < 0.9 && Y > -7 && Y < 9 && ((Y + 40) % 5 < 1.2)) l -= 0.2;
-    return toneH(SKIN, l);
+    let l = 0.08 + 0.92 * lit(nx, ny, Math.sqrt(1 - q), LA);
+    for (let k = 0; k < 4; k++) {
+      const d = Math.hypot(xm - 1.2, Y - YK[k]) / 3.3;
+      if (d < 1) { l += 0.2 * (1 - d) * (Y < YK[k] ? 1 : 0.4); if (d > 0.8 && Y > YK[k]) l -= 0.15; }
+      if (xm > 4 && xm < 15 && Math.abs(Y - YK[k] * (1 - (xm - 4) / 20)) < 0.45) l += 0.09;
+    }
+    if (Math.abs(xm - 1.5 - (Y + 2) * 0.35) < 0.35 && Y > -6 && Y < 3) return skin(0.92, x, y);   // knuckle scar
+    return grime(l, x, y) || skin(l, x, y);
   }
-  function finger(k) {
-    const yk = -7.2 + k * 4.9;
-    return (xm, Y) => {
-      if (xm < -16 || xm > 9 || Y < yk - 5 || Y > yk + 6) return 0;
-      if (!cyl(xm, Y, -10.5 + k * 0.6, yk, 4, yk + 0.6, 3.8, 4)) return 0;
-      let l = 0.14 + 0.86 * lit(CNX, CNY, CNZ, LA);
-      if (CA < 1.4) l += 0.08;
-      if (CA > 9 && CA < 10.2) l -= 0.18;
-      return toneH(SKIN, l);
+  function finger(k) {                                         // segments, joint creases, nails; a bronze ring with a garnet on the ring finger
+    const yk = YK[k];
+    return (xm, Y, x, y) => {
+      if (xm < -17 || xm > 9 || Y < yk - 5.5 || Y > yk + 6) return 0;
+      if (!cyl(xm, Y, -10.8 + k * 0.6, yk + 0.2, 4, yk + 0.7, 4.1, 4.4)) return 0;
+      const a = CA; let l = 0.1 + 0.9 * lit(CNX, CNY, CNZ, LA);
+      if (a < 2.6 && CS > -0.6 && CS < 0.3) return tone(NAIL, l + (CS < -0.45 || a < 0.6 ? -0.3 : 0.1), x, y);
+      if (Math.abs(a - 4.8) < 0.5 || Math.abs(a - 9.6) < 0.45) l -= 0.22;
+      else if (Math.abs(a - 5.9) < 0.6 || Math.abs(a - 10.6) < 0.6) l += 0.1;
+      if (k === 2 && a > 11.2 && a < 13.2) { if (Math.abs(a - 12.2) < 0.9 && Math.abs(CS + 0.25) < 0.28) return tone(GEMR, 0.85 - CS, x, y); return tone(BRONZE, l + 0.1, x, y); }
+      if (Math.abs(CS) > 0.86) l -= 0.12;
+      return grime(l, x, y) || skin(l, x, y);
     };
   }
-  function thumb(xm, Y) {
-    if (xm < -12 || xm > 16 || Y < -17 || Y > -2) return 0;
-    if (!cyl(xm, Y, 11, -7.5, -7, -11.2, 4.5, 3.8)) return 0;
-    const l = 0.2 + 0.8 * lit(CNX, CNY, CNZ, LA);
-    if (CA > 15 && CNY < -0.2) return toneH(SKIN, 0.95);
-    return toneH(SKIN, l);
+  function thumb(xm, Y, x, y) {
+    if (xm < -13 || xm > 17 || Y < -18 || Y > -1) return 0;
+    if (!cyl(xm, Y, 11.5, -7.5, -7.5, -11.6, 5, 4.1)) return 0;
+    let l = 0.12 + 0.88 * lit(CNX, CNY, CNZ, LA);
+    if (CA > 15.5 && CNY < -0.1) return tone(NAIL, l + 0.1, x, y);
+    if (Math.abs(CA - 9.5) < 0.5) l -= 0.25;
+    return grime(l, x, y) || skin(l, x, y);
+  }
+  // Mask for the knuckle whitening (pale pads on the joints).
+  function knuckleMask(xm, Y) {
+    for (let k = 0; k < 4; k++) {
+      if (Math.hypot(xm - 1.6, (Y - YK[k] + 1) * 1.3) < 2.2) return 1;
+    }
+    return 0;
   }
 
   // ── Torch (left arm sprite coordinates, leaning 16 degrees toward the centre) ──
@@ -89232,32 +89300,55 @@ window.CT = window.CT || {};
     return tone(CHAR, l, x, y);
   }
 
-  // Arm sprites: R = sword arm, T = torch arm, B = buckler arm, F = bare off-hand fist (potion, greatsword grip).
-  const HS = 2.2, TS = 1.75, ARMS = {};
+  // Arm sprites: R = sword arm, T = torch arm, B = buckler arm, F = bare off-hand fist (potion, cigarette, greatsword grip).
+  // Each arm = a body sprite (forearm, back of hand) + a fingers sprite (so the grip can flex) + rim and knuckle masks.
+  const HS = 2.7, TS = 1.75, ARMS = {};
   function buildArm(type) {
     const mir = type === 'R' ? 1 : -1, torch = type === 'T';
-    const x0 = mir > 0 ? -60 : -250, x1 = mir > 0 ? 250 : 60;
-    const y0 = torch ? -Math.ceil((T_TOP + 3) * TS) : -50, y1 = 300;
-    const layers = [], sc = f => (X, Y, x, y) => f(X * mir / HS, Y / HS, x, y);
-    if (torch) layers.push([(X, Y, x, y) => shaftFn(X / TS, Y / TS, x, y), O_WOOD], [(X, Y, x, y) => headFn(X / TS, Y / TS, x, y), O_CHAR]);
-    layers.push([sc((xm, Y, x, y) => forearm(xm, Y, x, y, type)), O_LEATH]);
-    if (type === 'B') layers.push([sc(buckler), O_BRONZE]);
-    layers.push([sc(backOfHand), O_SKIN]);
-    for (let k = 3; k >= 0; k--) layers.push([sc(finger(k)), O_SKIN]);
-    layers.push([sc(thumb), O_SKIN]);
-    const p = paint(x1 - x0, y1 - y0, [1, 0, x0, 0, 1, y0], layers, 1e9);
-    return (ARMS[type] = { cv: toCanvas(p), ox: -x0, oy: -y0, p, blood: [] });
+    const x0 = mir > 0 ? -80 : -320, x1 = mir > 0 ? 320 : 80;
+    const y0 = torch ? -Math.ceil((T_TOP + 3) * TS) : -80, y1 = 390, w = x1 - x0, h = y1 - y0, T = [1, 0, x0, 0, 1, y0];
+    const sc = f => (X, Y, x, y) => f(X * mir / HS, Y / HS, x, y);
+    const body = [];
+    if (torch) body.push([(X, Y, x, y) => shaftFn(X / TS, Y / TS, x, y), O_WOOD], [(X, Y, x, y) => headFn(X / TS, Y / TS, x, y), O_CHAR]);
+    body.push([sc((xm, Y, x, y) => forearm(xm, Y, x, y, type)), O_LEATH]);
+    if (type === 'B') body.push([sc(buckler), O_BRONZE]);
+    body.push([sc(backOfHand), O_SKIN]);
+    const fing = [];
+    for (let k = 3; k >= 0; k--) fing.push([sc(finger(k)), O_SKIN]);
+    fing.push([sc(thumb), O_SKIN]);
+    const pb = paint(w, h, T, body, 1e9), pf = paint(w, h, T, fing, 1e9);
+    const WHITE = hex('#ffffff'), KN = hex('#eec2a4'), rim = new Uint32Array(w * h), kn = new Uint32Array(w * h);
+    const on = i => pb.d[i] || pf.d[i];
+    for (let y = 2; y < h; y++) for (let x = 0; x < w; x++) {  // rim light on the outer and upper edges
+      const i = y * w + x; if (!on(i)) continue;
+      const xo = x + mir * 2;
+      if (xo < 0 || xo >= w || !on(i + mir * 2) || !on(i - w * 2)) rim[i] = WHITE;
+    }
+    const pk = paint(w, h, T, [[sc((xm, Y) => (knuckleMask(xm, Y) ? KN : 0)), 0]], 1e9);
+    for (let i = 0; i < w * h; i++) if (pk.d[i] && on(i)) kn[i] = KN;
+    const A = { cv: toCanvas(pb), fcv: toCanvas(pf), ox: -x0, oy: -y0, p: pb, blood: [], F: { p: pf, ox: -x0, oy: -y0, blood: [] },
+      rim: toCanvas({ d: rim, w, h }), kn: toCanvas({ d: kn, w, h }), tint: null, tintKey: -1 };
+    return (ARMS[type] = A);
   }
   const arm = t => ARMS[t] || buildArm(t);
-  // Blood that soaks the hands: overlays baked per level (8 steps), darkest nearest the fist.
+  function rimTint(A, key, col) {                              // recolour the rim mask only when the scene colour changes
+    if (A.tintKey === key) return A.tint;
+    if (!A.tint) { A.tint = document.createElement('canvas'); A.tint.width = A.rim.width; A.tint.height = A.rim.height; }
+    const g = A.tint.getContext('2d');
+    g.globalCompositeOperation = 'copy'; g.drawImage(A.rim, 0, 0);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, A.tint.width, A.tint.height);
+    g.globalCompositeOperation = 'source-over'; A.tintKey = key;
+    return A.tint;
+  }
+  // Blood that soaks the hands: overlays baked per level (8 steps) and wetness, darkest nearest the fist.
   const BLR = ramp(['#2a0204', '#4e0508', '#7a0a10', '#a8141a', '#d0302c']), BLD = ramp(['#1e0604', '#3a0c08', '#58160e', '#6e2214']), BL_H = hex('#f06a58');
   function armBlood(A, q) {
     if (A.blood[q]) return A.blood[q];
-    const wet = q > 8, { d, w, h } = A.p, o = new Uint32Array(w * h), lvl = (q % 9) / 8 * 0.88;
+    const wet = q > 8, { d, w, h } = A.p, o = new Uint32Array(w * h), lvl = (q % 9) / 8 * 0.88, sc = HS / 2.2;
     for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++) {
       const c = d[i]; if (!c) continue;
-      const dd = Math.hypot(x - A.ox, (y - A.oy) * 0.9) / 170;
-      let th = 0.08 + dd * 1.4 + (vnoise(x / 26 + 3, y / 26) - 0.5) * 0.9 + (vnoise(x / 6, y / 6) - 0.5) * 0.12;
+      const dd = Math.hypot(x - A.ox, (y - A.oy) * 0.9) / (170 * sc);
+      let th = 0.08 + dd * 1.4 + (vnoise(x / (26 * sc) + 3, y / (26 * sc)) - 0.5) * 0.9 + (vnoise(x / 6, y / 6) - 0.5) * 0.12;
       if (y > A.oy && hsh(x >> 1, 91) < 0.09) th -= 0.3 * vnoise(x / 3, y / 45);   // runs down the forearm
       const e = lvl - th;
       if (e < 0) continue;
@@ -89265,6 +89356,28 @@ window.CT = window.CT || {};
       o[i] = wet && hsh(x, y) < 0.045 && lum > 0.4 ? BL_H : tone(wet ? BLR : BLD, clamp(lum * (wet ? 1.2 : 0.95) + (e < 0.06 ? 0.2 : 0) - (e > 0.3 ? 0.12 : 0), 0, 1), x, y);
     }
     return (A.blood[q] = toCanvas({ d: o, w, h }));
+  }
+  // Scene rim colour: the sky's key light (the directional light), warmed by the torch.
+  let rimLight = null, rimSearch = 0, rimKey = -1, rimCol = 'rgb(255,190,120)', rimA = 0.45;
+  function updateRim(dt) {
+    if (!rimLight && CORE && (rimSearch -= dt) <= 0) { rimSearch = 2; CORE.scene.traverse(o => { if (!rimLight && o.isDirectionalLight) rimLight = o; }); }
+    let r = 1, g = 0.75, b = 0.5, k = 0.5;
+    if (rimLight) { const c = rimLight.color, m = Math.max(c.r, c.g, c.b, 1e-3); r = c.r / m; g = c.g / m; b = c.b / m; k = clamp(rimLight.intensity / 2, 0.25, 1); }
+    const warm = PL.offhand === 'torch' && PL.torchLit ? 0.55 : 0.12;
+    r += (1 - r) * warm; g += (0.62 - g) * warm; b += (0.3 - b) * warm;
+    const R = Math.round(r * 15), G = Math.round(g * 15), B = Math.round(b * 15), key = R * 256 + G * 16 + B;
+    if (key !== rimKey) { rimKey = key; rimCol = 'rgb(' + R * 17 + ',' + G * 17 + ',' + B * 17 + ')'; }
+    rimA = 0.3 + 0.4 * Math.max(k, warm);
+  }
+  function drawArm(ctx, A, x, y, hq, flex, white) {
+    const X = x - A.ox, Y = y - A.oy;
+    ctx.drawImage(A.cv, X, Y);
+    if (hq > 0) ctx.drawImage(armBlood(A, hq), X, Y);
+    ctx.drawImage(A.fcv, X, Y + flex);
+    if (hq > 0) ctx.drawImage(armBlood(A.F, hq), X, Y + flex);
+    if (white > 0.02) { ctx.globalAlpha = Math.min(1, white) * 0.4; ctx.drawImage(A.kn, X, Y + flex); }
+    ctx.globalAlpha = rimA; ctx.drawImage(rimTint(A, rimKey, rimCol), X, Y);
+    ctx.globalAlpha = 1;
   }
 
   // ── Weapons (local u = along the blade from the fist, v = across) ─────────
@@ -89442,7 +89555,7 @@ window.CT = window.CT || {};
   }
 
   // ── Weapon rotation frames: 2 degree steps, baked lazily, background queue for the held weapon ──
-  const WSC = 1.4, NFR = 180;
+  const WSC = 1.55, NFR = 180;
   let K = null, FR = null, bakeList = [], bakeTimer = 0;
   function bakeFrame(i) {
     const a = i * 2 * DEG, dx = Math.sin(a), dy = -Math.cos(a), nx = Math.cos(a), ny = Math.sin(a);
@@ -89535,6 +89648,72 @@ window.CT = window.CT || {};
     return { cv: toCanvas(p), o: h };
   }
 
+  // ── Cigarette: baked hand-rolled stick, live ember, smoke wisps, exhale cloud ──
+  const CIG_BX = 15, CIG_BY = -18, CIG_A = 48 * DEG, CIG_L = 46, CIG_TX = Math.round(Math.sin(CIG_A) * CIG_L), CIG_TY = Math.round(-Math.cos(CIG_A) * CIG_L);
+  let CIG = null, PUFF = null;
+  function buildCig() {
+    const PAPER = ramp(['#5e5244', '#a0927a', '#d4c8ac', '#f2ead6']), ASH = ramp(['#34302e', '#625c58', '#948e86']), TOB = ramp(['#3a200c', '#6a4018']);
+    const dx = Math.sin(CIG_A), dy = -Math.cos(CIG_A), nx = Math.cos(CIG_A), ny = Math.sin(CIG_A), ox = 6, oy = 44, L = norm3(-0.4, -0.6, 0.7);
+    const p = paint(58, 50, [dx, dy, -(ox * dx + oy * dy), nx, ny, -(ox * nx + oy * ny)], [[(u, v, x, y) => {
+      if (u < 0 || u > CIG_L) return 0;
+      const r = 2.9 + Math.sin(u * 0.45) * 0.35 + (u > CIG_L - 6 ? -0.4 : 0); if (v < -r || v > r) return 0;
+      const cs = v / r, l = 0.15 + 0.85 * lit(cs * nx, cs * ny, Math.sqrt(1 - cs * cs), L);
+      if (u > CIG_L - 2) return hex('#4a1206');
+      if (u > CIG_L - 6) return tone(ASH, l + (hsh(x, y) - 0.5) * 0.4, x, y);
+      if (u < 1.6) return tone(TOB, l, x, y);
+      return tone(PAPER, l + (mod(u + cs * 2, 6) < 0.8 ? -0.18 : 0), x, y);
+    }, hex('#1a100a')]], 5);
+    return { cv: toCanvas(p), ox, oy };
+  }
+  function buildPuff(R) {
+    const S = R * 2, cv = document.createElement('canvas'); cv.width = cv.height = S;
+    const g = cv.getContext('2d'), sd = R * 7;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const d = Math.hypot(x + 0.5 - R, y + 0.5 - R) / R; if (d >= 1) continue;
+      const k = Math.pow(1 - d, 1.3) * (0.55 + 0.9 * vnoise(x / 4 + sd, y / 4));
+      if (k > bay(x, y) * 0.9) { g.fillStyle = d < 0.5 ? 'rgba(214,208,198,0.34)' : 'rgba(176,170,164,0.26)'; g.fillRect(x, y, 1, 1); }
+    }
+    return cv;
+  }
+  const NPF = 48, fx_ = new Float32Array(NPF), fy_ = new Float32Array(NPF), fvx = new Float32Array(NPF), fvy = new Float32Array(NPF), fl_ = new Float32Array(NPF), fm_ = new Float32Array(NPF), fs_ = new Uint8Array(NPF);
+  let pfNext = 0, pfAcc = 0, wispAcc = 0;
+  function drawEmber(ctx, x, y, dt) {
+    const flare = dragT > 0.3 && dragT < 1.3 ? Math.min(1, (dragT - 0.3) / 0.12) * Math.min(1, (1.3 - dragT) / 0.15) : 0;
+    emberK += (0.55 + 0.45 * rnd() - emberK) * 0.3;
+    if (flare > 0) {
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6 * flare; ctx.drawImage(GLOW_F, x - 30, y - 30);
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      if (rnd() < dt * 18) sp(x, y, (rnd() - 0.5) * 50, -20 - rnd() * 40, 0.25 + rnd() * 0.2, 0);
+    }
+    ctx.globalAlpha = 0.55 + 0.3 * emberK; ctx.fillStyle = '#8a1606'; ctx.fillRect(x - 2, y - 2, 5, 5); ctx.globalAlpha = 1;
+    ctx.fillStyle = flare > 0.3 ? '#ff8a28' : emberK > 0.75 ? '#ff5a18' : '#e03a10'; ctx.fillRect(x - 1, y - 1, 3, 3);
+    if (flare > 0.3) { ctx.fillStyle = '#fff0a0'; ctx.fillRect(x - 1, y - 1, 2, 2); ctx.fillRect(x, y, 1, 1); }
+    else if (emberK > 0.7) { ctx.fillStyle = '#ffc860'; ctx.fillRect(x, y - 1, 1, 1); }
+    wispAcc += dt * (10 + flare * 12);
+    while (wispAcc > 1) { wispAcc -= 1; sp(x + (rnd() - 0.5) * 2, y - 2, (rnd() - 0.5) * 5, -12 - rnd() * 9, 1.6 + rnd() * 1.1, 5); }
+  }
+  function drawSmoke(ctx, dt) {
+    if (exhaleT >= 0 && exhaleT < 0.6) {
+      pfAcc += dt * 50;
+      while (pfAcc > 1) {
+        pfAcc -= 1; const i = pfNext; pfNext = (pfNext + 1) % NPF;
+        fx_[i] = 320 + (rnd() - 0.5) * 60; fy_[i] = 352 + rnd() * 10; fvx[i] = 30 + (rnd() - 0.5) * 90; fvy[i] = -(60 + rnd() * 70);
+        fl_[i] = fm_[i] = 1.9 + rnd() * 0.6; fs_[i] = (rnd() * 3) | 0;
+      }
+    } else pfAcc = 0;
+    const turn = turnV * 360 * dt;
+    for (let i = 0; i < NPF; i++) {
+      if (fl_[i] <= 0) continue;
+      fl_[i] -= dt; const f = fl_[i] / fm_[i], a = 1 - f;
+      fvx[i] += (26 - fvx[i]) * dt * 0.8; fvy[i] = fvy[i] * (1 - dt * 0.6) - 6 * dt;
+      fx_[i] += fvx[i] * dt - turn; fy_[i] += fvy[i] * dt + hspeed * 3 * dt;
+      const P = PUFF[Math.min(2, (a < 0.25 ? 0 : a < 0.55 ? 1 : 2) + (fs_[i] === 2 && a > 0.3 ? 0 : 0))], R = P.width >> 1;
+      ctx.globalAlpha = Math.min(1, f * 1.4) * (a < 0.08 ? a / 0.08 : 1);
+      ctx.drawImage(P, Math.round(fx_[i] - R), Math.round(fy_[i] - R));
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // ── Fire: smoothed cellular fire with a scrolling cooling map ──────────────
   const FW = 40, FH = 74, F = new Float32Array(FW * (FH + 2)), CH = 128, COOL = new Float32Array(FW * CH), FPAL = new Uint32Array(40);
   let fireCv = null, fireCtx = null, fireImg = null, firePix = null, fireAcc = 0, fireSum = 0, fireAvg = 1, coolOff = 0, flick = 0.8;
@@ -89592,7 +89771,7 @@ window.CT = window.CT || {};
 
   // ── State ──────────────────────────────────────────────────────────────────
   let CORE = null, ready = false, curW = null, kindName = '';
-  const I = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, sprint: false, jump: false, attack: false, heavy: 0, heavyRelease: false, block: false, dodge: false, torch: false, usePotion: false };
+  const I = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, sprint: false, jump: false, attack: false, heavy: 0, heavyRelease: false, block: false, dodge: false, torch: false, usePotion: false, offhand1: false, offhand2: false, offhandCycle: false };
   let fakeHeavy = 0;
   let atk = 0, atkK = 0, atkDur = 1, comboIdx = 0, comboTimer = 0, hitDone = false, buffered = false, whooshed = false, swingId = 0, heavyCharge = 0;
   let charging = false, charge = 0, fullFx = false, blockT = 0, guardBreakT = 0, blockKick = 0, parryT = 0, parryBurst = false;
@@ -89600,6 +89779,9 @@ window.CT = window.CT || {};
   let hurtT = 0, grounded = true, sprinting = false, exhausted = false, stIdle = 9, hspeed = 0, inWater = 0, wasWater = false;
   let bobPh = 0, bobAmp = 0, dip = 0, kbx = 0, kbz = 0, lean = 0, deathT = 0, deathSide = 1, lastSave = null, poiT = 0;
   let ownBlade = 0, ownHands = 0, splashT = 0;
+  let dragT = -1, dragCD = 0, exhaleT = -1, exhaleBurst = false, calmT = 0, turnV = 0, emberK = 0.7;
+  const OFF_KEY = 'crimsonThrone.offhand';
+  try { PL.offhand = localStorage.getItem(OFF_KEY) === 'torch' ? 'torch' : 'cig'; } catch (e) { PL.offhand = 'cig'; }
   const FWD = new THREE.Vector3(), RGT = new THREE.Vector3(), TMP = new THREE.Vector3();
 
   // Light combo keyframes: [windX, windY, windA, midX, midY, endX, endY, endA, side]; side = the sweep direction (+1 to the right).
@@ -89617,11 +89799,11 @@ window.CT = window.CT || {};
     const s = (test && c.state) || core.input || {};
     I.moveX = +s.moveX || 0; I.moveY = +s.moveY || 0; I.lookDX = +s.lookDX || 0; I.lookDY = +s.lookDY || 0;
     I.sprint = !!s.sprint; I.jump = !!s.jump; I.attack = !!s.attack; I.heavy = +s.heavy || 0; I.heavyRelease = !!s.heavyRelease;
-    I.block = !!s.block; I.dodge = !!s.dodge; I.torch = !!s.torch; I.usePotion = !!s.usePotion;
+    I.block = !!s.block; I.dodge = !!s.dodge; I.torch = !!s.torch; I.usePotion = !!s.usePotion; I.offhand1 = !!s.offhand1; I.offhand2 = !!s.offhand2; I.offhandCycle = !!s.offhandCycle;
     if (test) {                                                // controls absent: honour the debug flags, pressed flags last one frame
       if (c._forceAttack) { c._forceAttack = false; I.attack = true; }
       if (c._forceHeavy) { c._forceHeavy = false; fakeHeavy = 0.001; }
-      if (c.state && c.state !== core.input) { const q = c.state; q.attack = q.jump = q.dodge = q.torch = q.usePotion = q.heavyRelease = q.interact = false; q.lookDX = q.lookDY = 0; }
+      if (c.state && c.state !== core.input) { const q = c.state; q.attack = q.jump = q.dodge = q.torch = q.usePotion = q.heavyRelease = q.interact = q.offhand1 = q.offhand2 = q.offhandCycle = false; q.lookDX = q.lookDY = 0; }
     }
     if (fakeHeavy > 0) { fakeHeavy += dt; I.heavy = fakeHeavy; if (fakeHeavy >= 1.1) { I.heavy = 0; I.heavyRelease = true; fakeHeavy = 0; } }
   }
@@ -89743,6 +89925,14 @@ window.CT = window.CT || {};
     if (PL.hp <= 0) die();
     return amt;
   };
+  function setOffhand(o, silent) {
+    if (o === PL.offhand) { if (o === 'torch' && !PL.torchLit) { PL.torchLit = true; if (!silent) sfx('torch', { on: true }); } return; }
+    PL.offhand = o; dragT = -1;
+    if (o === 'torch') PL.torchLit = true;
+    try { localStorage.setItem(OFF_KEY, o); } catch (e) {}
+    if (!silent) sfx(o === 'cig' ? 'lighter' : 'torch', { on: true });
+  }
+  PL.setOffhand = function (o) { setOffhand(o === 'torch' ? 'torch' : 'cig'); };
   PL.heal = function (amount) {
     if (!(amount > 0)) return 0;
     const before = PL.hp; PL.hp = Math.min(hpMax(), PL.hp + amount);
@@ -89756,7 +89946,7 @@ window.CT = window.CT || {};
     if (has('world', 'collide')) { const r = CT.world.collide(PL.pos, P.radius); if (r && r !== PL.pos && typeof r.x === 'number') { PL.pos.x = r.x; PL.pos.z = r.z; } PL.pos.y = hAt(PL.pos.x, PL.pos.z) + 0.05; }
     PL.vel.set(0, 0, 0); PL.hp = hpMax(); PL.stamina = stMax(); PL.alive = true; PL.pitch = 0; PL.roll = 0;
     atk = 0; charging = false; dodgeT = -1; drinkT = -1; hurtT = 0; exhausted = false; guardBreakT = 0; deathT = 0; kbx = kbz = 0; dip = 0;
-    PL.blocking = false; PL.dodging = false; ownBlade = ownHands = 0;
+    PL.blocking = false; PL.dodging = false; ownBlade = ownHands = 0; dragT = exhaleT = -1; calmT = 0;
     if (has('gore', 'clear')) CT.gore.clear();
   };
 
@@ -89765,7 +89955,7 @@ window.CT = window.CT || {};
     CORE = core;
     buildFire(); for (let i = 0; i < 50; i++) fireStep(0, 0); fireAvg = fireSum || 1; fireRender();
     buildKinds();
-    arm('R'); arm('T');
+    arm('R'); arm('T'); if (PL.offhand === 'cig') arm('F'); CIG = buildCig(); PUFF = [buildPuff(12), buildPuff(22), buildPuff(34)];
     GLOW_T = buildGlow(66, ['rgba(255,190,90,0.55)', 'rgba(255,140,50,0.42)', 'rgba(240,90,30,0.30)']);
     GLOW_R = buildGlow(30, ['rgba(255,60,30,0.6)', 'rgba(220,20,20,0.45)', 'rgba(140,0,10,0.35)']);
     GLOW_M = buildGlow(30, ['rgba(220,240,255,0.55)', 'rgba(150,200,255,0.4)', 'rgba(90,130,220,0.28)']);
@@ -89801,7 +89991,22 @@ window.CT = window.CT || {};
     const fx = -Math.sin(PL.yaw), fz = -Math.cos(PL.yaw), rx = Math.cos(PL.yaw), rz = -Math.sin(PL.yaw);
 
     // torch + potion
-    if (I.torch) { PL.torchLit = !PL.torchLit; sfx('torch', { on: PL.torchLit }); }
+    // off-hand: 1 torch, 2 cigarette (the number keys win over T); T sheathes the torch or swaps back to it
+    const oh = I.offhand1 ? 'torch' : I.offhand2 ? 'cig' : I.offhandCycle ? (PL.offhand === 'cig' ? 'torch' : 'cig') : null;
+    if (oh) setOffhand(oh);
+    else if (I.torch) { if (PL.offhand === 'cig') setOffhand('torch'); else { PL.torchLit = !PL.torchLit; sfx('torch', { on: PL.torchLit }); } }
+    turnV += (I.lookDX / Math.max(dt, 0.001) - turnV) * Math.min(1, dt * 10);
+    // a drag on the cigarette (Space): raise 0.35 s, ember flare to 1.25 s, lower, exhale at 1.6 s
+    calmT = Math.max(0, calmT - dt); dragCD = Math.max(0, dragCD - dt);
+    if (dragT >= 0 && (I.attack || I.block || I.dodge || I.heavy > 0.15 || I.usePotion)) dragT = -1;
+    if (PL.offhand === 'cig' && I.jump && dragT < 0 && dragCD <= 0 && !atk && !PL.blocking && dodgeT < 0 && !charging && drinkT < 0) dragT = 0;
+    if (dragT >= 0) {
+      const d0 = dragT; dragT += dt;
+      if (d0 < 0.35 && dragT >= 0.35) sfx('drag');
+      if (d0 < 1.25 && dragT >= 1.25) { PL.stamina = Math.min(sm, PL.stamina + 15); if (PL.stamina >= sm * 0.2) exhausted = false; calmT = 20; emit('notify', { text: 'Calm', kind: 'bark' }); }
+      if (dragT >= 1.6) { dragT = -1; dragCD = 1.5; exhaleT = 0; exhaleBurst = true; sfx('exhale'); }
+    }
+    if (exhaleT >= 0) { exhaleT += dt; if (exhaleT >= 2.5) exhaleT = -1; }
     if (I.usePotion && drinkT < 0 && !atk && !charging) {
       const r = CT.rpg, miss = hpMax() - PL.hp; let id = 'potion';
       if (r && typeof r.has === 'function') id = r.has('bigpotion') && (miss > 80 || !r.has('potion')) ? 'bigpotion' : r.has('potion') ? 'potion' : null;
@@ -89883,7 +90088,7 @@ window.CT = window.CT || {};
     if (sprinting && wl > 0.1) { PL.stamina = Math.max(0, PL.stamina - P.sprintCost * dt); stIdle = 0; if (PL.stamina <= 0) exhausted = true; }
 
     // jump + gravity
-    if (I.jump && grounded && drinkT < 0 && !PL.blocking) { v.y = P.jump; grounded = false; useStamina(6); sfx('jump'); }
+    if (I.jump && PL.offhand !== 'cig' && grounded && drinkT < 0 && !PL.blocking) { v.y = P.jump; grounded = false; useStamina(6); sfx('jump'); }
     v.y -= 20 * dt;
     const oy = PL.pos.y;
     PL.pos.x += (v.x + kbx) * dt; PL.pos.z += (v.z + kbz) * dt; PL.pos.y += v.y * dt;
@@ -89900,7 +90105,7 @@ window.CT = window.CT || {};
 
     // stamina regen
     stIdle += dt;
-    if (stIdle > 0.8) PL.stamina = Math.min(sm, PL.stamina + P.staminaRegen * dt * (PL.blocking ? 0.4 : 1));
+    if (stIdle > 0.8) PL.stamina = Math.min(sm, PL.stamina + P.staminaRegen * dt * (PL.blocking ? 0.4 : 1) * (calmT > 0 ? 1.4 : 1));
     if (exhausted && PL.stamina >= sm * 0.2) exhausted = false;
 
     // bob, steps, camera
@@ -89916,7 +90121,8 @@ window.CT = window.CT || {};
     lean += (leanT - lean) * Math.min(1, dt * 14);
     PL.roll = Math.sin(bobPh) * 0.008 * bobAmp + lean;
     cam.position.set(PL.pos.x, PL.pos.y + P.eye + (Math.abs(Math.sin(bobPh)) - 0.5) * 0.07 * bobAmp - dip - (charging ? charge * 0.05 : 0), PL.pos.z);
-    cam.rotation.set(PL.pitch + hurtT * 0.05, PL.yaw, PL.roll);
+    if (exhaleT >= 0) { const k = Math.sin(Math.PI * exhaleT / 2.5); PL.roll += Math.sin(core.time * 1.3) * 0.016 * k; }
+    cam.rotation.set(PL.pitch + hurtT * 0.05 + (exhaleT >= 0 ? Math.sin(core.time * 0.9) * 0.012 * Math.sin(Math.PI * exhaleT / 2.5) : 0), PL.yaw, PL.roll);
     torch(dt, core);
 
     // save point tracking
@@ -89934,9 +90140,10 @@ window.CT = window.CT || {};
   }
   function torch(dt, core) {
     const tl = core.torchLight; if (!tl) return;
-    const target = PL.alive && PL.torchLit ? (3 + 2 * flick) * (K && K.twoHand ? 0.7 : 1) : 0;
+    const cig = PL.offhand === 'cig';
+    const target = !PL.alive ? 0 : cig ? 0.12 + 0.06 * emberK + (dragT > 0.3 && dragT < 1.3 ? 0.3 : 0) : PL.torchLit ? (3 + 2 * flick) * (K && K.twoHand ? 0.7 : 1) : 0;
     tl.intensity += (target - tl.intensity) * Math.min(1, dt * 14 || 0);
-    tl.distance = 22;
+    tl.distance = cig ? 2 : 22;
   }
   function deathUpdate(dt, cam) {
     deathT += dt;
@@ -89961,7 +90168,7 @@ window.CT = window.CT || {};
 
   // ── Draw ───────────────────────────────────────────────────────────────────
   let lastT = -1, clock = 0, bRx = 520, bRy = 318, bRa = -18, bLx = 82, bLy = 292, curRx = 520, curRy = 318, curRa = -18;
-  let seenSwing = 0, sBx = 0, sBy = 0, sBa = 0, leftShown = 'T', swapK = 0, glintT = 1.5, eAcc = 0;
+  let seenSwing = 0, sBx = 0, sBy = 0, sBa = 0, leftShown = PL.offhand === 'cig' ? 'C' : 'T', swapK = 0, glintT = 1.5, eAcc = 0;
   const SMN = 16, SMP = new Float64Array((SMN + 1) * 4), SMA = new Float64Array(SMN + 1), QX = new Float64Array(4), QY = new Float64Array(4);
   function quad(ctx) {
     let y0 = Math.min(QY[0], QY[1], QY[2], QY[3]), y1 = Math.max(QY[0], QY[1], QY[2], QY[3]);
@@ -90033,11 +90240,12 @@ window.CT = window.CT || {};
     const wk = clamp(hspeed / 4.5, 0, 1.3), idle = 1 - Math.min(1, wk), two = K.twoHand;
 
     // right hand base pose, smoothed
-    let tx = 512 + K.px, ty = 300 + K.py, ta = -18;
+    let tx = 506 + K.px, ty = 276 + K.py, ta = -18;
     if (sprinting) { tx = 572; ty = 350; ta = 8; }
     if (PL.blocking) { if (leftShown === 'B') { tx = 540; ty = 300; ta = K.angOff ? -20 : -36; } else { tx = 440; ty = 258; ta = K.angOff ? 10 : -84; } }
     if (charging) { tx = HK[0] - 6; ty = HK[1] + 8; ta = HK[2] - 8; }
     if (drinkT >= 0) { tx = 590; ty = 392; ta = 6; }
+    if (dragT >= 0) { tx += 30; ty += 36; ta += 6; }
     const kf = 1 - Math.exp(-dt * (PL.blocking || charging ? 16 : 9));
     bRx += (tx - bRx) * kf; bRy += (ty - bRy) * kf; bRa += (ta - bRa) * kf;
     let rx = bRx + Math.sin(bobPh) * 5 * wk + Math.sin(clock * 0.9) * 0.8 * idle;
@@ -90062,12 +90270,17 @@ window.CT = window.CT || {};
     curRx = rx; curRy = ry; curRa = ra;
 
     // left hand: torch, buckler, flask fist or (greatsword) the second hand on the grip
-    const want = two ? 'G' : drinkT >= 0 ? 'F' : PL.torchLit ? 'T' : 'B';
-    if (leftShown !== want) { swapK += dt * (want === 'F' ? 9 : 6); if (swapK >= 1) { swapK = 1; leftShown = want; if ((want === 'B' || want === 'F') && !ARMS[want]) arm(want); } }
+    const want = two ? 'G' : drinkT >= 0 ? 'F' : PL.offhand === 'cig' ? 'C' : PL.torchLit ? 'T' : 'B';
+    if (leftShown !== want) { swapK += dt * (want === 'F' ? 9 : 6); if (swapK >= 1) { swapK = 1; leftShown = want; if ((want === 'B' || want === 'F' || want === 'C') && !ARMS[want === 'C' ? 'F' : want]) arm(want === 'C' ? 'F' : want); } }
     else swapK = Math.max(0, swapK - dt * (want === 'F' ? 9 : 5));
-    let ltx = 84, lty = 280;
+    let ltx = 104, lty = 266;
     if (leftShown === 'B') { ltx = 226; lty = 238; }
     if (leftShown === 'F') { const k = drinkT >= 0 ? ease(clamp(drinkT / 0.3, 0, 1)) : 0; ltx = 230 + 70 * k; lty = 340 - 60 * k; }
+    if (leftShown === 'C') {
+      ltx = 150; lty = 262;
+      if (dragT >= 0) { const k = dragT < 0.35 ? ease(dragT / 0.35) : dragT < 1.25 ? 1 : 1 - ease(Math.min(1, (dragT - 1.25) / 0.35)); ltx += (298 - ltx) * k; lty += (362 - lty) * k; }
+      else if (PL.blocking) { ltx = 250; lty = 236; }
+    }
     if (PL.blocking) { if (leftShown === 'T') { ltx = 176; lty = 262; } else if (leftShown === 'B') { ltx = 300; lty = 168; } }
     const kl = 1 - Math.exp(-dt * (PL.blocking ? 16 : 9));
     bLx += (ltx - bLx) * kl; bLy += (lty - bLy) * kl;
@@ -90149,23 +90362,30 @@ window.CT = window.CT || {};
       glintT += dt; if (glintT > 3.4) glintT = 0;
       if (glintT < 0.55) drawGlint(ctx, K.bl[0] + (glintT / 0.55) * (K.len - K.bl[0] + 10), Rx, Ry, dx, dy, nx, ny);
     }
-    // 5. arms (+ soaked blood)
+    // 5. arms (+ soaked blood): body, flexing fingers, knuckle whitening, scene rim light
+    updateRim(dt);
     const hq = Math.round(handLevel() * 8) + (wetness('handsWet') > 0.45 ? 9 : 0);
-    const RA = ARMS.R;
-    ctx.drawImage(RA.cv, Rx - RA.ox, Ry - RA.oy);
-    if (hq > 0) ctx.drawImage(armBlood(RA, hq), Rx - RA.ox, Ry - RA.oy);
+    const squeeze = Math.sin(clock * 0.9) > 0.72 ? 1 : 0, flexR = PL.blocking || charging ? 1 : atk ? 0 : squeeze;
+    const whiteR = charging ? charge : PL.blocking ? 0.55 : 0, whiteL = PL.blocking ? 0.55 : 0;
+    drawArm(ctx, ARMS.R, Rx, Ry, hq, flexR, whiteR);
     if (leftShown === 'G') {                                   // greatsword: second fist on the grip, below the right one
-      const G = ARMS.F; if (G) { const gx = Math.round(Rx - dx * 25 * WSC), gy = Math.round(Ry - dy * 25 * WSC) + Math.round(swapK * swapK * 240);
-        ctx.drawImage(G.cv, gx - G.ox, gy - G.oy); if (hq > 0) ctx.drawImage(armBlood(G, hq), gx - G.ox, gy - G.oy); }
+      const G = ARMS.F; if (G) drawArm(ctx, G, Math.round(Rx - dx * 25 * WSC), Math.round(Ry - dy * 25 * WSC) + Math.round(swapK * swapK * 240), hq, flexR, whiteR);
       else arm('F');
     } else {
-      const LAr = ARMS[leftShown];
+      const LAr = ARMS[leftShown === 'C' ? 'F' : leftShown];
+      if (leftShown === 'C' && CIG) ctx.drawImage(CIG.cv, Lx - CIG.ox + CIG_BX, Ly - CIG.oy + CIG_BY);
       if (LAr) {
         if (leftShown === 'F' && FLASK.length && drinkT >= 0) { const f = FLASK[clamp(Math.round((drinkT - 0.12) / 0.35 * 4), 0, 4)]; ctx.drawImage(f.cv, Lx - f.o + 10, Ly - f.o - 40); }
-        ctx.drawImage(LAr.cv, Lx - LAr.ox, Ly - LAr.oy);
-        if (hq > 0) ctx.drawImage(armBlood(LAr, hq), Lx - LAr.ox, Ly - LAr.oy);
+        drawArm(ctx, LAr, Lx, Ly, hq, PL.blocking ? 1 : Math.sin(clock * 0.9 + 2) > 0.8 ? 1 : 0, whiteL);
       }
     }
+    if (hq > 9 && rnd() < dt * (1.5 + handLevel() * 5)) {        // fresh blood drips between the fingers
+      const g = (rnd() * 3) | 0, gy = (YK[g] + YK[g + 1]) * 0.5 * HS, left = rnd() < 0.4 && leftShown !== 'G';
+      sp(left ? Lx + 7 * HS : Rx - 7 * HS, (left ? Ly : Ry) + gy, (rnd() - 0.5) * 6, 10 + rnd() * 20, 1.1, 1);
+    }
+    // 5b. cigarette ember, smoke wisps and the exhale cloud
+    if (leftShown === 'C' && CIG) drawEmber(ctx, Lx + CIG_BX + CIG_TX, Ly + CIG_BY + CIG_TY, dt);
+    drawSmoke(ctx, dt);
     // 6. live flame + embers
     if (torchOn) {
       ctx.drawImage(fireCv, fbx - (FW >> 1), fby - FH + 4);
@@ -90184,6 +90404,7 @@ window.CT = window.CT || {};
       ql[i] -= dt; const ty = qt[i], f = ql[i] / qm[i];
       if (ty === 0) { qvx[i] *= 1 - dt * 3; qvy[i] = qvy[i] * (1 - dt * 3) + 260 * dt; }
       else if (ty === 1 || ty === 3) qvy[i] += 620 * dt;
+      else if (ty === 5) { qvx[i] += Math.sin(clock * 2.3 + i * 1.7) * 22 * dt; qvy[i] *= 1 - dt * 0.25; qx[i] -= turnV * 360 * dt; qy[i] += hspeed * 5 * dt; }
       else { qvx[i] += Math.sin(clock * 4 + i) * 24 * dt; qvy[i] *= 1 - dt * 0.5; }
       qx[i] += qvx[i] * dt; qy[i] += qvy[i] * dt;
       const x = qx[i] | 0, y = qy[i] | 0; if (y > H + 4 || x < -4 || x > W + 4) { ql[i] = 0; continue; }
@@ -90191,6 +90412,7 @@ window.CT = window.CT || {};
       else if (ty === 1) { ctx.fillStyle = f > 0.7 ? '#c01a1e' : f > 0.35 ? '#8a0a10' : '#5a0408'; const s = f > 0.5 ? 3 : 2; ctx.fillRect(x, y, s, s); }
       else if (ty === 2) { ctx.fillStyle = f > 0.78 ? '#fff6c8' : f > 0.52 ? '#ffc640' : f > 0.28 ? '#ff7a1c' : '#b82a14'; ctx.fillRect(x, y, 1, f > 0.85 ? 2 : 1); }
       else if (ty === 3) { ctx.fillStyle = f > 0.5 ? '#d8f0ff' : '#7aa8c8'; ctx.fillRect(x, y, 1, 2); }
+      else if (ty === 5) { ctx.globalAlpha = 0.5 * f; ctx.fillStyle = f > 0.6 ? '#b8b4ae' : '#8a8680'; ctx.fillRect(x, y, 1, f > 0.75 ? 2 : 1); ctx.globalAlpha = 1; }
       else { ctx.fillStyle = f > 0.5 ? '#eef6ff' : '#8ab4ff'; ctx.fillRect(x, y, 1, 1); }
     }
     for (let i = 0; i < FLASHES.length; i++) {
@@ -90203,7 +90425,7 @@ window.CT = window.CT || {};
   };
 
   // Debug snapshot for tests.
-  PL.debugState = function () { return { atk, atkK, comboIdx, charging, charge, blockT, dodgeT, drinkT, kind: K && K.id, stamina: PL.stamina, exhausted, blade: bladeLevel(), hands: handLevel(), ms: PL.drawMs, lastSave: lastSave && lastSave.id }; };
+  PL.debugState = function () { return { atk, atkK, comboIdx, charging, charge, blockT, dodgeT, drinkT, kind: K && K.id, stamina: PL.stamina, exhausted, blade: bladeLevel(), hands: handLevel(), ms: PL.drawMs, lastSave: lastSave && lastSave.id, offhand: PL.offhand, dragT, dragCD, exhaleT, calmT }; };
   PL.debugBlood = function (b, h) { bloodOv = b; handsOv = h == null ? b : h; };
   // Freeze a pose for screenshots: type 1 light (idx 0..2), 2 heavy, k = normalised swing time; charge/block/drink via opts.
   PL.debugPose = function (type, idx, k, o) {
@@ -90211,6 +90433,7 @@ window.CT = window.CT || {};
     charging = !!o.charge; charge = o.charge || 0; PL.blocking = !!o.block; drinkT = o.drink != null ? o.drink : -1;
     hurtT = o.hurt || 0; parryT = o.parry || 0; if (o.parry) parryBurst = true; dodgeT = o.dodge != null ? o.dodge : -1; dodgeSide = o.side || 1;
     if (o.torch != null) PL.torchLit = o.torch;
+    if (o.offhand) PL.offhand = o.offhand; dragT = o.drag != null ? o.drag : -1; exhaleT = o.exhale != null ? o.exhale : -1; if (o.exhale != null) exhaleBurst = true;
   };
 })();
 
@@ -90221,15 +90444,15 @@ window.CT = window.CT || {};
   const W = 1280, H = 720, TAU = Math.PI * 2;
   const LS_SENS = 'crimsonThrone.sens', LS_INV = 'crimsonThrone.invertY';
   const HEAVY_MOUSE = 0.22, HEAVY_TOUCH = 0.25, DTAP = 0.25, STICK_R = 110, DEAD = 0.15, TOUCH_SENS = 0.006;
-  const PRESSED = ['jump', 'attack', 'heavyRelease', 'dodge', 'interact', 'torch', 'inventory', 'map', 'pause', 'usePotion'];
+  const PRESSED = ['jump', 'attack', 'heavyRelease', 'dodge', 'interact', 'torch', 'inventory', 'map', 'pause', 'usePotion', 'offhand1', 'offhand2', 'offhandCycle'];
   const GAME_CODES = new Set(['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
-    'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyE', 'KeyT', 'KeyI', 'KeyM', 'KeyQ', 'KeyR', 'Escape']);
+    'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyE', 'KeyT', 'KeyI', 'KeyM', 'KeyQ', 'KeyR', 'Escape', 'Digit1', 'Digit2']);
   const DIR_OF = { KeyW: 'u', ArrowUp: 'u', KeyS: 'd', ArrowDown: 'd', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
   const now = () => performance.now() / 1000;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
   const state = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, sprint: false, jump: false, attack: false, heavy: 0, heavyRelease: false,
-    block: false, dodge: false, interact: false, torch: false, inventory: false, map: false, pause: false, usePotion: false };
+    block: false, dodge: false, interact: false, torch: false, inventory: false, map: false, pause: false, usePotion: false, offhand1: false, offhand2: false, offhandCycle: false };
   const pend = {}; PRESSED.forEach(k => (pend[k] = false));
   let core = null, stage = null, uiCanvas = null;
   let sens = 0.0022, invertY = false, lockRefused = false, skipMove = 0, pendLost = false, wasLocked = false;
@@ -90269,6 +90492,8 @@ window.CT = window.CT || {};
       case 'ControlLeft': case 'ControlRight': case 'AltLeft': case 'AltRight': pend.dodge = true; break;
       case 'KeyE': pend.interact = true; break;
       case 'KeyT': pend.torch = true; break;
+      case 'Digit1': case 'Numpad1': pend.offhand1 = true; break;
+      case 'Digit2': case 'Numpad2': pend.offhand2 = true; break;
       case 'Tab': case 'KeyI': pend.inventory = true; break;
       case 'KeyM': pend.map = true; break;
       case 'Escape': pend.pause = true; break;
@@ -90309,6 +90534,7 @@ window.CT = window.CT || {};
     { id: 'jump', label: 'JUMP', r: 56, kind: 'press', key: 'jump', ring: 178, ang: 272 },
     { id: 'potion', label: 'DRAUGHT', r: 42, kind: 'press', key: 'usePotion', ring: 318, ang: 188 },
     { id: 'torch', label: 'TORCH', r: 42, kind: 'press', key: 'torch', ring: 318, ang: 262 },
+    { id: 'offhand', label: 'SMOKE', r: 38, kind: 'press', key: 'offhandCycle', ring: 330, ang: 286 },
     { id: 'use', label: 'USE', r: 56, kind: 'press', key: 'interact', ring: 322, ang: 223 },
     { id: 'menu', label: 'MENU', r: 38, kind: 'press', key: 'pause', tl: 0 },
     { id: 'map', label: 'MAP', r: 38, kind: 'press', key: 'map', tl: 1 },
@@ -90429,6 +90655,8 @@ window.CT = window.CT || {};
       if (edge(2)) pend.interact = true;
       if (edge(3)) pend.usePotion = true;
       if (edge(5)) pend.torch = true;
+      if (edge(14)) pend.offhand1 = true;
+      if (edge(15)) pend.offhand2 = true;
       if (edge(9)) pend.pause = true;
       if (edge(8)) pend.map = true;
       if (edge(12)) pend.inventory = true;
@@ -90612,6 +90840,25 @@ window.CT = window.CT || {};
       ctx.beginPath(); ctx.moveTo(-17, 18); ctx.quadraticCurveTo(-30, 8, -28, -2); ctx.quadraticCurveTo(-24, -6, -20, -1); ctx.lineTo(-12, 10); ctx.closePath(); ctx.fill(); stroke(ctx, 2.2);
       ctx.fillStyle = '#6a3a1c'; ctx.fillRect(-18, 24, 36, 10);
     },
+    drag(ctx, t) {
+      ctx.save(); ctx.rotate(-0.45);
+      ctx.fillStyle = '#efe6d2'; ctx.fillRect(-26, -4, 40, 8); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(-26, -4, 40, 8);
+      ctx.fillStyle = '#c8a070'; ctx.fillRect(-26, -4, 9, 8);
+      const e = 0.6 + 0.4 * Math.sin(t * 9);
+      ctx.fillStyle = `rgb(255,${Math.round(80 + 90 * e)},30)`; ctx.fillRect(14, -4, 7, 8); ctx.strokeRect(14, -4, 7, 8);
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(220,220,220,0.8)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(14, -16); ctx.quadraticCurveTo(24, -26, 14, -32); ctx.quadraticCurveTo(6, -38, 16, -44); ctx.stroke();
+    },
+    offhand(ctx, t) {
+      const cig = !!(CT.player && CT.player.offhand === 'cig');
+      ctx.save(); ctx.scale(0.8, 0.8); ctx.translate(-8, 4);
+      if (cig) ICON.torch(ctx, t); else ICON.drag(ctx, t);
+      ctx.restore();
+      ctx.strokeStyle = BONE; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, 0, 36, -0.4, 0.9); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(24, 30); ctx.lineTo(29, 22); ctx.lineTo(33, 31); ctx.stroke();
+    },
     menu(ctx) { ctx.fillStyle = BONE; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.rect(-20, i * 13 - 3.5, 40, 7); ctx.fill(); stroke(ctx, 2); } },
     map(ctx) {
       ctx.beginPath(); ctx.moveTo(-26, -18); ctx.lineTo(-9, -24); ctx.lineTo(9, -18); ctx.lineTo(26, -24); ctx.lineTo(26, 18); ctx.lineTo(9, 24); ctx.lineTo(-9, 18); ctx.lineTo(-26, 24); ctx.closePath();
@@ -90667,6 +90914,7 @@ window.CT = window.CT || {};
     else if (hot) label(ctx, 'SPRINT', bx, by - R - 18, 16, 'rgba(255,120,80,0.95)');
   }
 
+  const smoking = () => !!(CT.player && CT.player.offhand === 'cig');
   function drawButton(ctx, b, t) {
     const on = b.down > 0 || b.flash > 0.02, isUse = b.id === 'use';
     let charge = 0;
@@ -90674,7 +90922,7 @@ window.CT = window.CT || {};
     ctx.save();
     ctx.globalAlpha = on ? 1 : isUse ? 0.95 : 0.78;
     const r = plate(ctx, b, t, on, isUse || charge >= 1);
-    ctx.save(); ctx.translate(b.x, b.y); const s = r * 0.8 / 44; ctx.scale(s, s); ICON[b.id](ctx, t); ctx.restore();
+    ctx.save(); ctx.translate(b.x, b.y); const s = r * 0.8 / 44; ctx.scale(s, s); ICON[b.id === 'jump' && smoking() ? 'drag' : b.id](ctx, t); ctx.restore();
     if (charge > 0) {
       const col = charge >= 1 ? `rgba(255,${60 + 40 * Math.sin(t * 14)},30,1)` : `rgb(${220 + 35 * charge},${180 - 150 * charge},${60 - 40 * charge})`;
       ctx.lineCap = 'round'; ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
@@ -90684,7 +90932,7 @@ window.CT = window.CT || {};
     }
     ctx.restore();
     const small = b.tl != null;
-    const txt = charge > 0 ? (charge >= 1 ? 'UNLEASH' : 'HEAVY') : b.label;
+    const txt = charge > 0 ? (charge >= 1 ? 'UNLEASH' : 'HEAVY') : b.id === 'jump' && smoking() ? 'DRAG' : b.id === 'offhand' ? (smoking() ? 'TORCH' : 'SMOKE') : b.label;
     label(ctx, txt, b.x, small ? b.y + r + 13 : b.y + r + (charge > 0 ? 30 : 16), small ? 13 : b.r > 60 ? 19 : 15, charge > 0 ? 'rgba(255,150,90,0.98)' : undefined);
     if (b.id === 'potion' && potions >= 0) {
       const cx = b.x + r * 0.72, cy = b.y - r * 0.72;

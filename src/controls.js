@@ -3,15 +3,15 @@
   const W = 1280, H = 720, TAU = Math.PI * 2;
   const LS_SENS = 'crimsonThrone.sens', LS_INV = 'crimsonThrone.invertY';
   const HEAVY_MOUSE = 0.22, HEAVY_TOUCH = 0.25, DTAP = 0.25, STICK_R = 110, DEAD = 0.15, TOUCH_SENS = 0.006;
-  const PRESSED = ['jump', 'attack', 'heavyRelease', 'dodge', 'interact', 'torch', 'inventory', 'map', 'pause', 'usePotion'];
+  const PRESSED = ['jump', 'attack', 'heavyRelease', 'dodge', 'interact', 'torch', 'inventory', 'map', 'pause', 'usePotion', 'offhand1', 'offhand2', 'offhandCycle'];
   const GAME_CODES = new Set(['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
-    'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyE', 'KeyT', 'KeyI', 'KeyM', 'KeyQ', 'KeyR', 'Escape']);
+    'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyE', 'KeyT', 'KeyI', 'KeyM', 'KeyQ', 'KeyR', 'Escape', 'Digit1', 'Digit2']);
   const DIR_OF = { KeyW: 'u', ArrowUp: 'u', KeyS: 'd', ArrowDown: 'd', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
   const now = () => performance.now() / 1000;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
   const state = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, sprint: false, jump: false, attack: false, heavy: 0, heavyRelease: false,
-    block: false, dodge: false, interact: false, torch: false, inventory: false, map: false, pause: false, usePotion: false };
+    block: false, dodge: false, interact: false, torch: false, inventory: false, map: false, pause: false, usePotion: false, offhand1: false, offhand2: false, offhandCycle: false };
   const pend = {}; PRESSED.forEach(k => (pend[k] = false));
   let core = null, stage = null, uiCanvas = null;
   let sens = 0.0022, invertY = false, lockRefused = false, skipMove = 0, pendLost = false, wasLocked = false;
@@ -51,6 +51,8 @@
       case 'ControlLeft': case 'ControlRight': case 'AltLeft': case 'AltRight': pend.dodge = true; break;
       case 'KeyE': pend.interact = true; break;
       case 'KeyT': pend.torch = true; break;
+      case 'Digit1': case 'Numpad1': pend.offhand1 = true; break;
+      case 'Digit2': case 'Numpad2': pend.offhand2 = true; break;
       case 'Tab': case 'KeyI': pend.inventory = true; break;
       case 'KeyM': pend.map = true; break;
       case 'Escape': pend.pause = true; break;
@@ -91,6 +93,7 @@
     { id: 'jump', label: 'JUMP', r: 56, kind: 'press', key: 'jump', ring: 178, ang: 272 },
     { id: 'potion', label: 'DRAUGHT', r: 42, kind: 'press', key: 'usePotion', ring: 318, ang: 188 },
     { id: 'torch', label: 'TORCH', r: 42, kind: 'press', key: 'torch', ring: 318, ang: 262 },
+    { id: 'offhand', label: 'SMOKE', r: 38, kind: 'press', key: 'offhandCycle', ring: 330, ang: 286 },
     { id: 'use', label: 'USE', r: 56, kind: 'press', key: 'interact', ring: 322, ang: 223 },
     { id: 'menu', label: 'MENU', r: 38, kind: 'press', key: 'pause', tl: 0 },
     { id: 'map', label: 'MAP', r: 38, kind: 'press', key: 'map', tl: 1 },
@@ -211,6 +214,8 @@
       if (edge(2)) pend.interact = true;
       if (edge(3)) pend.usePotion = true;
       if (edge(5)) pend.torch = true;
+      if (edge(14)) pend.offhand1 = true;
+      if (edge(15)) pend.offhand2 = true;
       if (edge(9)) pend.pause = true;
       if (edge(8)) pend.map = true;
       if (edge(12)) pend.inventory = true;
@@ -394,6 +399,25 @@
       ctx.beginPath(); ctx.moveTo(-17, 18); ctx.quadraticCurveTo(-30, 8, -28, -2); ctx.quadraticCurveTo(-24, -6, -20, -1); ctx.lineTo(-12, 10); ctx.closePath(); ctx.fill(); stroke(ctx, 2.2);
       ctx.fillStyle = '#6a3a1c'; ctx.fillRect(-18, 24, 36, 10);
     },
+    drag(ctx, t) {
+      ctx.save(); ctx.rotate(-0.45);
+      ctx.fillStyle = '#efe6d2'; ctx.fillRect(-26, -4, 40, 8); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(-26, -4, 40, 8);
+      ctx.fillStyle = '#c8a070'; ctx.fillRect(-26, -4, 9, 8);
+      const e = 0.6 + 0.4 * Math.sin(t * 9);
+      ctx.fillStyle = `rgb(255,${Math.round(80 + 90 * e)},30)`; ctx.fillRect(14, -4, 7, 8); ctx.strokeRect(14, -4, 7, 8);
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(220,220,220,0.8)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(14, -16); ctx.quadraticCurveTo(24, -26, 14, -32); ctx.quadraticCurveTo(6, -38, 16, -44); ctx.stroke();
+    },
+    offhand(ctx, t) {
+      const cig = !!(CT.player && CT.player.offhand === 'cig');
+      ctx.save(); ctx.scale(0.8, 0.8); ctx.translate(-8, 4);
+      if (cig) ICON.torch(ctx, t); else ICON.drag(ctx, t);
+      ctx.restore();
+      ctx.strokeStyle = BONE; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, 0, 36, -0.4, 0.9); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(24, 30); ctx.lineTo(29, 22); ctx.lineTo(33, 31); ctx.stroke();
+    },
     menu(ctx) { ctx.fillStyle = BONE; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.rect(-20, i * 13 - 3.5, 40, 7); ctx.fill(); stroke(ctx, 2); } },
     map(ctx) {
       ctx.beginPath(); ctx.moveTo(-26, -18); ctx.lineTo(-9, -24); ctx.lineTo(9, -18); ctx.lineTo(26, -24); ctx.lineTo(26, 18); ctx.lineTo(9, 24); ctx.lineTo(-9, 18); ctx.lineTo(-26, 24); ctx.closePath();
@@ -449,6 +473,7 @@
     else if (hot) label(ctx, 'SPRINT', bx, by - R - 18, 16, 'rgba(255,120,80,0.95)');
   }
 
+  const smoking = () => !!(CT.player && CT.player.offhand === 'cig');
   function drawButton(ctx, b, t) {
     const on = b.down > 0 || b.flash > 0.02, isUse = b.id === 'use';
     let charge = 0;
@@ -456,7 +481,7 @@
     ctx.save();
     ctx.globalAlpha = on ? 1 : isUse ? 0.95 : 0.78;
     const r = plate(ctx, b, t, on, isUse || charge >= 1);
-    ctx.save(); ctx.translate(b.x, b.y); const s = r * 0.8 / 44; ctx.scale(s, s); ICON[b.id](ctx, t); ctx.restore();
+    ctx.save(); ctx.translate(b.x, b.y); const s = r * 0.8 / 44; ctx.scale(s, s); ICON[b.id === 'jump' && smoking() ? 'drag' : b.id](ctx, t); ctx.restore();
     if (charge > 0) {
       const col = charge >= 1 ? `rgba(255,${60 + 40 * Math.sin(t * 14)},30,1)` : `rgb(${220 + 35 * charge},${180 - 150 * charge},${60 - 40 * charge})`;
       ctx.lineCap = 'round'; ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
@@ -466,7 +491,7 @@
     }
     ctx.restore();
     const small = b.tl != null;
-    const txt = charge > 0 ? (charge >= 1 ? 'UNLEASH' : 'HEAVY') : b.label;
+    const txt = charge > 0 ? (charge >= 1 ? 'UNLEASH' : 'HEAVY') : b.id === 'jump' && smoking() ? 'DRAG' : b.id === 'offhand' ? (smoking() ? 'TORCH' : 'SMOKE') : b.label;
     label(ctx, txt, b.x, small ? b.y + r + 13 : b.y + r + (charge > 0 ? 30 : 16), small ? 13 : b.r > 60 ? 19 : 15, charge > 0 ? 'rgba(255,150,90,0.98)' : undefined);
     if (b.id === 'potion' && potions >= 0) {
       const cx = b.x + r * 0.72, cy = b.y - r * 0.72;
