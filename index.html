@@ -101429,8 +101429,8 @@ window.CT = window.CT || {};
   const renderer = new T.WebGLRenderer({ canvas: glCanvas, antialias: false, powerPreference: 'high-performance' });
   // Render modes: 'painted' = 1280x720, no dither/posterise (painted art keeps its brushwork); 'retro' = 640x360 pixel art.
   let RMODE = 'painted';
-  try { RMODE = new URLSearchParams(location.search).get('render') || localStorage.getItem('crimsonThrone.render') || (isTouch ? 'retro' : 'painted'); } catch (e) {}
-  const PAINTED = RMODE === 'painted', GW = PAINTED ? 1280 : C.PIX_W, GH = PAINTED ? 720 : C.PIX_H;
+  try { RMODE = new URLSearchParams(location.search).get('render') || localStorage.getItem('crimsonThrone.render') || 'painted'; } catch (e) {}
+  const PAINTED = RMODE === 'painted', GW = PAINTED ? (isTouch ? 960 : 1280) : C.PIX_W, GH = PAINTED ? (isTouch ? 540 : 720) : C.PIX_H; // phones paint at 960x540 for speed
   renderer.setPixelRatio(1); renderer.setSize(GW, GH, false);
   if (PAINTED) glCanvas.style.imageRendering = 'auto';
   renderer.outputColorSpace = T.LinearSRGBColorSpace;
