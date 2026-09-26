@@ -607,18 +607,29 @@
     if (live) { st.reviveCD = Math.max(0, st.reviveCD - dt); st.healCD = Math.max(0, st.healCD - dt); }
     let speed = 0;
     const driving = !!(CT.vehicle && CT.vehicle.driving);
-    if (st.following && driving) {   // riding in the Iron Stallion's passenger seat: hidden, carried with the car
+    // Iron Stallion (vehicle.js): she walks to the passenger door, rides shotgun (vehicle.js paints her in the seat), gets out on that side
+    const ride = st.following && CT.vehicle && typeof CT.vehicle.passenger === 'function' ? CT.vehicle.passenger(n) : null;
+    if (ride && ride.mode === 'seat') {
+      COMP.inCar = true; n.pos.set(ride.x, ride.y, ride.z); R.root.position.copy(n.pos); R.root.rotation.y = n.yawNow = ride.yaw;
+      R.root.visible = false; if (n.spr) n.spr.root.visible = false; if (COMP.bubble) COMP.bubble.sp.visible = false;
+      n.dist = 0; if (live) compHeal(n, dt, st); fxTick(dt);
+      return;
+    }
+    if (ride && ride.mode === 'out') { COMP.inCar = false; n.pos.set(ride.x, H(ride.x, ride.z), ride.z); n.yawNow = ride.yaw; COMP.vel.set(0, 0, 0); COMP.moving = true; }
+    else if (st.following && driving && !ride) {   // riding (no passenger seat available): hidden, carried with the car
       COMP.inCar = true; n.pos.set(pp.x, n.pos.y, pp.z); R.root.visible = false; if (n.spr) n.spr.root.visible = false;
       if (COMP.bubble) COMP.bubble.sp.visible = false;
       return;
     }
-    if (COMP.inCar) {   // out of the car: step out by the door (the player's left), in a puff of smoke
+    if (ride && ride.mode === 'walk') { speed = compWalkTo(n, dt, ride.x, ride.z); COMP.inCar = false; }
+    else if (COMP.inCar) {   // out of the car: step out by the door (the player's left), in a puff of smoke
       COMP.inCar = false; const { rx, rz, fx, fz } = playerFrame();
       const v = new T.Vector3(pp.x - rx * 1.8 + fx * 1.5, 0, pp.z - rz * 1.8 + fz * 1.5);
       if (CT.world && CT.world.collide) { const r = CT.world.collide(v, 0.45); if (r) v.copy(r); }
       n.pos.set(v.x, H(v.x, v.z), v.z); fxPoof(n.pos); COMP.vel.set(0, 0, 0); COMP.moving = true;
     }
-    if (st.following) speed = compFollow(n, dt, pp);
+    if (ride && ride.mode === 'walk') { /* heading for the passenger door */ }
+    else if (st.following) speed = compFollow(n, dt, pp);
     else {   // waiting at Nyx's hut
       if (n.homePos && n.pos.distanceToSquared(n.homePos) > 0.01) n.pos.copy(n.homePos);
       const want = n.dist < 8 ? Math.atan2(dx0, dz0) : n.home; turnTo(n, want, dt, 3);
@@ -641,6 +652,12 @@
     if (st.following && live) { compHeal(n, dt, st); compBanterTick(n, dt, pp); }
     compIdleFx(n, dt, speed);
     fxTick(dt); bubbleTick(n, dt);
+  }
+  function compWalkTo(n, dt, x, z) {   // Iron Stallion: a straight walk to the passenger door
+    const dx = x - n.pos.x, dz = z - n.pos.z, d = Math.hypot(dx, dz); if (d < 0.05) { COMP.vel.set(0, 0, 0); return 0; }
+    const sp = Math.min(3.8, d * 3), k = Math.min(d, sp * dt) / d;
+    n.pos.x += dx * k; n.pos.z += dz * k; COMP.vel.set(dx / d * sp, 0, dz / d * sp); turnTo(n, Math.atan2(dx, dz), dt, 8);
+    return sp;
   }
   function turnTo(n, want, dt, k) { let da = want - n.yawNow; while (da > PI) da -= TAU; while (da < -PI) da += TAU; n.yawNow += da * Math.min(1, dt * k); }
   // Follow IN VIEW: her slot is 5 m out at 35 degrees left of the view (the left third of the screen, clear of the
@@ -1035,7 +1052,7 @@
   npcs.nearestInteractable = function (pos, maxDist) {
     if (!pos) return null;
     let best = null, bd = maxDist || 3.2;
-    npcs.list.forEach(n => { if (n.kind === 'companion' && !compOwned()) return; const d = Math.hypot(pos.x - n.pos.x, pos.z - n.pos.z); if (d < bd && Math.abs((pos.y || n.pos.y) - n.pos.y) < 4) { bd = d; best = n; } });
+    npcs.list.forEach(n => { if (n.kind === 'companion' && (!compOwned() || COMP.inCar)) return; const d = Math.hypot(pos.x - n.pos.x, pos.z - n.pos.z); if (d < bd && Math.abs((pos.y || n.pos.y) - n.pos.y) < 4) { bd = d; best = n; } });
     return best;
   };
   npcs.find = id => npcs.list.find(n => n.id === id) || null;
