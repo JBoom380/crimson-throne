@@ -96431,7 +96431,7 @@ CT.portraitArt = {"kaela":"data:image/webp;base64,UklGRiYoAABXRUJQVlA4IBooAACQqw
   // ══════════════════════════════════════════════════════════════════════════
   // She follows 3 to 5 m behind and to one side, hangs back in fights (no combat), carries a stash, tosses the player a lit
   // smoke below 50% hp (+30% over 2 s, 20 s cooldown) and revives the player with a beer once per 5 minutes.
-  const COMP = { n: null, vel: new T.Vector3(), pSpeed: 0, fpp: null, walkPh: 0, walkAmt: 0, stuckT: 0, side: -1, healLeft: 0, throwT: -1, idleT: 0, fxT: 7, fxStep: 0,
+  const COMP = { n: null, vel: new T.Vector3(), pSpeed: 0, fpp: null, moving: false, inCar: false, sideT: 0, walkPh: 0, walkAmt: 0, stuckT: 0, side: -1, healLeft: 0, throwT: -1, idleT: 0, fxT: 7, fxStep: 0,
     banterNext: 0, cool: {}, lastHurtT: -99, still: 0, lastPP: new T.Vector3(), bubble: null, bubbleT: 0, fx: [], proj: null, lastBlood: false, sipT: -1 };
   const comp = () => (CT.rpg && CT.rpg.companion) || null;
   const compOwned = () => { const c = comp(); return !!(c && c.owned); };
@@ -96469,7 +96469,8 @@ CT.portraitArt = {"kaela":"data:image/webp;base64,UklGRiYoAABXRUJQVlA4IBooAACQqw
   }
   function compSummonTo(n, poof) {
     const { pp, fx, fz, rx, rz } = playerFrame();
-    const v = new T.Vector3(pp.x - fx * 3.5 + rx * 1.8 * COMP.side, 0, pp.z - fz * 3.5 + rz * 1.8 * COMP.side);
+    const c35 = Math.cos(35 * PI / 180), s35 = Math.sin(35 * PI / 180) * (COMP.side || -1);   // her in-view slot (front-left)
+    const v = new T.Vector3(pp.x + (fx * c35 + rx * s35) * 5, 0, pp.z + (fz * c35 + rz * s35) * 5);
     if (CT.world && CT.world.collide) { const r = CT.world.collide(v, 0.45); if (r) v.copy(r); }
     if (poof) fxPoof(n.pos);
     n.pos.set(v.x, H(v.x, v.z), v.z); n.yawNow = Math.atan2(pp.x - v.x, pp.z - v.z);
@@ -96533,6 +96534,18 @@ CT.portraitArt = {"kaela":"data:image/webp;base64,UklGRiYoAABXRUJQVlA4IBooAACQqw
     if (!st || !st.owned) { R.root.visible = false; if (n.spr) n.spr.root.visible = false; return; }
     if (live) { st.reviveCD = Math.max(0, st.reviveCD - dt); st.healCD = Math.max(0, st.healCD - dt); }
     let speed = 0;
+    const driving = !!(CT.vehicle && CT.vehicle.driving);
+    if (st.following && driving) {   // riding in the Iron Stallion's passenger seat: hidden, carried with the car
+      COMP.inCar = true; n.pos.set(pp.x, n.pos.y, pp.z); R.root.visible = false; if (n.spr) n.spr.root.visible = false;
+      if (COMP.bubble) COMP.bubble.sp.visible = false;
+      return;
+    }
+    if (COMP.inCar) {   // out of the car: step out by the door (the player's left), in a puff of smoke
+      COMP.inCar = false; const { rx, rz, fx, fz } = playerFrame();
+      const v = new T.Vector3(pp.x - rx * 1.8 + fx * 1.5, 0, pp.z - rz * 1.8 + fz * 1.5);
+      if (CT.world && CT.world.collide) { const r = CT.world.collide(v, 0.45); if (r) v.copy(r); }
+      n.pos.set(v.x, H(v.x, v.z), v.z); fxPoof(n.pos); COMP.vel.set(0, 0, 0); COMP.moving = true;
+    }
     if (st.following) speed = compFollow(n, dt, pp);
     else {   // waiting at Nyx's hut
       if (n.homePos && n.pos.distanceToSquared(n.homePos) > 0.01) n.pos.copy(n.homePos);
@@ -96558,36 +96571,83 @@ CT.portraitArt = {"kaela":"data:image/webp;base64,UklGRiYoAABXRUJQVlA4IBooAACQqw
     fxTick(dt); bubbleTick(n, dt);
   }
   function turnTo(n, want, dt, k) { let da = want - n.yawNow; while (da > PI) da -= TAU; while (da < -PI) da += TAU; n.yawNow += da * Math.min(1, dt * k); }
+  // Follow IN VIEW: her slot is 5 m out at 35 degrees left of the view (the left third of the screen, clear of the
+  // crosshair); mirrored right when the left is blocked. Combat (a monster within 15 m): 7 m out on the side away from
+  // the nearest monster. A 1.5 m dead zone keeps her still while the player idles or backs up; she arcs around the player
+  // (never through) when the view swings; she matches the player's pace and briefly outruns it to regain her slot.
+  const SLOT = { ang: 32 * PI / 180, dist: 5, cAng: 42 * PI / 180, cDist: 7 };
+  function slotAt(pp, fx, fz, rx, rz, side, ang, dist) {
+    const c = Math.cos(ang), s = Math.sin(ang) * side;
+    return new T.Vector3(pp.x + (fx * c + rx * s) * dist, 0, pp.z + (fz * c + rz * s) * dist);
+  }
+  function slotBlocked(v, pp) {
+    if (CT.world && CT.world.collide) { _w.set(v.x, 0, v.z); const r = CT.world.collide(_w, 0.5); if (r && Math.hypot(r.x - v.x, r.z - v.z) > 0.3) return true; }
+    if (Math.abs(H(v.x, v.z) - H(pp.x, pp.z)) > 3) return true;
+    if (CT.world && CT.world.waterAt && CT.world.waterAt(v.x, v.z) > 0.6) return true;
+    return false;
+  }
   function compFollow(n, dt, pp) {
     const { fx, fz, rx, rz } = playerFrame();
-    const combat = !!(CT.monsters && CT.monsters.inCombat);
     const dxp = n.pos.x - pp.x, dzp = n.pos.z - pp.z, dp = Math.hypot(dxp, dzp);
-    // too far or stuck: reappear behind the player
-    if (dp > 60 || COMP.stuckT > 2.5) { compSummonTo(n, dp < 150); return 0; }
-    const back = combat ? 7.5 : 3.6, side = (combat ? 1.2 : 1.9) * COMP.side;
-    let tx = pp.x - fx * back + rx * side, tz = pp.z - fz * back + rz * side;
-    // stay out of the player's front arc: if she is ahead and close, swing wide around the side she is on
-    const front = (dxp * fx + dzp * fz) / (dp || 1);
-    if (dp < 5 && front > 0.2) { const sg = (dxp * rx + dzp * rz) >= 0 ? 1 : -1; tx = pp.x + rx * sg * 3 - fx * 1.5; tz = pp.z + rz * sg * 3 - fz * 1.5; }
-    const dx = tx - n.pos.x, dz = tz - n.pos.z, d = Math.hypot(dx, dz);
-    // match the player's measured pace, plus a catch-up term for the gap to her slot
-    if (COMP.fpp) { const ps = dt > 0 ? Math.hypot(pp.x - COMP.fpp.x, pp.z - COMP.fpp.z) / dt : 0; COMP.pSpeed += (Math.min(ps, 12) - COMP.pSpeed) * Math.min(1, dt * 4); } else COMP.fpp = new T.Vector3();
-    COMP.fpp.copy(pp);
-    const speed = d < 0.6 ? 0 : clamp(COMP.pSpeed + (d - 0.6) * 2.4, 0, 9.5);
-    _v.set(0, 0, 0); if (d > 0.01 && speed > 0) _v.set(dx / d * speed, 0, dz / d * speed);
-    COMP.vel.lerp(_v, Math.min(1, dt * 6));
+    // teleport only when far away: to the front-left edge of the view, just outside the frame, in a puff of smoke
+    if (dp > 60 || COMP.stuckT > 4) {
+      const v = slotAt(pp, fx, fz, rx, rz, COMP.side, 58 * PI / 180, 7);
+      if (CT.world && CT.world.collide) { const r = CT.world.collide(_w.set(v.x, 0, v.z), 0.45); if (r) v.set(r.x, 0, r.z); }
+      fxPoof(n.pos); n.pos.set(v.x, H(v.x, v.z), v.z); fxPoof(n.pos);
+      COMP.vel.set(0, 0, 0); COMP.stuckT = 0; COMP.moving = true; return 0;
+    }
+    // side: combat -> away from the nearest monster; else left, mirrored when blocked (re-checked twice a second)
+    const mon = CT.monsters && CT.monsters.nearest ? CT.monsters.nearest(pp, 15) : null;
+    const combat = !!(mon && mon.alive !== false && !mon.dead);
+    COMP.sideT = (COMP.sideT || 0) - dt;
+    if (COMP.sideT <= 0) {
+      COMP.sideT = 0.5;
+      let want = -1;
+      if (combat) want = ((mon.pos.x - pp.x) * rx + (mon.pos.z - pp.z) * rz) > 0 ? -1 : 1;
+      const ang = combat ? SLOT.cAng : SLOT.ang, dist = combat ? SLOT.cDist : SLOT.dist;
+      if (slotBlocked(slotAt(pp, fx, fz, rx, rz, want, ang, dist), pp) && !slotBlocked(slotAt(pp, fx, fz, rx, rz, -want, ang, dist), pp)) want = -want;
+      COMP.side = want;
+    }
+    // the player's measured velocity (smoothed); the slot leads it so she keeps pace instead of trailing out of frame
+    if (!COMP.pv) COMP.pv = new T.Vector3();
+    if (COMP.fpp && dt > 0) { const vx = (pp.x - COMP.fpp.x) / dt, vz = (pp.z - COMP.fpp.z) / dt, ok = Math.hypot(vx, vz) < 20;
+      if (ok) { COMP.pv.x += (vx - COMP.pv.x) * Math.min(1, dt * 5); COMP.pv.z += (vz - COMP.pv.z) * Math.min(1, dt * 5); } } else if (!COMP.fpp) COMP.fpp = new T.Vector3();
+    COMP.fpp.copy(pp); COMP.pSpeed = Math.hypot(COMP.pv.x, COMP.pv.z);
+    const tgt = slotAt(pp, fx, fz, rx, rz, COMP.side, combat ? SLOT.cAng : SLOT.ang, combat ? SLOT.cDist : SLOT.dist);
+    tgt.x += COMP.pv.x * 0.55; tgt.z += COMP.pv.z * 0.55;
+    const dx = tgt.x - n.pos.x, dz = tgt.z - n.pos.z, d = Math.hypot(dx, dz);
+    // dead zone only while the player is still: start beyond 1.5 m from the slot, stop within 0.4 m
+    const pMoving = COMP.pSpeed > 1.0;
+    if (!COMP.moving && (d > 1.5 || (pMoving && d > 0.5))) COMP.moving = true;
+    if (COMP.moving && d < 0.4 && !pMoving) COMP.moving = false;
+    let speed = 0, dirx = 0, dirz = 0;
+    if (COMP.moving && d > 1e-3) {
+      speed = clamp(COMP.pSpeed * 0.9 + (d - 0.3) * 2.6, 0, 12.5);
+      dirx = dx / d; dirz = dz / d;
+      // arc around the player instead of cutting through: if the straight line passes the player within 2 m, go tangentially
+      const ax = dxp / (dp || 1), az = dzp / (dp || 1), bx = (tgt.x - pp.x), bz = (tgt.z - pp.z), bl = Math.hypot(bx, bz) || 1;
+      const t = clamp(((pp.x - n.pos.x) * dx + (pp.z - n.pos.z) * dz) / (d * d), 0, 1);
+      const cx = n.pos.x + dx * t - pp.x, cz = n.pos.z + dz * t - pp.z;
+      if (Math.hypot(cx, cz) < 2.0 && dp < 7) {
+        const cr = ax * (bz / bl) - az * (bx / bl), sg = cr >= 0 ? 1 : -1;       // rotate toward the slot's side
+        const tx = -az * sg, tz = ax * sg, R0 = Math.max(2.6, dp);
+        const k = (R0 - dp) * 0.8;                                               // hold the arc radius
+        dirx = tx + ax * k; dirz = tz + az * k; const l = Math.hypot(dirx, dirz) || 1; dirx /= l; dirz /= l;
+      }
+    }
+    _v.set(dirx * speed, 0, dirz * speed);
+    COMP.vel.lerp(_v, Math.min(1, dt * (speed > 0 ? 6 : 10)));
+    if (!COMP.moving && COMP.vel.lengthSq() < 0.02) COMP.vel.set(0, 0, 0);
     const ox = n.pos.x, oz = n.pos.z;
     n.pos.x += COMP.vel.x * dt; n.pos.z += COMP.vel.z * dt;
-    // personal space around the player (never inside the camera or the sword swing)
     const qx = n.pos.x - pp.x, qz = n.pos.z - pp.z, q = Math.hypot(qx, qz);
     if (q < 1.4 && q > 1e-3) { n.pos.x = pp.x + qx / q * 1.4; n.pos.z = pp.z + qz / q * 1.4; }
     if (CT.world && CT.world.collide) { _w.set(n.pos.x, 0, n.pos.z); const r = CT.world.collide(_w, 0.4); if (r) { n.pos.x = r.x; n.pos.z = r.z; } }
     const moved = dt > 0 ? Math.hypot(n.pos.x - ox, n.pos.z - oz) / dt : 0;
     if (speed > 1.5 && moved < speed * 0.2) COMP.stuckT += dt; else COMP.stuckT = Math.max(0, COMP.stuckT - dt * 2);
-    const sp = moved;
-    if (sp > 0.5) turnTo(n, Math.atan2(COMP.vel.x, COMP.vel.z), dt, 8);
-    else if (dp < 9) turnTo(n, Math.atan2(-dxp, -dzp), dt, 3);
-    return sp;
+    if (moved > 0.5) turnTo(n, Math.atan2(COMP.vel.x, COMP.vel.z), dt, 8);
+    else if (dp < 12) turnTo(n, Math.atan2(-dxp, -dzp), dt, 3);   // at rest she looks back at the player
+    return moved;
   }
   // ── Heal: toss the player a lit smoke ──────────────────────────────────────
   const HEAL_LINES = ['Here. Breathe.', 'Catch. Lit end away from your face.', 'Smoke break. Doctor\'s orders.', 'Breathe, hero. Slowly. There.', 'You look like hell. Here.'];
