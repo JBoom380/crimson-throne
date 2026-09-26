@@ -1373,6 +1373,7 @@
   }
 
   const PAINT = {};
+  // Portraits match the sculpted models in heroines.js (outfits, hair, paint). Skin ramps are built from each DEF skin.
   PAINT.kaela = function (b, f, d, rnd) {
     // burning sunset over crags, smoke
     b.fillStyle = lin(b, 0, 0, 0, PH, [[0, '#14040a'], [0.3, '#4a0c0c'], [0.55, '#a8300e'], [0.72, '#e87a24'], [0.8, '#f4b050'], [1, '#6a1a08']]); b.fillRect(0, 0, PW, PH);
@@ -1380,131 +1381,114 @@
     strokes(b, rnd, 40, ['#2a0808', '#5a1410', '#8a2a12'], 0, 0, PW, 44, 14, 2.5, -0.25, 0.55);
     strokes(b, rnd, 25, ['#ffb060', '#ff8a3a'], 0, 40, PW, 60, 8, 1, -0.1, 0.4);
     crags(b, rnd, 64, 10, '#2a0a06', 6); crags(b, rnd, 72, 6, '#160404', 4);
-    for (let i = 0; i < 5; i++) { const x = 44 + i * 4 + rnd() * 2; b.strokeStyle = '#1a0404'; b.lineWidth = 0.8; b.beginPath(); b.moveTo(x, 70); b.lineTo(x + 1, 52 - rnd() * 6); b.stroke(); }
-    const S = { base: '#b8845a', shade: '#7a4a30', deep: '#44241a', light: '#e2b07c' };
+    // skin ramp from DEF.kaela.skin #b98e6c: warm olive mid, peach-tan light, warm brown only in the deep creases
+    const S = { base: '#da9864', shade: '#b46e46', deep: '#7e4a2e', light: '#f8c890' };
     const hair = ['#140c10', '#241822', '#4a3a4a'];
-    // hair mass behind
-    blobP(f, hair[0], [[CX - 13, 13], [CX, 8], [CX + 13, 13], [CX + 17, 30], [CX + 21, 44], [CX + 16, 56], [CX - 16, 56], [CX - 18, 34]]);
+    // wolf-fur cape behind the shoulders
+    blobP(f, '#3e342c', [[2, 58], [12, 50], [CX, 52], [PW - 12, 50], [PW - 2, 58], [PW, 80], [0, 80]]);
+    for (let i = 0; i < 16; i++) { const x = 2 + i * 4 + rnd() * 2; fillP(f, i % 2 ? '#6e6050' : '#524638', [[x - 2.5, 52 + rnd() * 3], [x + 2.5, 52 + rnd() * 3], [x + (rnd() - 0.5) * 2, 60 + rnd() * 4]]); }
+    // long loose black hair behind
+    blobP(f, hair[0], [[CX - 13, 13], [CX, 8], [CX + 13, 13], [CX + 17, 30], [CX + 19, 50], [CX + 14, 58], [CX - 14, 58], [CX - 18, 34]]);
     fillP(f, hair[0], [[CX + 14, 20], [CX + 24, 30], [CX + 29, 27], [CX + 22, 38], [CX + 16, 34]]);
-    // cuirass
-    fillP(f, '#6a3e14', [[CX - 19, 52], [CX + 19, 52], [CX + 23, 80], [CX - 23, 80]]);
-    f.fillStyle = lin(f, CX - 20, 0, CX + 20, 0, [[0, '#f0c062'], [0.35, '#c08434'], [0.7, '#7a4a18'], [1, '#3e2008']]);
-    blobP(f, f.fillStyle, [[CX - 18, 54], [CX, 51], [CX + 18, 54], [CX + 20, 68], [CX + 17, 80], [CX - 17, 80], [CX - 20, 68]]);
-    ellP(f, '#6a3e14', CX, 63, 4, 4); ellP(f, '#f0c062', CX - 0.5, 62.5, 2.8, 2.8); ellP(f, '#a06a24', CX, 63, 1.5, 1.5);
-    fillP(f, '#4a2a10', [[CX - 17, 74], [CX + 17, 74], [CX + 17, 76], [CX - 17, 76]]);
-    fillP(f, '#3a200c', [[CX - 10, 51], [CX + 10, 51], [CX + 8, 54], [CX - 8, 54]]);
-    // plate lines, centre ridge, leather gorget with bronze trim
-    f.strokeStyle = '#5a3410'; f.lineWidth = 0.8;
-    f.beginPath(); f.moveTo(CX - 15, 58); f.quadraticCurveTo(CX, 66, CX + 15, 58); f.stroke();
-    f.beginPath(); f.moveTo(CX - 16, 69); f.quadraticCurveTo(CX, 73, CX + 16, 69); f.stroke();
-    for (let y = 54; y < 74; y++) { px(d, y % 5 ? '#f4cc70' : '#ffe6a0', CX - 1, y); px(d, '#6a3e14', CX, y); }
-    blobP(f, '#2a160a', [[CX - 11, 52], [CX - 7, 47], [CX + 7, 47], [CX + 11, 52], [CX + 8, 55], [CX - 8, 55]]);
-    px(d, '#d8a040', CX - 9, 51, 18, 1); px(d, '#8a5a1c', CX - 8, 52, 16, 1);
-    // wolf-fur mantle
-    [[-1, ['#9a8c7c', '#6e6258', '#b8aa98']], [1, ['#544a42', '#3a322c', '#6e6258']]].forEach(([s, fc]) => {
-      blobP(f, fc[1], [[CX + s * 8, 47], [CX + s * 22, 46], [CX + s * 32, 56], [CX + s * 33, 74], [CX + s * 22, 68], [CX + s * 12, 58]]);
-      for (let i = 0; i < 22; i++) { const t = i / 21, x = CX + s * (9 + t * 24), y = 47 + t * 11 + rnd() * 5; fillP(f, fc[i % 3 === 0 ? 0 : i % 3 === 1 ? 1 : 2], [[x - 2.2, y - 2], [x + 2.2, y - 2], [x + s * 1.5 + (rnd() - 0.5) * 2, y + 5 + rnd() * 4]]); }
-      for (let i = 0; i < 6; i++) px(d, fc[2], Math.round(CX + s * (12 + i * 3.5)), Math.round(49 + i * 1.6), 1, 1);
-    });
-    // wolf skull clasp on her right shoulder
-    ellP(f, '#8a7c6c', CX - 20, 50, 4, 3); fillP(f, '#6e6258', [[CX - 24, 48], [CX - 22, 43], [CX - 20, 48]]); fillP(f, '#6e6258', [[CX - 19, 48], [CX - 17, 43], [CX - 16, 48]]);
-    px(d, '#ffcc55', CX - 22, 50); px(d, '#ffcc55', CX - 18, 50);
-    paintFace(f, d, { E: 30, hw: 9, jw: 2.5, skin: S, iris: '#7a4214', brow: '#0e0808', browStyle: 'fierce', lips: '#8c3a2c', fem: true, side: 1 });
+    // bare shoulders and chest, lit from the left
+    f.fillStyle = lin(f, CX - 26, 0, CX + 26, 0, [[0, S.light], [0.4, S.base], [1, S.shade]]);
+    blobP(f, f.fillStyle, [[CX - 10, 50], [CX + 10, 50], [CX + 24, 57], [CX + 27, 80], [CX - 27, 80], [CX - 24, 57]]);
+    // bronze scale top at the bottom edge, leather straps over the shoulders
+    const topP = [[CX - 21, 73], [CX - 12, 68], [CX - 3, 71], [CX, 73], [CX + 3, 71], [CX + 12, 68], [CX + 21, 73], [CX + 22, 80], [CX - 22, 80]];
+    f.fillStyle = lin(f, CX - 22, 0, CX + 22, 0, [[0, '#e8b050'], [0.45, '#b27a2c'], [1, '#6a4012']]); fillP(f, f.fillStyle, topP);
+    for (let y = 71; y < 80; y += 2) for (let x = CX - 20 + (y % 4 ? 1 : 0); x < CX + 21; x += 3) px(d, (x < CX) ? '#f4cc70' : '#8a5a1c', x, y);
+    f.strokeStyle = '#4a2a10'; f.lineWidth = 0.9; f.beginPath(); f.moveTo(CX - 12, 68); f.lineTo(CX - 15, 51); f.moveTo(CX + 12, 68); f.lineTo(CX + 15, 51); f.stroke();
+    [[CX - 12, 55], [CX - 8, 56], [CX + 8, 56], [CX + 12, 55]].forEach(([x, y]) => px(d, S.shade, x, y, 2, 1));   // collarbones
+    // spiked bronze pauldron on her right shoulder (viewer's left)
+    f.fillStyle = lin(f, 0, 50, 0, 66, [[0, '#f0c062'], [0.5, '#b8822e'], [1, '#6a4012']]);
+    blobP(f, f.fillStyle, [[CX - 29, 65], [CX - 28, 56], [CX - 22, 51], [CX - 14, 52], [CX - 11, 58], [CX - 15, 65]]);
+    [[CX - 25, 52], [CX - 20, 50], [CX - 15, 51]].forEach(([x, y]) => fillP(f, '#d8a848', [[x - 1.6, y + 1], [x + 1.6, y + 1], [x - 1, y - 6]]));
+    px(d, '#ffe6a0', CX - 24, 55, 3, 1); px(d, '#6a4012', CX - 27, 61, 10, 1);
+    paintFace(f, d, { E: 30, hw: 9, jw: 2.5, skin: S, iris: '#5a3212', brow: '#0e0808', browStyle: 'fierce', lips: '#9a1e1c', fem: true, side: 1 });
     // hair front: centre part, sweeps to the temples
     blobP(f, hair[0], [[CX - 10, 24], [CX - 11, 15], [CX - 3, 11], [CX, 14], [CX - 5, 17], [CX - 8, 22]]);
     blobP(f, hair[0], [[CX + 10, 24], [CX + 11, 15], [CX + 3, 11], [CX, 14], [CX + 5, 17], [CX + 8, 22]]);
-    fillP(f, hair[0], [[CX - 11, 20], [CX - 9, 22], [CX - 9, 38], [CX - 12, 42]]); fillP(f, hair[0], [[CX + 11, 20], [CX + 9, 22], [CX + 9, 38], [CX + 12, 42]]);
+    fillP(f, hair[0], [[CX - 11, 20], [CX - 9, 22], [CX - 9, 38], [CX - 12, 44]]); fillP(f, hair[0], [[CX + 11, 20], [CX + 9, 22], [CX + 9, 38], [CX + 12, 44]]);
     f.strokeStyle = hair[2]; f.lineWidth = 0.8; f.beginPath(); f.moveTo(CX - 9, 20); f.quadraticCurveTo(CX - 8, 12, CX - 1, 12); f.stroke();
     f.beginPath(); f.moveTo(CX + 2, 12); f.quadraticCurveTo(CX + 8, 12, CX + 10, 19); f.stroke();
-    f.strokeStyle = hair[1]; f.beginPath(); f.moveTo(CX + 16, 30); f.quadraticCurveTo(CX + 23, 31, CX + 27, 28); f.stroke();
-    // braid over her right shoulder with bronze rings
-    const bp = []; for (let i = 0; i < 9; i++) bp.push([CX - 12 - i * 0.7, 40 + i * 4.4]);
-    braid(f, d, bp, [hair[1], hair[0], '#6a5a6a'], 3);
-    [2, 6].forEach(i => { px(d, '#f0c062', Math.round(bp[i][0] - 2), Math.round(bp[i][1]), 4, 1); px(d, '#8a5a1c', Math.round(bp[i][0] - 2), Math.round(bp[i][1] + 1), 4, 1); });
-    // scar, torc, rivets
-    [[CX - 8, 32], [CX - 7, 33], [CX - 6, 34], [CX - 6, 35]].forEach(([x, y]) => px(d, '#d49a82', x, y));
-    px(d, '#d49a82', CX - 9, 26); px(d, '#d49a82', CX - 8, 27);
-    px(d, '#c08434', CX - 5, 44, 10, 1); px(d, '#f0c062', CX - 4, 44, 3, 1); px(d, '#6a3e14', CX - 5, 45, 10, 1);
-    ellP(f, '#f0c062', CX - 5, 44.5, 1.2, 1.2); ellP(f, '#f0c062', CX + 5, 44.5, 1.2, 1.2);
-    [[CX - 14, 58], [CX + 14, 58], [CX - 12, 72], [CX + 12, 72]].forEach(([x, y]) => px(d, '#ffe08a', x, y));
-    return { rim: '#ffb050', rimSide: 1, top: '#ffcf80', outline: '#1a0604', key: -1 };
+    // the long braid falls over her right shoulder, behind the pauldron line
+    const bp = []; for (let i = 0; i < 8; i++) bp.push([CX - 11 - i * 0.5, 44 + i * 4.4]);
+    braid(f, d, bp, [hair[1], hair[0], '#6a5a6a'], 2.8);
+    // scar
+    [[CX - 8, 32], [CX - 7, 33], [CX - 6, 34], [CX - 6, 35]].forEach(([x, y]) => px(d, '#e0aa90', x, y));
+    return { rim: '#ffb050', rimSide: 1, top: '#ffcf80', outline: '#1a0604', key: -1, keyCol: 'rgba(255,214,160,0.2)', darkCol: 'rgba(40,10,20,0.2)' };
   };
   PAINT.nyx = function (b, f, d, rnd) {
     b.fillStyle = lin(b, 0, 0, 0, PH, [[0, '#04041a'], [0.4, '#141038'], [0.75, '#2a2054'], [1, '#0c0a20']]); b.fillRect(0, 0, PW, PH);
     for (let i = 0; i < 40; i++) px(b, rnd() < 0.3 ? '#d8d8ff' : '#6a6aa8', (rnd() * PW) | 0, (rnd() * 50) | 0);
     b.fillStyle = rad(b, 18, 22, 30, [[0, 'rgba(200,210,255,0.55)'], [1, 'rgba(120,120,220,0)']]); b.fillRect(0, 0, PW, PH);
     ellP(b, '#e8e4f0', 18, 22, 15, 15); ellP(b, '#c4c0d8', 14, 18, 4, 3); ellP(b, '#c4c0d8', 22, 28, 5, 3); ellP(b, '#d0cce0', 12, 27, 2.5, 2);
-    ellP(b, '#b8b4d0', 25, 16, 2, 2);
     strokes(b, rnd, 30, ['#3a3a72', '#4a4a88', '#2a2a5a'], 0, 50, PW, PH, 16, 3, 0.05, 0.5);
-    strokes(b, rnd, 16, ['#1a1440', '#2a1e5a'], 0, 0, PW, 40, 12, 2, -0.2, 0.4);
-    const S = { base: '#ecd8d2', shade: '#a88ea4', deep: '#6a5274', light: '#fff4ee' };
-    const hair = ['#c4c4dc', '#8a8ab0', '#f2f2ff', '#5a5a80'];
+    // skin ramp from DEF.nyx.skin #e2dde8 (moon-pale, cool lilac shadows)
+    const S = { base: '#e6dce4', shade: '#b0a0bc', deep: '#76648a', light: '#fff6fa' };
+    const hair = ['#dfe3f0', '#9a9cc0', '#ffffff', '#5a5a80'];
     blobP(f, hair[1], [[CX - 12, 13], [CX, 8], [CX + 12, 13], [CX + 17, 40], [CX + 19, 80], [CX - 19, 80], [CX - 17, 40]]);
-    // robe and collar
-    f.fillStyle = lin(f, CX - 24, 0, CX + 24, 0, [[0, '#3e3280'], [0.4, '#261c58'], [1, '#0e0a22']]);
-    blobP(f, f.fillStyle, [[CX - 10, 50], [CX + 10, 50], [CX + 24, 60], [CX + 27, 80], [CX - 27, 80], [CX - 24, 60]]);
-    fillP(f, '#140e30', [[CX - 7, 52], [CX - 13, 38], [CX - 15, 37], [CX - 15, 56]]); fillP(f, '#0e0a24', [[CX + 7, 52], [CX + 13, 38], [CX + 15, 37], [CX + 15, 56]]);
-    fillP(f, '#1c1444', [[CX - 7, 51], [CX + 7, 51], [CX + 2, 62], [CX - 2, 62]]);
-    paintFace(f, d, { E: 30, hw: 8.5, jw: 2, skin: S, iris: '#a060f0', glow: '#d0a0ff', brow: '#8a8aa8', browStyle: 'arched', lips: '#6a2448', lash: '#1a0a2a', fem: true, side: 1, shadow: '#6a4a8a', neckW: -0.5 });
-    // front hair: centre part, long locks over the shoulders
+    // bare shoulders; an indigo halter top (straps up to the neck), a silver band under it, a silver chain
+    f.fillStyle = lin(f, CX - 26, 0, CX + 26, 0, [[0, S.light], [0.45, S.base], [1, S.shade]]);
+    blobP(f, f.fillStyle, [[CX - 10, 50], [CX + 10, 50], [CX + 24, 57], [CX + 27, 80], [CX - 27, 80], [CX - 24, 57]]);
+    const topP = [[CX - 21, 73], [CX - 11, 67], [CX - 3, 70], [CX, 73], [CX + 3, 70], [CX + 11, 67], [CX + 21, 73], [CX + 22, 80], [CX - 22, 80]];
+    f.fillStyle = lin(f, CX - 22, 0, CX + 22, 0, [[0, '#4a3a98'], [0.45, '#2c1f62'], [1, '#140c30']]); fillP(f, f.fillStyle, topP);
+    fillP(f, '#2c1f62', [[CX - 9, 68], [CX - 6, 68], [CX - 2, 50], [CX - 4, 50]]); fillP(f, '#1c1444', [[CX + 9, 68], [CX + 6, 68], [CX + 2, 50], [CX + 4, 50]]);
+    px(d, '#d6dcec', CX - 21, 79, 43, 1);
+    for (let i = 0; i < 9; i++) { px(d, '#c9d0e4', CX - 20 + i * 2, 73 - Math.round(i * 0.55)); px(d, '#8a90b0', CX + 20 - i * 2, 73 - Math.round(i * 0.55)); }
+    [[CX - 12, 55], [CX - 8, 56], [CX + 8, 56], [CX + 12, 55]].forEach(([x, y]) => px(d, S.shade, x, y, 2, 1));
+    paintFace(f, d, { E: 30, hw: 8.5, jw: 2, skin: S, iris: '#8a4ae8', glow: '#c8a0ff', brow: '#6a6070', browStyle: 'arched', lips: '#6e0f2e', lash: '#1a0a2a', fem: true, side: 1, shadow: '#6a4a8a', neckW: -0.5 });
+    // long silver locks in front of the shoulders
     blobP(f, hair[0], [[CX - 1, 12], [CX - 10, 14], [CX - 12, 26], [CX - 11, 50], [CX - 14, 80], [CX - 19, 80], [CX - 17, 44], [CX - 14, 18]]);
     blobP(f, hair[3], [[CX + 1, 12], [CX + 10, 14], [CX + 12, 26], [CX + 11, 50], [CX + 14, 80], [CX + 19, 80], [CX + 17, 44], [CX + 14, 18]]);
     blobP(f, hair[0], [[CX - 9, 20], [CX - 2, 11], [CX, 13], [CX - 6, 19]]); blobP(f, hair[1], [[CX + 9, 20], [CX + 2, 11], [CX, 13], [CX + 6, 19]]);
-    f.lineWidth = 0.7; [[hair[2], -13, 0.9], [hair[0], 14, 0.6], [hair[3], -16, 0.8]].forEach(([c, x0, a]) => { f.globalAlpha = a; f.strokeStyle = c; f.beginPath(); f.moveTo(CX + x0 * 0.7, 16); f.quadraticCurveTo(CX + x0, 40, CX + x0 * 1.15, 80); f.stroke(); }); f.globalAlpha = 1;
-    px(d, hair[2], CX - 6, 13, 3, 1); px(d, hair[2], CX - 9, 16, 1, 3);
-    // circlet with a crescent and gem
+    f.lineWidth = 0.7; [[hair[2], -13, 0.9], [hair[1], 14, 0.6]].forEach(([c, x0, a]) => { f.globalAlpha = a; f.strokeStyle = c; f.beginPath(); f.moveTo(CX + x0 * 0.7, 16); f.quadraticCurveTo(CX + x0, 40, CX + x0 * 1.15, 80); f.stroke(); }); f.globalAlpha = 1;
+    // moon circlet with a crescent and gem
     px(d, '#d8d8f0', CX - 9, 19, 18, 1); px(d, '#8a8aa8', CX - 9, 20, 18, 1);
     [[CX - 2, 15], [CX - 3, 16], [CX - 3, 17], [CX - 2, 18], [CX + 1, 15], [CX + 2, 16], [CX + 2, 17], [CX + 1, 18]].forEach(([x, y]) => px(d, '#f4f4ff', x, y));
-    px(d, '#9ae0ff', CX - 1, 17, 2, 2); px(d, '#ffffff', CX - 1, 17);
-    // jewellery: earrings, collar trim, moon pendant
-    px(d, '#e8e8ff', CX - 10, 35, 1, 2); px(d, '#9ae0ff', CX - 10, 37); px(d, '#e8e8ff', CX + 9, 35, 1, 2); px(d, '#6ab0e0', CX + 9, 37);
-    for (let i = 0; i < 8; i++) { px(d, '#c8c8e8', CX - 7 + Math.round(i * 0.6), 52 + i * 1.3 | 0); px(d, '#8a8ab0', CX + 6 - Math.round(i * 0.6), 52 + i * 1.3 | 0); }
-    [[CX - 2, 63], [CX - 3, 64], [CX - 3, 65], [CX - 2, 66], [CX - 1, 66], [CX + 1, 63]].forEach(([x, y]) => px(d, '#f4f4ff', x, y)); px(d, '#9ae0ff', CX, 64, 1, 2);
-    for (let i = 0; i < 9; i++) px(d, i % 3 ? '#8fd0ff' : '#e0f6ff', (rnd() < 0.5 ? 3 + rnd() * 10 : 50 + rnd() * 11) | 0, (40 + rnd() * 36) | 0);
-    f.fillStyle = rad(f, 9, 68, 9, [[0, 'rgba(170,225,255,1)'], [0.45, 'rgba(90,150,240,0.9)'], [0.8, 'rgba(50,80,200,0.6)'], [1, 'rgba(40,60,180,0)']]); f.fillRect(0, 58, 20, 20);
-    fillP(f, '#2a1a14', [[8, 73], [10, 73], [11, 80], [7, 80]]); fillP(f, '#b8b8dc', [[5, 72], [13, 72], [11, 74], [7, 74]]);
-    ellP(f, '#eaf8ff', 9, 68, 3.5, 3.5); px(d, '#ffffff', 8, 66, 2, 1); px(d, '#bfe8ff', 5, 62); px(d, '#bfe8ff', 14, 71); px(d, '#e0f6ff', 12, 63);
-    f.strokeStyle = '#b8b8dc'; f.lineWidth = 0.7; f.beginPath(); f.moveTo(CX - 10, 50.5); f.lineTo(CX - 23, 59); f.moveTo(CX + 10, 50.5); f.lineTo(CX + 23, 59); f.stroke();
-    return { rim: '#b8d4ff', rimSide: -1, top: '#e0e8ff', outline: '#04041a', key: -1, keyCol: 'rgba(200,220,255,0.14)', darkCol: 'rgba(10,6,40,0.45)' };
+    px(d, '#9ae0ff', CX - 1, 17, 2, 2);
+    // the staff's moon orb, lower left
+    f.fillStyle = rad(f, 9, 68, 9, [[0, 'rgba(210,200,255,1)'], [0.45, 'rgba(140,120,240,0.9)'], [0.8, 'rgba(80,60,200,0.6)'], [1, 'rgba(60,40,180,0)']]); f.fillRect(0, 58, 20, 20);
+    fillP(f, '#2a1a14', [[8, 73], [10, 73], [11, 80], [7, 80]]); ellP(f, '#f0ecff', 9, 68, 3.5, 3.5); px(d, '#ffffff', 8, 66, 2, 1);
+    return { rim: '#b8d4ff', rimSide: -1, top: '#e0e8ff', outline: '#04041a', key: -1, keyCol: 'rgba(200,220,255,0.14)', darkCol: 'rgba(10,6,40,0.35)' };
   };
   PAINT.vesna = function (b, f, d, rnd) {
     b.fillStyle = lin(b, 0, 0, 0, PH, [[0, '#0c1008'], [0.35, '#243014'], [0.7, '#8a6a24'], [0.85, '#c49a3a'], [1, '#3a2a10']]); b.fillRect(0, 0, PW, PH);
     b.fillStyle = rad(b, 50, 50, 34, [[0, 'rgba(255,220,120,0.6)'], [1, 'rgba(255,200,90,0)']]); b.fillRect(0, 0, PW, PH);
     strokes(b, rnd, 18, ['#ffd98a', '#e8b050'], 30, 0, PW, 60, 30, 1.2, 2.0, 0.22);
     [[4, 70, 44], [14, 76, 56], [58, 72, 46], [52, 80, 34], [26, 80, 20]].forEach(([x, y, h]) => pine(b, '#0a0e06', x, y, h));
-    crags(b, rnd, 76, 3, '#0e1208', 4);
-    const S = { base: '#e6a67e', shade: '#a8664a', deep: '#6a3626', light: '#fcd0a8' };
-    const hair = ['#c4421c', '#8a2610', '#f07a38', '#5a160a'];
-    // bow stave and arrow fletching behind
-    b.strokeStyle = '#3a1e0c'; f.strokeStyle = '#3a1e0c'; f.lineWidth = 3; f.beginPath(); f.moveTo(6, 80); f.quadraticCurveTo(4, 34, 19, 4); f.stroke();
+    // skin ramp from DEF.vesna.skin #e3a986
+    const S = { base: '#e6aa86', shade: '#b47458', deep: '#7a4432', light: '#fcd2b0' };
+    const hair = ['#b0401c', '#7a2610', '#f07a38', '#5a160a'];
+    // bow stave and red fletching behind
+    f.strokeStyle = '#3a1e0c'; f.lineWidth = 3; f.beginPath(); f.moveTo(6, 80); f.quadraticCurveTo(4, 34, 19, 4); f.stroke();
     f.strokeStyle = '#9a6a32'; f.lineWidth = 1.1; f.beginPath(); f.moveTo(5.2, 78); f.quadraticCurveTo(3.2, 34, 18, 5); f.stroke();
     f.strokeStyle = '#e8dcc0'; f.lineWidth = 0.9; f.beginPath(); f.moveTo(8, 78); f.lineTo(20, 6); f.stroke();
     [[52, 40], [55, 37], [58, 41]].forEach(([x, y], i) => { f.strokeStyle = '#c8b080'; f.lineWidth = 0.9; f.beginPath(); f.moveTo(x - 5, y + 18); f.lineTo(x, y); f.stroke(); fillP(f, i === 1 ? '#d8341c' : '#9a1a10', [[x - 1.5, y + 1], [x + 1, y - 2], [x + 1.2, y + 4], [x - 0.6, y + 5]]); });
-    // short hair mass behind
-    blobP(f, hair[1], [[CX - 12, 14], [CX, 9], [CX + 12, 14], [CX + 14, 32], [CX + 13, 48], [CX - 13, 48], [CX - 14, 32]]);
-    // leathers + fur collar + strap
-    f.fillStyle = lin(f, CX - 24, 0, CX + 24, 0, [[0, '#7a7a3a'], [0.45, '#4e5428'], [1, '#22260e']]);
-    blobP(f, f.fillStyle, [[CX - 10, 50], [CX + 10, 50], [CX + 22, 57], [CX + 25, 80], [CX - 25, 80], [CX - 22, 57]]);
-    fillP(f, '#3a2a14', [[CX - 3, 52], [CX + 3, 52], [CX + 2, 64], [CX - 2, 64]]);
-    for (let i = 0; i < 4; i++) { px(d, '#c8a070', CX - 2, 54 + i * 3, 1, 1); px(d, '#c8a070', CX + 1, 55 + i * 3, 1, 1); }
-    [[-1, ['#b08c62', '#8a6a44', '#d8b888']], [1, ['#6a4c2e', '#4a3420', '#8a6a44']]].forEach(([s, fc]) => {
-      for (let i = 0; i < 12; i++) { const t = i / 11, x = CX + s * (6 + t * 18), y = 49 + t * 7 + rnd() * 2; ellP(f, fc[i % 2], x, y, 3.2, 2.6); fillP(f, fc[1], [[x - 2, y + 1], [x + 2, y + 1], [x + s, y + 5 + rnd() * 2]]); }
-      for (let i = 0; i < 5; i++) px(d, fc[2], Math.round(CX + s * (8 + i * 4)), Math.round(48 + i * 1.8));
-    });
-    fillP(f, '#5a3418', [[CX - 20, 54], [CX - 15, 52], [CX + 14, 80], [CX + 7, 80]]);
-    px(d, '#e8c060', CX - 6, 64, 3, 3); px(d, '#5a3418', CX - 5, 65);
-    paintFace(f, d, { E: 30, hw: 8.5, jw: 2.3, skin: S, iris: '#3a9a3a', brow: '#8a2810', browStyle: 'flat', cocky: true, lips: '#a84a36', smirk: true, fem: true, side: -1 });
-    // war paint: two clean ochre-red bars under each eye, one down the chin; freckles over the nose
-    [[CX - 8, 33], [CX + 3, 33]].forEach(([x, y]) => { px(d, '#9a1c10', x, y, 5, 1); px(d, '#9a1c10', x + 1, y + 2, 4, 1); });
-    [[CX - 2, 32], [CX + 1, 32], [CX - 3, 33], [CX + 2, 34], [CX - 1, 35]].forEach(([x, y]) => px(d, '#c07044', x, y));
-    // side-swept fringe and braid over her left shoulder
+    // big red mane behind
+    blobP(f, hair[1], [[CX - 14, 14], [CX, 7], [CX + 14, 14], [CX + 18, 34], [CX + 17, 56], [CX - 17, 56], [CX - 18, 34]]);
+    // bare shoulders with freckles; a dark wolf-fur top with leather straps
+    f.fillStyle = lin(f, CX - 26, 0, CX + 26, 0, [[0, S.shade], [0.55, S.base], [1, S.light]]);
+    blobP(f, f.fillStyle, [[CX - 10, 50], [CX + 10, 50], [CX + 24, 57], [CX + 27, 80], [CX - 27, 80], [CX - 24, 57]]);
+    for (let i = 0; i < 14; i++) px(d, '#c07a52', (CX - 22 + rnd() * 44) | 0, (53 + rnd() * 12) | 0);
+    const topP = [[CX - 21, 73], [CX - 12, 68], [CX - 3, 71], [CX, 73], [CX + 3, 71], [CX + 12, 68], [CX + 21, 73], [CX + 22, 80], [CX - 22, 80]];
+    fillP(f, '#3c3a36', topP);
+    for (let i = 0; i < 14; i++) { const x = CX - 20 + i * 3, y = 69 + Math.abs(i - 6.5) * 0.35; fillP(f, i % 2 ? '#5a5650' : '#2a2824', [[x - 2, y + 2], [x + 2, y + 2], [x + (rnd() - 0.5), y - 2]]); }
+    for (let y = 73; y < 80; y += 2) for (let x = CX - 19; x < CX + 20; x += 4) px(d, '#6a6660', x + (y % 4 ? 2 : 0), y);
+    f.strokeStyle = '#2a1a10'; f.lineWidth = 1; f.beginPath(); f.moveTo(CX - 12, 68); f.lineTo(CX - 16, 51); f.moveTo(CX + 12, 68); f.lineTo(CX + 16, 51); f.stroke();
+    [[CX - 12, 55], [CX - 8, 56], [CX + 8, 56], [CX + 12, 55]].forEach(([x, y]) => px(d, S.shade, x, y, 2, 1));
+    paintFace(f, d, { E: 30, hw: 8.5, jw: 2.3, skin: S, iris: '#3a7a2a', brow: '#8a2a10', browStyle: 'flat', cocky: true, lips: '#b0302a', smirk: true, fem: true, side: -1 });
+    // war paint: three red stripes across her left cheek (viewer's right), as on the model; freckles over the nose
+    for (let i = 0; i < 3; i++) { const y = 33 + i * 2; px(d, '#b01014', CX + 3, y, 2, 1); px(d, '#b01014', CX + 5, y - 1, 2, 1); px(d, '#b01014', CX + 7, y - 1, 1, 1); }
+    [[CX - 2, 32], [CX + 1, 32], [CX - 3, 33], [CX - 5, 34], [CX - 1, 35], [CX - 6, 33]].forEach(([x, y]) => px(d, '#c07044', x, y));
+    // side-swept fringe, big loose locks, and the braid down the front over her left shoulder
     blobP(f, hair[0], [[CX + 5, 12], [CX + 11, 15], [CX + 11, 26], [CX + 9, 22], [CX + 4, 18], [CX - 3, 21], [CX - 10, 27], [CX - 11, 17], [CX - 4, 11]]);
-    fillP(f, hair[1], [[CX - 11, 18], [CX - 9, 24], [CX - 9, 36], [CX - 11, 40]]);
+    fillP(f, hair[1], [[CX - 12, 18], [CX - 9, 24], [CX - 10, 44], [CX - 15, 52]]); fillP(f, hair[0], [[CX + 12, 18], [CX + 9, 24], [CX + 9, 34], [CX + 14, 40]]);
     [[CX - 6, 14], [CX - 2, 13], [CX + 3, 13], [CX - 8, 18], [CX + 8, 16]].forEach(([x, y]) => px(d, hair[2], x, y, 2, 1));
     const bp = []; for (let i = 0; i < 10; i++) bp.push([CX + 11 + Math.sin(i * 0.4) * 1.5 + i * 0.3, 36 + i * 4.4]);
     braid(f, d, bp, [hair[0], hair[1], hair[2]], 3.1);
-    px(d, '#5a3418', Math.round(bp[8][0] - 2), Math.round(bp[8][1] + 1), 4, 2); px(d, '#c8a070', Math.round(bp[8][0] - 1), Math.round(bp[8][1] + 1), 1, 1);
-    return { rim: '#ffd070', rimSide: 1, top: '#ffe0a0', outline: '#0a0c04', key: 1, keyCol: 'rgba(255,220,130,0.2)' };
+    px(d, '#2a1a10', Math.round(bp[8][0] - 2), Math.round(bp[8][1] + 1), 4, 2);
+    return { rim: '#ffd070', rimSide: 1, top: '#ffe0a0', outline: '#0a0c04', key: 1, keyCol: 'rgba(255,220,130,0.2)', darkCol: 'rgba(26,4,16,0.3)' };
   };
   PAINT.bram = function (b, f, d, rnd) {
     b.fillStyle = lin(b, 0, 0, 0, PH, [[0, '#0e0604'], [0.6, '#2a1008'], [1, '#6a2008']]); b.fillRect(0, 0, PW, PH);

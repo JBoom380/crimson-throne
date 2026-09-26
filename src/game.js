@@ -193,6 +193,7 @@
 
   // ── View for the UI ────────────────────────────────────────────────────────
   const tmpV = new T.Vector3();
+  const camM = new T.Matrix4(), camQ = new T.Quaternion();
   function view() {
     const p = CT.player || {}, r = CT.rpg || {};
     const yaw = p.yaw != null ? p.yaw : camera.rotation.y;
@@ -288,6 +289,20 @@
       titleCamera(core.time);
     }
     call('world', 'update', realDt, core);
+    // dialog close-up: ease the camera onto the speaker's face so eyes and expressions read at 640x360
+    {
+      const n = core.state === 'DIALOG' && S.dialogNpc && S.dialogNpc.pos ? S.dialogNpc : null;
+      if (n) {
+        const hy = n.pos.y + (n.headY || (n.hero || n.heroine || /kaela|nyx|vesna|selene/.test(n.id) ? 1.66 : 1.6));
+        // frame the face in the open area right of the portrait and below the text box: aim a little up and to the left of the head
+        const fx = n.pos.x - camera.position.x, fz = n.pos.z - camera.position.z, fl = Math.hypot(fx, fz) || 1;
+        const rx = -fz / fl, rz = fx / fl; // camera-right on the ground plane
+        camM.lookAt(camera.position, tmpV.set(n.pos.x - rx * 0.16, hy + 0.1, n.pos.z - rz * 0.16), camera.up); camQ.setFromRotationMatrix(camM);
+        camera.quaternion.slerp(camQ, 1 - Math.exp(-realDt * 5));
+      }
+      const fovT = n ? 14 : 70;
+      if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * (1 - Math.exp(-realDt * 5)); camera.updateProjectionMatrix(); }
+    }
     call('sky', 'update', realDt, core);
 
     // camera shake (applied after the player sets the camera)
@@ -335,7 +350,7 @@
     renderer.setRenderTarget(null); renderer.render(postScene, postCam);
 
     pxCtx.clearRect(0, 0, C.PIX_W, C.PIX_H);
-    if (simulate || core.state === 'PAUSE' || core.state === 'INVENTORY' || core.state === 'MAP' || core.state === 'DIALOG') {
+    if (simulate || core.state === 'PAUSE' || core.state === 'INVENTORY' || core.state === 'MAP') { // hands hidden in dialog so the face is clear
       call('player', 'drawHands', pxCtx, core.time);
       call('gore', 'drawScreen', pxCtx, core.time);
     }

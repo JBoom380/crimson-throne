@@ -697,14 +697,14 @@
       F.ell(0, O, [s * 0.011, -0.03, 0.089], [0.0085, 0.007, 0.008], 0.008);      // nostril wing
     }
     F.ell(0, O, [0, -0.084, 0.056], [0.021 * (S.chin || 1), 0.018, 0.019], 0.025); // chin
-    F.ell(0, O, [0, 0.023, 0.073], [0.05, 0.011, 0.013], 0.02);                     // brow ridge
+    F.ell(0, O, [0, 0.024, 0.073], [0.052, 0.012, 0.015], 0.02);                     // brow ridge
     F.cone(0, [0, 0.018, 0.08], [0, -0.021, 0.099], 0.0065, 0.0095, 0.012);         // nose bridge
     F.ell(0, O, [0, -0.025, 0.097], [0.0105, 0.0085, 0.0095], 0.01);               // nose tip
     const lf = S.lips || 1;
     F.ell(0, O, [0, -0.043, 0.082], [0.021, 0.0072 * lf, 0.011], 0.012);           // upper lip
     F.ell(0, O, [0, -0.054, 0.08], [0.018, 0.0085 * lf, 0.0115 * lf], 0.012);      // lower lip
     F.cone(0, [0, -0.045, -0.024], [0, -0.12, -0.03], 0.036, 0.034, 0.03);        // neck (stays inside the body's neck)
-    for (const s of [-1, 1]) F.ell(0, O, [s * 0.031, 0.004, 0.085], [0.017, 0.013, 0.014], 0.01, { sub: true }); // eye sockets
+    for (const s of [-1, 1]) F.ell(0, O, [s * 0.031, 0.004, 0.084], [0.019, 0.013, 0.015], 0.01, { sub: true }); // eye sockets
     return F;
   }
   // Face paint: planar front projection, u = 0.5 + x/0.2, v = 0.5 + (y + 0.02)/0.2
@@ -730,7 +730,7 @@
     // eyes: dark almond, heavy liner with a Frazetta wing, big iris, bright catchlight
     for (const s of [-1, 1]) {
       const w = 44, hgt = 17 * (S.eyeOpen || 1), tilt = (S.eyeTilt || 0.1) * -s;
-      g.save(); g.translate(FU(s * 0.031), FV(0.003)); g.rotate(tilt);
+      g.save(); g.translate(FU(s * 0.031), FV(0.003)); g.rotate(tilt); g.scale(s, 1);   // the wing points outward on both eyes
       g.fillStyle = '#b89a90'; g.beginPath(); g.moveTo(-w, 3); g.quadraticCurveTo(-w * 0.15, -hgt * 1.7, w, -hgt * 0.3); g.quadraticCurveTo(w * 0.1, hgt * 1.35, -w, 3); g.fill();
       g.fillStyle = S.iris; g.beginPath(); g.arc(-s * 2, -3, hgt * 1.12, 0, PI * 2); g.fill();
       g.fillStyle = '#050203'; g.beginPath(); g.arc(-s * 2, -3, hgt * 0.55, 0, PI * 2); g.fill();
@@ -788,6 +788,7 @@
       wr: { '-1': [-0.05, 1.04, 0.31], '1': [0.05, 1.06, 0.3] }, elb: { '-1': [-1, -0.2, -0.3], '1': [1, -0.2, -0.3] },
       hd: { '-1': [0.35, -0.45, 0.8], '1': [-0.35, -0.4, 0.8] }, hf: { '-1': [0, 1, 0], '1': [0, 1, 0] },
     },
+    eyes: { iris: '#9a5a1c', lid: '#8a5a42', rest: 1.0 },
     face: { iris: '#5a3212', lid: 'rgba(60,30,20,0.9)', blush: 'rgba(170,70,50,0.35)', brow: '#140a08', browAng: 0.9, browArch: 0.2, lips: '#9a1e1c', eyeTilt: 0.14, eyeOpen: 1.0, scar: true },
     head: { jaw: 1.06, chin: 1.1, lips: 1.1 },
   };
@@ -803,6 +804,7 @@
       wr: { '-1': [-0.39, 1.78, 0.1], '1': [0.2, 0.99, 0.04] }, elb: { '-1': [-1, -0.4, -0.2], '1': [1, 0.1, -0.7] },
       hd: { '-1': [0.1, 1, 0.05], '1': [-0.2, -0.8, 0.45] }, hf: { '-1': [1, 0, 0], '1': [0.8, 0, 0.3] },
     },
+    eyes: { iris: '#9a5af0', lid: '#b89ab8', rest: 0.8 },
     face: { iris: '#8a4ae8', lid: 'rgba(70,30,80,0.95)', lidCol: '#3a1c40', blush: 'rgba(170,80,110,0.25)', brow: '#6a6070', browAng: -0.1, browArch: 0.9, lips: '#6e0f2e', eyeTilt: 0.2, eyeOpen: 1.0, lidLow: 0.38 },
     head: { jaw: 0.97, chin: 1.0, lips: 1.15 },
   };
@@ -818,6 +820,7 @@
       wr: { '-1': [0.13, 0.93, 0.22], '1': [-0.17, 0.99, 0.02] }, elb: { '-1': [0, -0.5, 1], '1': [-0.6, 0, 0.8] },
       hd: { '-1': [0, -1, 0.1], '1': [0.3, -0.7, -0.5] }, hf: { '-1': [1, 0, 0], '1': [-0.7, 0, -0.7] },
     },
+    eyes: { iris: '#4a9a3c', lid: '#b87a5e', rest: 0.95 },
     face: { iris: '#3a6a2a', lid: 'rgba(80,40,20,0.8)', blush: 'rgba(200,80,60,0.35)', brow: '#8a2a10', browAng: -0.2, browArch: 0.5, lips: '#b0302a', eyeTilt: 0.1, eyeOpen: 0.95, grin: 0.9, smirk: 0.8, teeth: true, freckles: true, paint: 'rgba(170,10,16,0.95)', paintSide: -1, mouthW: 1.1 },
     head: { jaw: 1.0, chin: 0.95, lips: 1.05 },
   };
@@ -839,6 +842,7 @@
       hd: { '-1': [0, -1, 0.15], '1': [-0.1, 1, 0.25] }, hf: { '-1': [0, 0, 1], '1': [-0.6, 0, 0.8] },
     },
     athletic: 0.55,
+    eyes: { iris: '#5a90f0', lid: '#a08a8a', rest: 0.85 },
     face: { iris: '#a8c4ff', lid: 'rgba(40,40,90,0.9)', lidCol: '#232a52', blush: 'rgba(170,90,80,0.22)', brow: '#0c0e18', browAng: 0.3, browArch: 0.6, lips: '#6a1a3a', eyeTilt: 0.18, eyeOpen: 0.95, lidLow: 0.35, smirk: 0.6 },
     head: { jaw: 1.0, chin: 1.02, lips: 1.08 },
   };
@@ -1155,6 +1159,68 @@
     }
   }
 
+
+  // ── Eyes: one lens mesh per heroine (both eyes), fitted 1 mm over the face surface in the eye opening.
+  // The shader draws sclera, iris, pupil, lash lines and a catchlight; the iris follows the camera, the lid blinks.
+  const EYE = { hw: 0.0158, ht: 0.0074, hb: 0.0054, x: 0.031, y: 0.003 };
+  function eyeLens(HF, fr, S) {
+    const P = [], N = [], UV = [], SD = [], idx = [], NU = 14, NV = 7;
+    for (const s of [-1, 1]) {
+      const base = P.length / 3, tilt = (S.eyeTilt || 0.1) * -s, ct = Math.cos(tilt), st = Math.sin(tilt);
+      for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) {
+        const u = i / NU * 2 - 1, v = j / NV * 2 - 1, k = Math.pow(Math.max(1 - u * u, 0), 0.75);
+        const top = EYE.ht * k * (1 - 0.18 * u * s), bot = EYE.hb * Math.pow(Math.max(1 - u * u, 0), 0.9);
+        const lx = u * EYE.hw, ly = v > 0 ? v * top : v * bot;
+        const x = s * EYE.x + lx * ct - ly * st, y = EYE.y + lx * st + ly * ct;
+        let z = 0.13; for (let it = 0; it < 90 && HF.at(x, y, z) > 0; it++) z -= 0.0012;
+        for (let it = 0; it < 8; it++) z += (HF.at(x, y, z) > 0 ? -1 : 1) * 0.0012 / (1 << (it + 1));
+        const l = [x, y, z + 0.0011];
+        P.push(...W(fr, l)); N.push(...WD(fr, [0, 0, 1])); UV.push(u, v); SD.push(s);
+      }
+      for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
+        const a = base + j * (NU + 1) + i, b = a + 1, c = a + NU + 1, d = c + 1;
+        idx.push(a, b, d, a, d, c);
+      }
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(N, 3));
+    g.setAttribute('aEyeUv', new T.Float32BufferAttribute(UV, 2)); g.setAttribute('aSide', new T.Float32BufferAttribute(SD, 1));
+    g.setIndex(idx); g.computeBoundingSphere(); return g;
+  }
+  function eyeMat(D, unis) {
+    const m = new T.MeshLambertMaterial({ color: 0xffffff });
+    const eu = { uIris: { value: new T.Color(D.eyes.iris) }, uLidCol: { value: new T.Color(D.eyes.lid) }, uLook: { value: new T.Vector2() }, uLid: { value: D.eyes.rest }, uGlow: { value: 0 } };
+    m.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, U, unis, eu);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\n' + IDLE + '\nattribute vec2 aEyeUv; attribute float aSide; varying vec2 vEUv; varying float vSide;')
+        .replace('#include <begin_vertex>', 'vec3 transformed = ctIdle(position, 0.0); vEUv = aEyeUv; vSide = aSide;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uIris; uniform vec3 uLidCol; uniform vec2 uLook; uniform float uLid; uniform float uGlow; varying vec2 vEUv; varying float vSide;')
+        .replace('#include <color_fragment>', `
+          vec2 mm = vec2(vEUv.x * 15.8, vEUv.y * (vEUv.y > 0.0 ? 7.4 : 5.4));          // millimetres in the opening
+          vec2 ic = vec2(uLook.x * 5.5, uLook.y * 2.2 + 0.8);                          // iris centre, tucked under the upper lid
+          float r = length(mm - ic);
+          vec3 c = vec3(0.84, 0.8, 0.76);                                              // sclera
+          c *= 1.0 - 0.4 * smoothstep(0.2, 1.0, vEUv.y) - 0.3 * smoothstep(0.55, 1.0, abs(vEUv.x));
+          vec3 ir = uIris * (0.55 + 0.75 * smoothstep(5.0, 2.2, r)) * (0.85 + 0.3 * sin(atan(mm.y - ic.y, mm.x - ic.x) * 9.0));
+          ir = mix(ir, vec3(0.03), smoothstep(4.3, 5.4, r) * 0.8);                       // limbal ring
+          c = mix(c, ir, 1.0 - smoothstep(5.2, 5.6, r));
+          c = mix(c, vec3(0.012), 1.0 - smoothstep(2.0, 2.4, r));                       // pupil
+          float cat = 1.0 - smoothstep(0.8, 1.15, length(mm - ic - vec2(1.7, 1.9)));   // catchlight
+          c = mix(c, vec3(1.0), cat);
+          float lidY = mix(-1.15, 1.0, uLid);                                          // upper lid line (1 = open)
+          c = mix(c, vec3(0.02, 0.01, 0.012), smoothstep(-0.6, -0.9, vEUv.y) * 0.75);   // lower lash line
+          if (vEUv.y > lidY) c = uLidCol;                                              // the lid
+          c = mix(c, vec3(0.01, 0.005, 0.006), 1.0 - smoothstep(0.22, 0.34, abs(vEUv.y - lidY + 0.1)) );  // heavy upper lash line on the lid edge
+          diffuseColor.rgb = c;`)
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * (0.06 + uGlow) + vec3(1.0) * cat * step(vEUv.y, lidY - 0.25) * 0.55;');
+    };
+    m.customProgramCacheKey = () => 'ctHeroEye';
+    m.userData.eu = eu;
+    return m;
+  }
+
   // ── Build: bake everything into one cached set of geometries ──────────────
   const cache = {};
   // Anatomy: painted shading lines (collarbones, sternum, abs, navel, hip V, knees, shins, calves, back dimples)
@@ -1270,11 +1336,12 @@
     const { P, Sft } = extras(id, D, F, HFs, rig); mark('extras');
     hairStrands(id, D, rig, F, HFs, HR, Sft); mark('strands');
     const faceTex = paintFace(D.face); mark('paint');
-    const out = { body, head, hair, prop: P.build(), soft: Sft.build(), faceTex, rig, ms: 0, TM, F };
+    const eyes = eyeLens(HFs, rig.head, D.face);
+    const out = { body, head, hair, prop: P.build(), soft: Sft.build(), eyes, faceTex, rig, ms: 0, TM, F };
     out.ms = performance.now() - t0;
     const tri = g => g ? g.index.count / 3 : 0;
-    out.tris = { body: tri(body), head: tri(head), hair: tri(hair), prop: tri(out.prop), soft: tri(out.soft) };
-    out.tris.total = out.tris.body + out.tris.head + out.tris.hair + out.tris.prop + out.tris.soft;
+    out.tris = { body: tri(body), head: tri(head), hair: tri(hair), prop: tri(out.prop), soft: tri(out.soft), eyes: tri(eyes) };
+    out.tris.total = out.tris.body + out.tris.head + out.tris.hair + out.tris.prop + out.tris.soft + out.tris.eyes;
     cache[id] = out; return out;
   }
 
@@ -1287,11 +1354,23 @@
     const g = new T.Group(); g.name = 'heroine_' + id;
     const add2 = (geo, m, ink) => { if (!geo) return; const me = new T.Mesh(geo, m); me.castShadow = true; g.add(me); if (ink) { const o = new T.Mesh(geo, mats.ink); o.renderOrder = -1; g.add(o); } };
     add2(B.body, mats.body, true); add2(B.head, mats.head, true); add2(B.hair, mats.prop, true); add2(B.prop, mats.prop, true); add2(B.soft, mats.soft, false);
+    const em = eyeMat(D, mats.unis), eyes = new T.Mesh(B.eyes, em); eyes.renderOrder = 1; g.add(eyes);
+    const hd = B.rig.head, hInv = tr(hd.R), cam = new T.Vector3(), look = em.userData.eu.uLook.value, blink = { next: 2 + hash3(D.phase, 1, 1) * 3, t: -1 };
+    eyes.onBeforeRender = (r, sc, camera) => {   // the iris follows the viewer while she faces them
+      cam.setFromMatrixPosition(camera.matrixWorld); g.worldToLocal(cam);
+      const q = mv(hInv, [cam.x - hd.o[0], cam.y - hd.o[1], cam.z - hd.o[2]]);
+      const yaw = Math.atan2(q[0], q[2]), pitch = Math.atan2(q[1], Math.hypot(q[0], q[2]));
+      const k = q[2] > 0 ? 1 : 0.2;
+      look.set(clamp(yaw / 0.7, -1, 1) * k, clamp(pitch / 0.5, -1, 1) * k);
+    };
     if (id === 'nyx') {
-      const orb = new T.Mesh(new T.SphereGeometry(0.075, 16, 12), new T.MeshBasicMaterial({ color: new T.Color(0.75, 0.7, 1.6) }));
-      orb.position.set(-0.4, 1.99, 0.1); g.add(orb);
-      const halo = new T.Mesh(new T.SphereGeometry(0.14, 16, 12), new T.MeshBasicMaterial({ color: new T.Color(0.35, 0.2, 0.9), transparent: true, opacity: 0.35, blending: T.AdditiveBlending, depthWrite: false }));
-      halo.position.copy(orb.position); g.add(halo);
+      // orb core + halo in one mesh (one draw call): a bright core that fades to a violet glow at the rim
+      const orb = new T.Mesh(new T.SphereGeometry(0.14, 20, 14), new T.ShaderMaterial({
+        transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+        vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+        fragmentShader: 'varying vec3 vN; varying vec3 vV; void main(){ float f = clamp(dot(vN, vV), 0.0, 1.0); vec3 c = mix(vec3(0.3, 0.16, 0.8) * 0.5, vec3(1.0, 0.95, 1.6), smoothstep(0.55, 0.8, f)); gl_FragColor = vec4(c * smoothstep(0.0, 0.5, f), 1.0); }',
+      }));
+      orb.position.set(-0.4, 1.99, 0.1); g.add(orb); const halo = orb;
       const pl = new T.PointLight(0x9a80ff, 1.6, 3.5, 1.5); pl.position.copy(orb.position); g.add(pl);
       g.userData.orb = orb; g.userData.halo = halo;
     }
@@ -1299,7 +1378,12 @@
     g.userData.id = id; g.userData.stats = { ms: B.ms, tris: B.tris, draws: g.children.filter(c => c.isMesh).length };
     g.userData.update = (dt, t) => {
       U.uT.value = t;
-      if (g.userData.halo) { const k = 1 + 0.12 * Math.sin(t * 2.3); g.userData.halo.scale.setScalar(k); }
+      if (g.userData.halo) { const k = 1 + 0.08 * Math.sin(t * 2.3); g.userData.halo.scale.setScalar(k); }
+      // blink every 3 to 6 s (closed for about 0.12 s)
+      if (blink.t < 0 && t > blink.next) blink.t = 0;
+      let lid = D.eyes.rest;
+      if (blink.t >= 0) { blink.t += dt; const b = blink.t < 0.07 ? blink.t / 0.07 : blink.t < 0.12 ? 1 : 1 - (blink.t - 0.12) / 0.1; lid = D.eyes.rest * (1 - clamp(b, 0, 1)); if (blink.t > 0.22) { blink.t = -1; blink.next = t + 3 + Math.random() * 3; } }
+      em.userData.eu.uLid.value = lid;
     };
     return g;
   }
