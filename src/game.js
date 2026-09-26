@@ -33,15 +33,20 @@
   // ── Renderer + Frazetta pixel post pass ────────────────────────────────────
   const isTouch = window.matchMedia('(pointer: coarse)').matches; // primary pointer only, so touch laptops keep mouse look
   const renderer = new T.WebGLRenderer({ canvas: glCanvas, antialias: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(1); renderer.setSize(C.PIX_W, C.PIX_H, false);
+  // Render modes: 'painted' = 1280x720, no dither/posterise (painted art keeps its brushwork); 'retro' = 640x360 pixel art.
+  let RMODE = 'painted';
+  try { RMODE = new URLSearchParams(location.search).get('render') || localStorage.getItem('crimsonThrone.render') || (isTouch ? 'retro' : 'painted'); } catch (e) {}
+  const PAINTED = RMODE === 'painted', GW = PAINTED ? 1280 : C.PIX_W, GH = PAINTED ? 720 : C.PIX_H;
+  renderer.setPixelRatio(1); renderer.setSize(GW, GH, false);
+  if (PAINTED) glCanvas.style.imageRendering = 'auto';
   renderer.outputColorSpace = T.LinearSRGBColorSpace;
-  const rt = new T.WebGLRenderTarget(C.PIX_W, C.PIX_H, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, type: T.HalfFloatType });
+  const rt = new T.WebGLRenderTarget(GW, GH, { minFilter: PAINTED ? T.LinearFilter : T.NearestFilter, magFilter: PAINTED ? T.LinearFilter : T.NearestFilter, type: T.HalfFloatType });
   const postScene = new T.Scene(), postCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const postMat = new T.ShaderMaterial({
-    uniforms: { tDiffuse: { value: rt.texture }, uFade: { value: 0 }, uHurt: { value: 0 }, uLow: { value: 0 }, uTime: { value: 0 }, uDizzy: { value: 0 } },
+    uniforms: { tDiffuse: { value: rt.texture }, uFade: { value: 0 }, uHurt: { value: 0 }, uLow: { value: 0 }, uTime: { value: 0 }, uDizzy: { value: 0 }, uDith: { value: PAINTED ? 0 : 1 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tDiffuse; uniform float uFade, uHurt, uLow, uTime, uDizzy; varying vec2 vUv;
+      uniform sampler2D tDiffuse; uniform float uFade, uHurt, uLow, uTime, uDizzy, uDith; varying vec2 vUv;
       float bayer(vec2 p){ int x=int(mod(p.x,4.0)), y=int(mod(p.y,4.0)); int i=x+y*4;
         float m[16]=float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
         for(int k=0;k<16;k++) if(k==i) return m[k]/16.0-0.5; return 0.0; }
@@ -64,8 +69,10 @@
         float pulse = 0.6 + 0.4 * sin(uTime * 6.0);
         c = mix(c, vec3(dot(c, vec3(0.33))) * vec3(1.0,0.6,0.55), uLow * 0.45);
         c = mix(c, vec3(0.55,0.0,0.02), clamp(v * 3.2 * (uHurt + uLow * 0.5 * pulse), 0.0, 0.85));
+        if (uDith > 0.5) {
         c += bayer(gl_FragCoord.xy) / 18.0;
         c = floor(c * 18.0 + 0.5) / 18.0;
+        }
         gl_FragColor = vec4(c * uFade, 1.0);
       }`,
     depthTest: false, depthWrite: false,
@@ -80,6 +87,8 @@
   const torchLight = new T.PointLight(0xff9a40, 0, 22, 1.5);
   torchLight.position.set(-0.4, -0.2, -0.5); camera.add(torchLight);
 
+  CT.renderMode = RMODE;
+  CT.setRenderMode = m => { try { localStorage.setItem('crimsonThrone.render', m); } catch (e) {} location.reload(); };
   const core = CT.core = {
     THREE: T, scene, camera, renderer, time: 0, dt: 0, state: 'GATE', input: null,
     hurtFlash: 0, dizzy: 0, isTouch, quality: isTouch ? 'low' : 'high', torchLight,

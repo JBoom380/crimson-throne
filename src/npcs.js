@@ -778,6 +778,51 @@
   }
   npcs.companion = { banter, speak, get state() { return comp(); }, get npc() { return COMP.n; }, debug: COMP };
 
+  // ── Painted sprite billboards (sprites.js, from tools/make_sprites.py) ─────
+  // A camera-facing plane (turns around Y only) with the painted frame chosen by the angle between her facing and the
+  // camera: a0, a35 (for about 45), a90, a180; the 35 and 90 frames mirror for the other side. The 3D model stays as the
+  // fallback and is hidden while the sprite is active. alphaTest keeps it in the opaque pass (no sorting with fire/fog).
+  const SPRITE_IDS = ['kaela'];   // the other heroines get painted frames later
+  function spriteRig(id) {
+    const SP = CT.sprites && CT.sprites[id]; if (!SP || !SP.frames || !SP.frames.a0) return null;
+    const tex = {};
+    Object.keys(SP.frames).forEach(k => {
+      const img = new Image(), t = new T.Texture(img);
+      t.colorSpace = T.SRGBColorSpace; t.minFilter = T.LinearMipmapLinearFilter; t.magFilter = T.LinearFilter; t.generateMipmaps = true; t.anisotropy = 4;
+      img.onload = () => { t.needsUpdate = true; }; img.src = SP.frames[k].src; tex[k] = t;
+    });
+    const geo = new T.PlaneGeometry(1, 1); geo.translate(0, 0.5, 0);
+    // lit by the scene (Lambert) plus an emissive copy of the painting so she never sinks into the dark side of a plane
+    const mat = new T.MeshLambertMaterial({ map: tex.a0, emissive: 0xffffff, emissiveMap: tex.a0, emissiveIntensity: 0.55, alphaTest: 0.5, side: T.DoubleSide });
+    const root = new T.Group(), mesh = new T.Mesh(geo, mat); root.add(mesh); root.name = 'sprite_' + id;
+    const sh = new T.Mesh(G.geo.disc, basic('#000000', 0.38)); sh.rotation.x = -PI / 2; sh.position.y = 0.03; sh.scale.set(0.46, 0.34, 1); sh.renderOrder = -1; root.add(sh);
+    group.add(root);
+    return { root, mesh, mat, tex, frames: SP.frames, H: SP.height || 1.83, key: null, mir: 1, bob: 0, ph: (hash(id) % 100) / 17 };
+  }
+  function spriteFrame(rel) {
+    const a = Math.abs(rel) * 180 / PI;
+    const key = a < 20 ? 'a0' : a < 62 ? 'a35' : a < 125 ? 'a90' : 'a180';
+    return { key, mir: (key === 'a35' || key === 'a90') && rel < 0 ? -1 : 1 };
+  }
+  function spriteUpdate(n, dt, c) {
+    const S = n.spr, cam = c.camera.position;
+    S.root.position.copy(n.pos);
+    const toCam = Math.atan2(cam.x - n.pos.x, cam.z - n.pos.z);
+    S.root.rotation.y = toCam;
+    let rel = toCam - n.yawNow; while (rel > PI) rel -= TAU; while (rel < -PI) rel += TAU;
+    const F = spriteFrame(rel);
+    if (F.key !== S.key || F.mir !== S.mir) {
+      if (S.key) S.bob = 1;
+      S.key = F.key; S.mir = F.mir; S.mat.map = S.mat.emissiveMap = S.tex[F.key];
+    }
+    const m = S.frames[S.key], Hw = S.H / Math.max(0.1, m.bottom - m.top), Ww = Hw * m.w / m.h, t = time + S.ph;
+    S.bob = Math.max(0, S.bob - dt * 3.5);
+    S.mesh.scale.set(Ww * S.mir, Hw * (1 + Math.sin(t * 1.7) * 0.01), 1);
+    S.mesh.position.set((0.5 - m.ax) * Ww * S.mir, -(1 - m.bottom) * Hw + Math.sin(S.bob * PI) * 0.025, 0);
+    S.mesh.rotation.z = Math.sin(t * 0.42) * 0.008;
+  }
+  npcs.spriteFrame = spriteFrame;
+
   // ── Shadow blob ────────────────────────────────────────────────────────────
   function blob(R) {
     const m = new T.Mesh(G.geo.disc, basic('#000000', 0.38)); m.rotation.x = -PI / 2; m.position.y = 0.03; m.scale.setScalar(0.42);
@@ -797,6 +842,7 @@
     };
     if (CT.humanoid && CT.humanoid.prewarm) { try { CT.humanoid.prewarm(npcs.kitSpecs()); } catch (e) { console.warn('[npcs] prewarm', e); } }
     CAST.forEach(d => npcs.list.push(mk(d, heroRig(d.id) || (d.kind === 'trader' && kitRig(d.id)) || BUILD[d.id]())));
+    SPRITE_IDS.forEach(id => { const n = npcs.find(id); if (n) { try { n.spr = spriteRig(id); } catch (e) { console.warn('[npcs] sprite failed', id, e); n.spr = null; } } });
     VILLAGERS.forEach((v, i) => {
       v.seed = hash(v.id); v.scale = v.scale || (v.fem ? 0.93 : 1.0) + (v.seed % 5) * 0.012;
       npcs.list.push(mk(Object.assign({ kind: 'villager', tags: v.task === 'spear' ? ['guard', 'villager'] : ['villager', 'merchant', 'guard'] }, v), kitRig(v.id, v) || buildVillager(v), { dlg: 'villager', lines: v.lines, task: v.task, portrait: v.id }));
@@ -824,13 +870,15 @@
       const R = n.R, dx = pp.x - n.pos.x, dz = pp.z - n.pos.z, d = Math.hypot(dx, dz);
       n.dist = d;
       R.root.visible = d < (R.hero ? 150 : 170);
-      if (!R.root.visible) return;
+      if (n.spr) { n.spr.root.visible = R.root.visible; R.root.visible = false; if (!n.spr.root.visible) return; }
+      else if (!R.root.visible) return;
       n.pos.y = H(n.pos.x, n.pos.z); R.root.position.copy(n.pos);
       // face the player within 8 m, else turn back home
       const want = d < 8 ? Math.atan2(dx, dz) : n.home;
       let da = want - n.yawNow; while (da > PI) da -= TAU; while (da < -PI) da += TAU;
       n.yawNow += da * Math.min(1, dt * (d < 8 ? 3 : 1.2)); R.root.rotation.y = n.yawNow;
-      if (R.hero) { if (R.root.userData.update) R.root.userData.update(dt, time); }
+      if (n.spr) spriteUpdate(n, dt, c);
+      else if (R.hero) { if (R.root.userData.update) R.root.userData.update(dt, time); }
       else if (R.kit) {
         if (n.talkT > 0) n.talkT -= dt;
         if (d < 90) CT.humanoid.animate(R, dt, time + R.ph, { look: d < 8 ? clamp(Math.atan2(dx, dz) - n.yawNow, -0.9, 0.9) : null, pitch: d < 8 ? 0.08 : 0, talk: n.talkT > 0 || (c.state === 'DIALOG' && d < 4), work: d > 6 ? R.work : null });
