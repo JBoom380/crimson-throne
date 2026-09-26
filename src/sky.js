@@ -69,7 +69,7 @@
   cur.moonCol = new T.Color();
   const tc = new T.Color(), tc2 = new T.Color();
   const sunDir = new T.Vector3(), moonDir = new T.Vector3(), lightDir = new T.Vector3(0, 1, 0), flashDir = new T.Vector3(0, 0.3, -1), flashCol = new T.Color(1, 1, 1);
-  const tv = new T.Vector3();
+  const tv = new T.Vector3(), crownEff = new T.Vector3();
   const SUN_E = new T.Vector3(0.72, 0, 0.69).normalize();     // sunrise side (south-east); it sets in the north-west
 
   // ── Shared GLSL ────────────────────────────────────────────────────────────
@@ -87,6 +87,7 @@
   const DOME_FS = `
     varying vec3 vDir;
     uniform float uTime, uCover, uStars, uSunAmt, uMoonAmt, uMoonSize, uGlowAmt, uTower, uTowerH, uFlash, uFogSky, uStorm;
+    uniform sampler2D tDusk, tNoon; uniform float uPaintD, uPaintN, uBlood, uEl0, uEl1, uOffD, uOffN, uPaintK; uniform vec3 uDuskTint;
     uniform vec3 uZen, uMid, uHor, uGlow, uSunCol, uCDark, uCLight, uRim, uFogCol, uSunDir, uMoonDir, uLightDir, uFlashCol, uFlashDir, uMoonCol;
     ${NOISE}
     void main(){
@@ -100,6 +101,24 @@
       float band = exp(-daz*daz*0.9) * exp(-elc*6.0) * smoothstep(-0.3, 0.02, uLightDir.y);
       float glowM = exp(-la*la*14.0) + exp(-la*la*2.5)*0.3 + band*0.85;
       col = mix(col, uGlow, clamp(glowM*uGlowAmt, 0.0, 1.0));
+      // painted horizon strips (cylindrical around the camera), crossfaded by time of day
+      float P = 0.0;
+      if (uPaintD + uPaintN > 0.001) {
+        float v = (el - uEl0) / (uEl1 - uEl0), u = az / 6.28318;
+        float cm = smoothstep(0.35, 0.65, v);                                               // only the clouds drift
+        float drift = (0.004*sin(uTime*0.011) + 0.0025*sin(uTime*0.029 + 1.3)) * cm;
+        float vy = clamp(v + 0.002*sin(uTime*0.017 + u*40.0)*cm, 0.002, 0.998);
+        vec3 pc = vec3(0.0);
+        if (uPaintD > 0.001) pc += texture2D(tDusk, vec2(u + uOffD + drift, vy)).rgb * uDuskTint * uPaintD;
+        if (uPaintN > 0.001) pc += texture2D(tNoon, vec2(u + uOffN + drift, vy)).rgb * uPaintN;
+        float w = uPaintD + uPaintN;
+        pc = pc / w * uPaintK;
+        float pl = dot(pc, vec3(0.3, 0.59, 0.11));
+        pc = mix(pc, vec3(pl)*vec3(0.78, 0.74, 0.95), uStorm*0.75) * (1.0 - uStorm*0.55);   // storm: darker, desaturated
+        pc = mix(pc, vec3(pl)*vec3(1.5, 0.16, 0.08), uBlood*0.85);                           // blood moon: red
+        P = min(w, 1.0) * smoothstep(uEl1, uEl1 - 0.2, el) * smoothstep(uEl0, uEl0 + 0.03, el);
+        col = mix(col, pc, P);
+      }
       // stars
       if (uStars > 0.01) {
         vec3 p = dir*110.0; vec3 i = floor(p), f = fract(p);
@@ -107,7 +126,7 @@
         if (h > 0.86) {
           vec3 c = vec3(h13(i+3.1), h13(i+7.7), h13(i+1.3))*0.5 + 0.25;
           float tw = 0.55 + 0.45*sin(uTime*(1.0 + h*2.0) + h*60.0), big = step(0.985, h);
-          col += vec3(0.9, 0.92, 1.1) * smoothstep(0.32 + big*0.2, 0.0, length(f - c)) * tw * (1.4 + big*2.5) * uStars * smoothstep(0.03, 0.25, el);
+          col += vec3(0.9, 0.92, 1.1) * smoothstep(0.32 + big*0.2, 0.0, length(f - c)) * tw * (1.4 + big*2.5) * uStars * smoothstep(0.03, 0.25, el) * (1.0 - P);
         }
         col += vec3(0.05, 0.05, 0.09) * uStars * smoothstep(0.55, 0.85, vn(vec3(dir.x*3.0 + dir.y*2.0, dir.z*6.0, 1.0))) * smoothstep(0.1, 0.5, el); // milky haze
       }
@@ -126,8 +145,8 @@
       // the sun
       float sa = acos(clamp(dot(dir, uSunDir), -1.0, 1.0));
       if (uSunAmt > 0.01) {
-        col += uSunCol * exp(-sa*22.0) * 0.8 * uSunAmt;
-        col = mix(col, uSunCol*2.6, smoothstep(0.042, 0.036, sa) * uSunAmt);
+        col += uSunCol * exp(-sa*22.0) * 0.8 * uSunAmt * (1.0 - P*0.6);
+        col = mix(col, uSunCol*2.6, smoothstep(0.042, 0.036, sa) * uSunAmt * (1.0 - P*0.5));
       }
       float cloudA = 0.0;
       float moonClear = uMoonAmt * smoothstep(uMoonSize*2.6, uMoonSize*1.05, ma);
@@ -140,7 +159,7 @@
           vec2 w = vec2(vn(vec3(q*0.6, tt)), vn(vec3(q*0.6 + 5.7, tt))) - 0.5; q += w*0.6;
           float d = bfbm(vec3(q, tt*1.5)), dl = bfbm(vec3(q + normalize(uLightDir.xz + 1e-4)*0.3, tt*1.5));
           float a = smoothstep(cov, cov + 0.03, d) * smoothstep(0.0, 0.08, el);
-          a *= 1.0 - 0.8*moonClear;
+          a *= (1.0 - 0.8*moonClear) * (1.0 - P*0.95);
           float thick = smoothstep(cov, cov + 0.22, d), lit = clamp((d - dl)*10.0 + 0.2, 0.0, 1.0);
           float edge = 1.0 - smoothstep(cov, cov + 0.09, d);
           float prox = exp(-la*la*3.0);
@@ -162,7 +181,7 @@
         float bil2 = bfbm(bp + vec3(toL.x, toL.z, toL.y*1.6)*0.7);
         float d2 = H + (bil2 - 0.5)*0.16 - (el + toL.y*0.03);
         float a = smoothstep(0.0, 0.012, d) * uTower * smoothstep(-0.02, 0.01, el);
-        a *= 1.0 - 0.6*moonClear;
+        a *= (1.0 - 0.6*moonClear) * (1.0 - P*0.95);
         float lit = clamp((d - d2)*9.0 + 0.4, 0.0, 1.0);
         float edge = 1.0 - smoothstep(0.0, 0.06, d);
         float prox = exp(-la*la*2.2);
@@ -176,7 +195,7 @@
       float fl = uFlash * (0.25 + 0.75*pow(max(dot(dir, uFlashDir), 0.0), 5.0)) * (0.35 + cloudA);
       col += uFlashCol * fl;
       col = mix(col, uFogCol, uFogSky * (1.0 - smoothstep(0.0, 0.6, elc)*0.7));
-      col = mix(col, uFogCol, smoothstep(0.07, -0.015, el));
+      col = mix(col, uFogCol, smoothstep(mix(0.07, 0.0, P), mix(-0.015, -0.07, P), el));
       gl_FragColor = vec4(col, 1.0);
     }`;
 
@@ -185,6 +204,8 @@
       uFlash: { value: 0 }, uFlashDir: { value: flashDir }, uFlashCol: { value: flashCol },
       uCover: { value: 0.5 }, uStars: { value: 0 }, uSunAmt: { value: 0 }, uMoonAmt: { value: 0 }, uMoonSize: { value: 0.075 },
       uGlowAmt: { value: 1 }, uTower: { value: 1 }, uTowerH: { value: 0.2 }, uFogSky: { value: 0 }, uStorm: { value: 0 },
+      tDusk: { value: null }, tNoon: { value: null }, uPaintD: { value: 0 }, uPaintN: { value: 0 }, uBlood: { value: 0 }, uPaintK: { value: 0.85 },
+      uEl0: { value: -8 * Math.PI / 180 }, uEl1: { value: 40 * Math.PI / 180 }, uOffD: { value: 0.40 }, uOffN: { value: 0.53 }, uDuskTint: { value: duskTint },
       uZen: { value: cur.zen }, uMid: { value: cur.mid }, uHor: { value: cur.hor }, uGlow: { value: cur.glow }, uSunCol: { value: cur.sun },
       uCDark: { value: cur.cDark }, uCLight: { value: cur.cLight }, uRim: { value: cur.rim }, uFogCol: { value: cur.fog },
       uSunDir: { value: sunDir }, uMoonDir: { value: moonDir }, uLightDir: { value: lightDir }, uMoonCol: { value: cur.moonCol },
@@ -239,7 +260,7 @@
     g.setAttribute('normal', new T.Float32BufferAttribute(N, 3));
     g.setAttribute('aK', new T.Float32BufferAttribute(K, 1));
     const mesh = new T.Mesh(g, new T.ShaderMaterial({
-      uniforms: { uTime: U.uTime, uFlash: { value: 0 }, uHaze: { value: 0 }, uHor: { value: cur.fog }, uRim: { value: cur.rim }, uLum: { value: 1 } },
+      uniforms: { uTime: U.uTime, uFlash: { value: 0 }, uHaze: { value: 0 }, uHor: { value: cur.fog }, uRim: { value: cur.rim }, uLum: { value: 1 }, uFunnel: { value: 1 } },
       defines: defs(),
       vertexShader: `
         uniform float uTime; attribute float aK; varying vec3 vL; varying vec3 vN; varying vec3 vV; varying float vB; varying float vK;
@@ -264,7 +285,7 @@
           gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
       fragmentShader: `
-        uniform float uTime, uFlash, uHaze, uLum; uniform vec3 uHor, uRim; varying vec3 vL; varying vec3 vN; varying vec3 vV; varying float vB; varying float vK;
+        uniform float uTime, uFlash, uHaze, uLum, uFunnel; uniform vec3 uHor, uRim; varying vec3 vL; varying vec3 vN; varying vec3 vV; varying float vB; varying float vK;
         ${NOISE}
         void main(){
           float r = length(vL.xz), ang = atan(vL.z, vL.x), face = abs(dot(vN, vV));
@@ -286,7 +307,7 @@
           } else {
             float y = -vL.y / 1.5;                                                                                       // 0 top .. 1 bottom
             float d = fbm(vec3(ang*2.0 + uTime*0.5 + y*3.0, y*5.0 - uTime*0.3, 4.0));
-            a = smoothstep(0.32, 0.55, d + face*0.35) * smoothstep(1.0, 0.5, y) * smoothstep(0.02, 0.3, face) * 0.92;
+            a = smoothstep(0.32, 0.55, d + face*0.35) * smoothstep(1.0, 0.5, y) * smoothstep(0.02, 0.3, face) * 0.92 * uFunnel;
             c = mix(vec3(0.008, 0.002, 0.004), vec3(0.035, 0.006, 0.009), d) + vec3(0.3, 0.02, 0.008) * smoothstep(0.6, 0.85, d) * y * 0.5;
             c += vec3(1.1, 0.28, 0.36) * uFlash * d;
           }
@@ -297,7 +318,7 @@
     }));
     mesh.scale.set(420, 300, 420); mesh.position.y = -40;
     crown = new T.Group(); crown.add(mesh); crown.userData.mat = mesh.material;
-    crown.renderOrder = 5; mesh.renderOrder = 5; mesh.frustumCulled = false;
+    crown.renderOrder = 2; mesh.renderOrder = 2; mesh.frustumCulled = false;
     scene.add(crown);
   }
 
@@ -367,7 +388,7 @@
         }`,
       transparent: true, depthWrite: false, side: T.BackSide, fog: false,
     }));
-    haze.renderOrder = 2; haze.frustumCulled = false;
+    haze.renderOrder = 3; haze.frustumCulled = false;
     scene.add(haze);
   }
 
@@ -548,12 +569,161 @@
     setTimeout(() => { try { CT.audio.sfx('thunder', { volume: Math.max(0.2, 1 - d / 900), dist: d }); } catch (e) {} }, Math.min(3000, d / 340 * 1000));
   }
 
+  // ── Painted sky strips (painted render mode only; the retro mode keeps the procedural sky) ──
+  const duskTint = new T.Color(1, 1, 1), paintFog = new T.Color();
+  const PAINT = { on: false, dusk: false, noon: false, hD: new T.Color(), hN: new T.Color() };
+  const DAWN_TINT = new T.Color(0.78, 0.8, 1.0), NIGHT_TINT = new T.Color(0.2, 0.24, 0.5);
+  function loadPaint() {
+    const K = CT.skies;
+    if (!K || !K.dusk || CT.renderMode === 'retro') return;
+    PAINT.on = true;
+    if (K.el0 !== undefined) { U.uEl0.value = K.el0 * Math.PI / 180; U.uEl1.value = K.el1 * Math.PI / 180; }
+    const load = (key, uni) => {
+      const img = new Image(), tex = new T.Texture(img);
+      tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.RepeatWrapping; tex.wrapT = T.ClampToEdgeWrapping;
+      tex.minFilter = T.LinearFilter; tex.magFilter = T.LinearFilter; tex.generateMipmaps = false;
+      img.onload = () => { tex.needsUpdate = true; U[uni].value = tex; PAINT[key] = true; };
+      img.src = K[key];
+    };
+    load('dusk', 'tDusk'); load('noon', 'tNoon');
+    PAINT.hD.set(K.duskHorizon || '#48434f'); PAINT.hN.set(K.noonHorizon || '#636e7d');
+  }
+  // dusk strip 0.68-0.8, dawn (the dusk strip, cooler) 0.2-0.3, noon 0.3-0.68, night = 15% of the dusk strip in blue
+  const ss = (a, b, x) => { const f = Math.min(1, Math.max(0, (x - a) / (b - a))); return f * f * (3 - 2 * f); };
+  function paintWeights(t) {
+    if (!PAINT.on) { U.uPaintD.value = 0; U.uPaintN.value = 0; return; }
+    const dusk = ss(0.65, 0.71, t) * (1 - ss(0.79, 0.84, t)), dawn = ss(0.16, 0.22, t) * (1 - ss(0.28, 0.33, t));
+    const noon = ss(0.28, 0.33, t) * (1 - ss(0.65, 0.71, t)), night = Math.max(0, 1 - dusk - dawn - noon) * 0.15;
+    const wd = PAINT.dusk ? dusk + dawn + night : 0, wn = PAINT.noon ? noon : 0;
+    U.uPaintD.value = wd; U.uPaintN.value = wn;
+    if (wd > 0) duskTint.setRGB((dusk + dawn * DAWN_TINT.r + night * NIGHT_TINT.r) / wd, (dusk + dawn * DAWN_TINT.g + night * NIGHT_TINT.g) / wd, (dusk + dawn * DAWN_TINT.b + night * NIGHT_TINT.b) / wd);
+    // the fog takes the painting's horizon colour so the terrain edge melts into the painted distance
+    const w = wd + wn;
+    if (w > 0.01) {
+      paintFog.copy(PAINT.hD).multiply(duskTint).multiplyScalar(wd / w).add(tc2.copy(PAINT.hN).multiplyScalar(wn / w)).multiplyScalar(U.uPaintK.value);
+      cur.fog.lerp(paintFog, Math.min(1, w) * 0.75);
+    }
+  }
+
+
+  // ── Horizon matte paintings: camera-centred cylinders at two depths (painted mode) ──
+  // far: the wrapping sea-cliff ring + the citadel arc (aimed at the real citadel); mid: forested hills over the island only.
+  // Each cylinder has radius 1 (scaled to R) with its centre at eye height, so a point's elevation seen from the centre is atan(y).
+  const HZ = { on: false, far: null, mid: null, n: 0, northA: 0, n0: 0, n1: 0.3 };
+  const FAR_R = 950, MID_R = 700, D2R = Math.PI / 180;
+  const tintLD = new T.Color(1, 1, 1), tintLN = new T.Color(1.12, 1.0, 0.84);
+  const NIGHT_L = new T.Color(0.15, 0.18, 0.34);
+  const HZ_GLSL = `
+    uniform float uWD, uWN, uStorm, uBlood, uFogWash, uNight, uTime; uniform vec3 uTintD, uTintN, uFogCol;
+    vec4 layer(sampler2D a, sampler2D b, vec2 uv, float emis){
+      vec4 d = texture2D(a, uv), n = texture2D(b, uv);
+      float al = d.a*uWD + n.a*uWN;
+      vec3 c = (d.rgb*uTintD*d.a*uWD + n.rgb*uTintN*n.a*uWN) / max(al, 1e-3);
+      c += d.rgb * emis * smoothstep(0.22, 0.45, d.r - max(d.g, d.b)) * uNight * 1.6;   // lava and red windows glow at night
+      return vec4(c, al);
+    }
+    vec3 weather(vec3 c){
+      float l = dot(c, vec3(0.3, 0.59, 0.11));
+      c = mix(c, vec3(l)*vec3(0.78, 0.74, 0.95), uStorm*0.75) * (1.0 - uStorm*0.5);
+      return mix(c, vec3(l)*vec3(1.5, 0.16, 0.08), uBlood*0.85);
+    }`;
+  function hzMesh(y0, y1, frag, uni, order) {
+    const g = new T.CylinderGeometry(1, 1, y1 - y0, 160, 1, true); g.translate(0, (y0 + y1) / 2, 0);
+    const base = { uTime: U.uTime, uWD: { value: 1 }, uWN: { value: 0 }, uStorm: U.uStorm, uBlood: U.uBlood, uFogWash: { value: 0 }, uNight: { value: 0 },
+      uTintD: { value: tintLD }, uTintN: { value: tintLN }, uFogCol: { value: cur.fog } };
+    const m = new T.Mesh(g, new T.ShaderMaterial({
+      uniforms: Object.assign(base, uni),
+      vertexShader: 'varying vec3 vL; varying vec3 vW; void main(){ vL = position; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: HZ_GLSL + frag, transparent: true, depthWrite: false, side: T.BackSide, fog: false,
+    }));
+    m.renderOrder = order; m.frustumCulled = false; m.visible = false;
+    scene.add(m);
+    return m;
+  }
+  function hzTex(key, done) {
+    const img = new Image(), tex = new T.Texture(img);
+    tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.RepeatWrapping; tex.wrapT = T.ClampToEdgeWrapping;
+    tex.minFilter = T.LinearFilter; tex.magFilter = T.LinearFilter; tex.generateMipmaps = false;
+    img.onload = () => { tex.needsUpdate = true; done(); };
+    img.src = CT.horizon[key];
+    return tex;
+  }
+  function buildHorizon() {
+    const H = CT.horizon;
+    if (!PAINT.on || !H || !H.far_ring || !H.far_north || !H.mid_hills) return;
+    const keys = ['far_ring', 'far_north', 'mid_hills'], tx = {};
+    const need = keys.length + keys.filter(k => H[k + '_noon']).length;
+    const ok = () => { if (++HZ.n >= need) HZ.on = true; };
+    keys.forEach(k => { tx[k] = hzTex(k, ok); tx[k + '_noon'] = H[k + '_noon'] ? hzTex(k + '_noon', ok) : tx[k]; });
+    HZ.far = hzMesh(Math.tan(-6 * D2R), Math.tan(38 * D2R), `
+      uniform sampler2D tRD, tRN, tND, tNN; uniform float uNAz, uNW, uNA, uN0, uN1;
+      varying vec3 vL; varying vec3 vW;
+      void main(){
+        float el = atan(vL.y), az = atan(vL.x, -vL.z);
+        float e0 = -4.0*0.017453, e1 = 14.0*0.017453;
+        vec4 r = layer(tRD, tRN, vec2(az/6.28318*4.0, clamp((el - e0)/(e1 - e0), 0.002, 0.998)), 0.3);
+        if (el < e0 || el > e1) r.a = 0.0;
+        vec4 n = vec4(0.0);
+        float du = mod(az - uNAz + 3.14159, 6.28318) - 3.14159, nu = du/uNW + 0.5;
+        if (uNA > 0.01 && nu > 0.0 && nu < 1.0 && el > uN0 && el < uN1) {
+          n = layer(tND, tNN, vec2(nu, clamp((el - uN0)/(uN1 - uN0), 0.002, 0.998)), 1.0);
+          n.a *= smoothstep(0.0, 0.14, nu) * smoothstep(1.0, 0.86, nu) * uNA;
+        }
+        float a = n.a + r.a*(1.0 - n.a);
+        vec3 c = (n.rgb*n.a + r.rgb*r.a*(1.0 - n.a)) / max(a, 1e-3);
+        c = weather(c);
+        float base = max(smoothstep(e0 + 0.05, e0, el) * (1.0 - n.a), smoothstep(uN0 + 0.05, uN0, el) * n.a);
+        c = mix(c, uFogCol, clamp(uFogWash + base, 0.0, 1.0));
+        gl_FragColor = vec4(c, a);
+      }`, { tRD: { value: tx.far_ring }, tRN: { value: tx.far_ring_noon }, tND: { value: tx.far_north }, tNN: { value: tx.far_north_noon },
+      uNAz: { value: 0 }, uNW: { value: 1 }, uNA: { value: 0 }, uN0: { value: -3 * D2R }, uN1: { value: 12 * D2R } }, 1);
+    HZ.mid = hzMesh(Math.tan(-7 * D2R), Math.tan(11 * D2R), `
+      uniform sampler2D tMD, tMN; varying vec3 vL; varying vec3 vW;
+      void main(){
+        float el = atan(vL.y), az = atan(vL.x, -vL.z);
+        float e0 = -5.0*0.017453, e1 = 9.0*0.017453;
+        vec4 m = layer(tMD, tMN, vec2(az/6.28318*3.0 + 0.37, clamp((el - e0)/(e1 - e0), 0.002, 0.998)), 0.2);
+        m.a *= smoothstep(1420.0, 1220.0, max(abs(vW.x), abs(vW.z))) * step(e0, el) * step(el, e1);   // only where the island is
+        vec3 c = weather(m.rgb);
+        c = mix(c, uFogCol, clamp(uFogWash + smoothstep(e0 + 0.06, e0, el), 0.0, 1.0));
+        gl_FragColor = vec4(c, m.a);
+      }`, { tMD: { value: tx.mid_hills }, tMN: { value: tx.mid_hills_noon } }, 4);
+  }
+  // place the cylinders (slight parallax), aim the citadel arc, weight the dusk/noon versions
+  function updateHorizon(cam, t, fogW, storm) {
+    const show = HZ.on && PAINT.on;
+    if (HZ.far) { HZ.far.visible = show; HZ.mid.visible = show; }
+    if (!show) { HZ.northA = 0; return; }
+    const dusk = ss(0.65, 0.71, t) * (1 - ss(0.79, 0.84, t)), dawn = ss(0.16, 0.22, t) * (1 - ss(0.28, 0.33, t));
+    const noon = ss(0.28, 0.33, t) * (1 - ss(0.65, 0.71, t)), night = Math.max(0, 1 - dusk - dawn - noon);
+    const LD = Math.max(1e-3, dusk + dawn + night);
+    tintLD.setRGB((dusk + dawn * DAWN_TINT.r + night * NIGHT_L.r) / LD, (dusk + dawn * DAWN_TINT.g + night * NIGHT_L.g) / LD, (dusk + dawn * DAWN_TINT.b + night * NIGHT_L.b) / LD);
+    tintLD.multiplyScalar(0.92);
+    for (let i = 0; i < 2; i++) {
+      const m = i ? HZ.mid : HZ.far, u = m.material.uniforms, par = i ? 0.75 : 0.9;
+      m.position.set(cam.x * par, cam.y, cam.z * par); m.scale.setScalar(i ? MID_R : FAR_R);
+      u.uWD.value = LD; u.uWN.value = noon; u.uNight.value = night;
+      u.uFogWash.value = Math.min(0.9, (i ? 0.05 : 0.14) + fogW * 0.65 + storm * 0.1 + S.swamp * 0.15);
+    }
+    // the citadel arc: where the ray from the camera toward the citadel meets the far cylinder
+    const f = HZ.far, fu = f.material.uniforms;
+    const dx = -cam.x, dz = -1250 - cam.z, dist = Math.hypot(dx, dz) || 1, ux = dx / dist, uz = dz / dist;
+    const ox = cam.x - f.position.x, oz = cam.z - f.position.z, b = ox * ux + oz * uz, cc = ox * ox + oz * oz - FAR_R * FAR_R;
+    const tt = -b + Math.sqrt(Math.max(0, b * b - cc)), px = ox + ux * tt, pz = oz + uz * tt;
+    fu.uNAz.value = Math.atan2(px, -pz);
+    HZ.northA = ss(850, 1300, dist);
+    fu.uNA.value = HZ.northA;
+    fu.uNW.value = Math.min(2.6, 2 * Math.atan(2000 / dist));
+    fu.uN0.value = -3 * D2R; fu.uN1.value = fu.uN0.value + fu.uNW.value * 0.25 * 1.25;
+    HZ.n0 = fu.uN0.value; HZ.n1 = fu.uN1.value;
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   function init(c) {
     scene = c.scene; camera = c.camera; low = c.quality === 'low';
-    buildLights(); buildDome(); buildRays(); buildHaze(); buildCrown(); buildParticles();
+    buildLights(); buildDome(); loadPaint(); buildHorizon(); buildRays(); buildHaze(); buildCrown(); buildParticles();
     bolt = boltMesh(0xd8d0ff); scene.add(bolt);
-    crownBolt = boltMesh(0xff8a7a); crown.add(crownBolt);
+    crownBolt = boltMesh(0xff8a7a); crownBolt.renderOrder = 2; crown.add(crownBolt);
     API.timeOfDay = 0.745; S.written = API.timeOfDay;
     update(0, c);
   }
@@ -586,6 +756,7 @@
     // palette: time of day, then weather and region overlays
     celestial(t);
     samplePalette(t);
+    paintWeights(t);
     const dayK = 0.25 + cur.lum * 0.75;
     S.night = 1 - smooth(Math.min(1, Math.max(0, (sunDir.y + 0.12) / 0.2)));
     mixSet(STC, storm * 0.9, dayK);
@@ -605,7 +776,7 @@
     U.uCover.value = cur.cover - storm * 0.3 - fogW * 0.12;
     U.uTower.value = cur.tower * (1 - fogW * 0.6);
     U.uTowerH.value = cur.towerH;
-    U.uStorm.value = storm;
+    U.uStorm.value = storm; U.uBlood.value = blood;
     U.uGlowAmt.value = cur.glowAmt * (1 - storm * 0.6) * (1 - fogW * 0.5) * (1 - blood * 0.4) + blood * 0.25;
     U.uSunAmt.value = cur.sunAmt * (1 - storm * 0.9) * (1 - fogW * 0.6) * (1 - blood * 0.8) * smooth(Math.min(1, Math.max(0, (sunDir.y + 0.05) / 0.08)));
     U.uMoonAmt.value = Math.min(1, (S.night * (1 - storm * 0.85) * (1 - fogW * 0.5) + blood * 0.9)) * smooth(Math.min(1, Math.max(0, (moonDir.y + 0.02) / 0.1)));
@@ -638,7 +809,7 @@
     dome.position.copy(cam);
     haze.position.set(cam.x, 0, cam.z);
     haze.material.uniforms.uAmt.value = 0.75 + fogW * 0.25;
-    const rayAmt = cur.rays * clear * (1 - blood) * U.uSunAmt.value;
+    const rayAmt = cur.rays * clear * (1 - blood) * U.uSunAmt.value * (1 - 0.5 * Math.min(1, U.uPaintD.value + U.uPaintN.value));
     rays.visible = rayAmt > 0.02;
     if (rays.visible) {
       rays.position.copy(cam).addScaledVector(sunDir, 600); rays.quaternion.copy(camera.quaternion); rays.scale.setScalar(1500);
@@ -646,7 +817,12 @@
     }
 
     // storm crown (pulled in toward the camera when far, keeping its angular size)
-    tv.copy(CROWN).sub(cam); const cd = tv.length(), k = Math.min(1, CROWN_MAX / cd, 1120 / (cd + 780));
+    // with the painted citadel in view, the crown rises to sit on the painted spire and drops its funnel
+    updateHorizon(cam, t, fogW, storm);
+    crownEff.copy(CROWN);
+    if (HZ.northA > 0) { const dh = Math.hypot(cam.x - CROWN.x, cam.z - CROWN.z); crownEff.y += (cam.y + 40 + dh * Math.tan(HZ.n0 + (HZ.n1 - HZ.n0) * 0.8) - CROWN.y) * HZ.northA; }
+    crown.userData.mat.uniforms.uFunnel.value = 1 - HZ.northA;
+    tv.copy(crownEff).sub(cam); const cd = tv.length(), k = Math.min(1, CROWN_MAX / cd, 1120 / (cd + 780));
     crown.position.copy(cam).addScaledVector(tv, k); crown.scale.setScalar(k);
     const cm = crown.userData.mat.uniforms;
     cm.uHaze.value = Math.min(0.9, Math.min(0.2, cd / 10000) * (1 - S.night * 0.6) + fogW * 0.75); cm.uLum.value = cur.lum;

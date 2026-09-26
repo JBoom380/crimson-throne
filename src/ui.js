@@ -1337,6 +1337,54 @@ window.CT = window.CT || {};
     drawBtn(g, MAP_CLOSE, hot, t, { noPtr: true });
   }
 
+  // ── Iron Stallion (vehicle.js): classic round tach + speedo while driving ──
+  const carOn = () => !!(CT.vehicle && CT.vehicle.driving && typeof CT.vehicle.gauge === 'function');
+  function carDial(g, x, y, R, val, max, major, minor, red, label, sub) {
+    const A0 = Math.PI * 0.75, SW = Math.PI * 1.5, ang = f => A0 + SW * clamp(f, 0, 1.02);
+    g.save();
+    let gr = g.createLinearGradient(x - R, y - R, x + R, y + R); gr.addColorStop(0, '#f4f6f8'); gr.addColorStop(0.45, '#7c838c'); gr.addColorStop(0.55, '#3a3e44'); gr.addColorStop(1, '#d8dde2');
+    g.fillStyle = 'rgba(0,0,0,0.55)'; g.beginPath(); g.arc(x + 2, y + 3, R + 7, 0, Math.PI * 2); g.fill();
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, R + 6, 0, Math.PI * 2); g.fill();
+    gr = g.createRadialGradient(x - R * 0.3, y - R * 0.4, 2, x, y, R); gr.addColorStop(0, '#1d2024'); gr.addColorStop(1, '#050607');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.fill();
+    if (red != null) { g.strokeStyle = '#c8161a'; g.lineWidth = 6; g.beginPath(); g.arc(x, y, R - 7, ang(red / max), ang(1)); g.stroke(); }
+    for (let v = 0; v <= max + 1e-6; v += minor) {
+      const a = ang(v / max), big = Math.abs(v / major - Math.round(v / major)) < 1e-6, r0 = R - (big ? 13 : 8);
+      g.strokeStyle = red != null && v >= red ? '#ff6a5a' : '#eef0f2'; g.lineWidth = big ? 2.5 : 1.2;
+      g.beginPath(); g.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); g.lineTo(x + Math.cos(a) * (R - 3), y + Math.sin(a) * (R - 3)); g.stroke();
+      if (big) { g.fillStyle = '#eef0f2'; g.font = `bold ${Math.round(R * 0.2)}px Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(Math.round(v / (max > 20 ? 1 : 1))), x + Math.cos(a) * (R - 23), y + Math.sin(a) * (R - 23)); }
+    }
+    g.fillStyle = '#9aa0a8'; g.font = `bold ${Math.round(R * 0.16)}px Georgia, serif`; g.textAlign = 'center'; g.fillText(label, x, y + R * 0.38); if (sub) { g.font = `${Math.round(R * 0.13)}px Georgia, serif`; g.fillText(sub, x, y + R * 0.56); }
+    const a = ang(val / max);
+    g.shadowColor = 'rgba(255,120,40,0.8)'; g.shadowBlur = 8; g.strokeStyle = '#ff7a1a'; g.lineWidth = 3; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x - Math.cos(a) * 10, y - Math.sin(a) * 10); g.lineTo(x + Math.cos(a) * (R - 10), y + Math.sin(a) * (R - 10)); g.stroke(); g.shadowBlur = 0;
+    gr = g.createRadialGradient(x - 2, y - 2, 1, x, y, 8); gr.addColorStop(0, '#f4f4f4'); gr.addColorStop(1, '#4a4e54');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+  function drawCarGauge(g, t, v) {
+    const d = CT.vehicle.gauge(); if (!d) return;
+    const R = 56, y = v.isTouch ? 628 : 618, xl = 640 - 84, xr = 640 + 84;
+    carDial(g, xl, y, R, d.rpm / 1000, 8, 1, 0.5, 6.5, 'RPM', 'x1000');
+    carDial(g, xr, y, R, d.mph, 140, 20, 10, null, 'MPH');
+    g.save();
+    // gear, engine health, a stall countdown
+    const gx = 640, gy = y + 8;
+    g.fillStyle = 'rgba(8,8,10,0.85)'; g.strokeStyle = '#8a9098'; g.lineWidth = 2; g.beginPath(); g.rect(gx - 15, gy - 38, 30, 32); g.fill(); g.stroke();
+    g.fillStyle = d.gear === 'R' ? '#ff6a4a' : '#f2e4c8'; g.font = 'bold 22px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(d.gear, gx, gy - 21);
+    const hw = 15, hp = clamp(d.hp, 0, 1);
+    g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillRect(gx - hw, gy + 2, hw * 2, 7);
+    g.fillStyle = hp < 0.35 ? (Math.sin(t * 8) > 0 ? '#ff3a2a' : '#8a1a12') : '#7fc8e2'; g.fillRect(gx - hw + 1, gy + 3, (hw * 2 - 2) * hp, 5);
+    g.fillStyle = '#9aa0a8'; g.font = 'bold 10px Georgia, serif'; g.fillText('ENGINE', gx, gy + 18);
+    if (d.stall > 0) { g.font = 'bold 20px Georgia, serif'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = Math.sin(t * 6) > 0 ? '#ff4a3a' : '#ffb0a0'; const s = `STALLED  ${Math.ceil(d.stall)}`; g.strokeText(s, 640, y - R - 20); g.fillText(s, 640, y - R - 20); }
+    if (!v.isTouch) {
+      g.font = '13px Georgia, serif'; g.fillStyle = 'rgba(236,224,200,0.85)'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.8)';
+      const s = 'E exit    V view    SPACE handbrake    SHIFT floor it    H horn';
+      g.strokeText(s, 640, y + R + 20); g.fillText(s, 640, y + R + 20);
+    }
+    g.restore();
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
   function draw(g, t, v) {
     if (!v) return;
@@ -1351,7 +1399,8 @@ window.CT = window.CT || {};
       case 'GATE': drawGate(g, t, v, dt); break;
       case 'TITLE': drawTitle(g, t, v, dt); break;
       case 'PLAY':
-        drawHurt(g, t, v); drawCross(g, t); drawCompass(g, t, v); drawQuest(g, t, v); drawBars(g, t, v, dt); drawBoss(g, t, v, dt); drawPrompt(g, t, v); drawNotes(g, t, v);
+        drawHurt(g, t, v); if (!carOn()) drawCross(g, t); drawCompass(g, t, v); drawQuest(g, t, v); drawBars(g, t, v, dt); drawBoss(g, t, v, dt); drawPrompt(g, t, v); drawNotes(g, t, v);
+        if (carOn()) drawCarGauge(g, t, v);
         if (!MB.done) mapStep(0.6);
         break;
       case 'PAUSE': drawPause(g, t, v); break;

@@ -1013,6 +1013,106 @@ window.CT = window.CT || {};
   const SDUR = { beer: 2.2, ar_shot: 1.8, ar_reload: 2.4, ar_casing: 0.5, drag: 1.6, exhale: 2.2, lighter: 0.8, charge: 1.8, chargeFull: 2.4, gib: 2.6, sever: 1.6, death: 3, drink: 1.8, levelup: 4, discover: 5.5, quest: 3, wolf_howl: 3.6, ghoul_moan: 2.8, troll_bellow: 3, troll_slam: 2, wraith_shriek: 2.6, boss_roar: 4, boss_laugh: 2.5, thunder: 6.5, parry: 2.6, clang: 1.6, orc_roar: 2, orc_die: 2 };
   const LOOPS = { rain: 1, wind: 1, fire_loop: 1 };
 
+  // ── Iron Stallion (vehicle.js): a V8 voice + car one-shots ─────────────────
+  // One engine cycle (two turns) at 1000 rpm lasts 0.12 s and fires 8 times. Firing order 1-5-4-2-6-3-7-8
+  // on a cross-plane crank: each bank fires unevenly (R L R R L R L L) into its own pipe. That is the burble.
+  const TAU_A = Math.PI * 2;
+  function v8Buf(ctx, lumpy) {
+    const CYC = 0.12, NC = 16, BANK = [1, 0, 1, 1, 0, 1, 0, 0];
+    return mkBuf(ctx, lumpy ? 'v8lump' : 'v8even', CYC * NC, (d, sr, ch) => {
+      const n = d.length, r = rng(lumpy ? 71 : 72), nz = white(Math.floor(0.05 * sr), 5 + ch);
+      const f1 = ch ? 118 : 104, f2 = ch ? 262 : 236, L = Math.floor(0.07 * sr);
+      for (let c = 0; c < NC; c++) for (let k = 0; k < 8; k++) {
+        const lope = lumpy ? 0.75 + 0.3 * Math.sin(c / NC * TAU_A * 3) : 1;
+        const amp = (lumpy ? 0.55 + r() * 0.8 : 0.88 + r() * 0.24) * lope, jit = lumpy ? (r() - 0.5) * 0.005 : (r() - 0.5) * 0.0006;
+        const g = amp * (BANK[k] === ch ? 1 : 0.5), i0 = Math.floor((c * CYC + k * CYC / 8 + jit) * sr);
+        for (let i = 0; i < L; i++) {
+          const t = i / sr;
+          const v = Math.exp(-t / 0.0022) * 0.9 + Math.exp(-t / 0.011) * Math.sin(TAU_A * f1 * t) * 0.85 + Math.exp(-t / 0.006) * Math.sin(TAU_A * f2 * t) * 0.3 + (i < nz.length ? nz[i] * Math.exp(-t / 0.004) * 0.35 : 0);
+          d[(i0 + i + n) % n] += g * v;
+        }
+      }
+      let m = 0; for (let i = 0; i < n; i++) m += d[i]; m /= n; for (let i = 0; i < n; i++) d[i] -= m;
+      normalize(d, 0.9);
+    }, 2);
+  }
+  const CAR_SFX = {
+    car_door(g, t) {
+      tone(g, t, 'sine', 120, 55, 0.18, 0.7); drum(g, t, 'k', 0.5, 0, 1.3);
+      const n = noiseThrough(g, t, 0.2, 'lowpass', 0.8); n.f.value = 900; n.v.setValueAtTime(0.6, t); n.v.setTargetAtTime(0, t + 0.005, 0.03);
+      const l = noiseThrough(g, t + 0.035, 0.06, 'bandpass', 4); l.f.value = 3200; l.v.setValueAtTime(0.25, t + 0.035); l.v.setTargetAtTime(0, t + 0.038, 0.008);
+      gore(g, t + 0.01, 'clang', 0.06, 0, 0.7);
+    },
+    car_horn(g, t) {   // a classic two-note honk: two buzzy reeds through a trumpet's formants
+      const c = g.ctx, v = c.createGain(), sh = c.createWaveShaper(), b1 = c.createBiquadFilter(), b2 = c.createBiquadFilter(), m = c.createGain();
+      sh.curve = curve(c, 2.2); b1.type = 'bandpass'; b1.frequency.value = 520; b1.Q.value = 2.5; b2.type = 'bandpass'; b2.frequency.value = 1450; b2.Q.value = 3;
+      [[349, 0], [440, 3]].forEach(([f, det]) => { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det; o.connect(m); o.start(t); o.stop(t + 0.62); });
+      m.gain.value = 0.5; m.connect(sh); sh.connect(b1); sh.connect(b2); b1.connect(v); b2.connect(v);
+      v.gain.setValueAtTime(0, t); v.gain.linearRampToValueAtTime(0.55, t + 0.015); v.gain.setValueAtTime(0.55, t + 0.48); v.gain.setTargetAtTime(0, t + 0.5, 0.025);
+      outTo(g, v, 0);
+    },
+    car_thud(g, t, o) {   // a heavy body blow: low thump, crunch, a ring of sheet steel
+      const k = o.heavy ? 1 : 0.7;
+      tone(g, t, 'sine', 80, 28, 0.45, 0.95 * k); drum(g, t, 'K', 0.7 * k, 0, 0.7);
+      const n = noiseThrough(g, t, 0.4, 'lowpass', 0.8); n.f.value = 700; n.v.setValueAtTime(0.8 * k, t); n.v.setTargetAtTime(0, t + 0.01, 0.06);
+      gore(g, t + 0.005, 'clang', 0.3 * k, 0, 0.55); if (o.heavy) { gore(g, t + 0.01, 'bone', 0.35, 0, 0.45); gore(g, t + 0.05, 'clang', 0.2, 0.3, 0.8); }
+    },
+    car_squish(g, t, o) { tone(g, t, 'sine', 95, 35, 0.3, 0.9); drum(g, t, 'K', 0.6, 0, 0.8); gore(g, t, 'flesh', 1); gore(g, t + 0.02, 'bone', 0.8); gore(g, t + 0.03, 'splat', 0.9); if (o.heavy) { gore(g, t + 0.05, 'spurt', 0.6); gore(g, t + 0.3, 'splat', 0.4, 0.3, 0.8); } },
+    car_backfire(g, t) {   // lift-off crackle: sharp pops in the pipes
+      const n = 3 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < n; i++) {
+        const s = t + (i ? rr(0.05, 0.7) : 0), lv = i ? rr(0.35, 0.8) : 0.95, pan = rr(-0.3, 0.3);
+        const c = noiseThrough(g, s, 0.06, 'highpass', 0.7, pan); c.f.value = 1500; c.v.setValueAtTime(lv, s); c.v.setTargetAtTime(0, s + 0.002, 0.007);
+        const b = noiseThrough(g, s, 0.2, 'lowpass', 1, pan); b.f.value = 600; b.v.setValueAtTime(lv * 0.9, s); b.v.setTargetAtTime(0, s + 0.004, 0.025);
+        tone(g, s, 'sine', 120, 45, 0.09, lv * 0.6, pan);
+      }
+    },
+    car_start(g, t) {   // the starter grinds, then the V8 catches (the loop voice takes over)
+      const c = g.ctx, o = c.createOscillator(), am = c.createOscillator(), ag = c.createGain(), v = c.createGain(), f = c.createBiquadFilter();
+      o.type = 'square'; o.frequency.value = 95; am.frequency.value = 11; ag.gain.value = 0.5; f.type = 'lowpass'; f.frequency.value = 1200;
+      am.connect(ag); ag.connect(v.gain); o.connect(f); f.connect(v); v.gain.setValueAtTime(0.2, t); v.gain.setTargetAtTime(0, t + 0.5, 0.05);
+      outTo(g, v, 0); o.start(t); am.start(t); o.stop(t + 0.8); am.stop(t + 0.8);
+      tone(g, t + 0.52, 'sine', 70, 40, 0.3, 0.8); drum(g, t + 0.52, 'K', 0.6, 0, 0.6);
+    },
+    car_crank(g, t) {   // stalled: the starter grinds and nothing catches
+      const c = g.ctx, o = c.createOscillator(), am = c.createOscillator(), ag = c.createGain(), v = c.createGain(), f = c.createBiquadFilter();
+      o.type = 'square'; o.frequency.setValueAtTime(90, t); o.frequency.linearRampToValueAtTime(70, t + 0.9); am.frequency.value = 9; ag.gain.value = 0.5; f.type = 'lowpass'; f.frequency.value = 900;
+      am.connect(ag); ag.connect(v.gain); o.connect(f); f.connect(v); v.gain.setValueAtTime(0.18, t); v.gain.setTargetAtTime(0, t + 0.85, 0.06);
+      outTo(g, v, 0); o.start(t); am.start(t); o.stop(t + 1.2); am.stop(t + 1.2);
+      tone(g, t + 0.95, 'sine', 60, 35, 0.2, 0.4);
+    },
+    car_shift(g, t) { drum(g, t, 'x', 0.12, 0, 0.5); tone(g, t, 'sine', 140, 70, 0.08, 0.15); },
+  };
+  Object.assign(SFX, CAR_SFX);
+  Object.assign(SDUR, { car_door: 0.8, car_horn: 1, car_thud: 1.4, car_squish: 1.4, car_backfire: 1.2, car_start: 1.4, car_crank: 1.6, car_shift: 0.5 });
+  // The engine loop voice: two V8 loops (lumpy idle, even at speed) -> drive -> low-pass; intake rasp, tyre squeal, wind.
+  let CAR = null;
+  function carVoice(E) {
+    const c = E.ctx, now = c.currentTime, G = () => c.createGain(), out = G(); out.gain.value = 0; out.connect(E.sfxIn);
+    const src = buf => { const s = c.createBufferSource(); s.buffer = buf; s.loop = true; KR(s.playbackRate).value = 0.75; s.start(now, Math.random()); return s; };
+    const sL = src(v8Buf(c, true)), sE = src(v8Buf(c, false)), gL = G(), gE = G(), sh = c.createWaveShaper(), lp = c.createBiquadFilter(), eng = G();
+    sh.curve = curve(c, 1.6); lp.type = 'lowpass'; lp.Q.value = 1.1; KR(lp.frequency).value = 600; gE.gain.value = 0;
+    sL.connect(gL); sE.connect(gE); gL.connect(sh); gE.connect(sh); sh.connect(lp); lp.connect(eng); eng.connect(out);
+    const sub = c.createOscillator(), sg = G(); sub.type = 'sine'; KR(sub.frequency).value = 25; sg.gain.value = 0; sub.connect(sg); sg.connect(out); sub.start(now);
+    const nz = c.createBufferSource(); nz.buffer = noiseBuf(c); nz.loop = true; nz.start(now, Math.random());
+    const ib = c.createBiquadFilter(), ig = G(); ib.type = 'bandpass'; ib.Q.value = 2; KR(ib.frequency).value = 600; ig.gain.value = 0; nz.connect(ib); ib.connect(ig); ig.connect(out);
+    const wb = c.createBiquadFilter(), wg = G(); wb.type = 'lowpass'; KR(wb.frequency).value = 500; wg.gain.value = 0; nz.connect(wb); wb.connect(wg); wg.connect(out);
+    const q1 = c.createOscillator(), q2 = c.createOscillator(), ql = c.createOscillator(), qd = G(), qg = G(), qb = c.createBiquadFilter();
+    q1.frequency.value = 980; q2.frequency.value = 1230; ql.frequency.value = 17; qd.gain.value = 45; ql.connect(qd); qd.connect(q1.frequency); qd.connect(q2.frequency);
+    qb.type = 'bandpass'; qb.frequency.value = 2600; qb.Q.value = 1.5; nz.connect(qb); qg.gain.value = 0; q1.connect(qg); q2.connect(qg); qb.connect(qg); qg.connect(out);
+    [q1, q2, ql].forEach(o => o.start(now));
+    const V = { out, sL, sE, gL, gE, lp, eng, sub, sg, ib, ig, wb, wg, qg, nodes: [sL, sE, sub, nz, q1, q2, ql], last: performance.now(), sent: 0 };
+    V.watch = setInterval(() => { if (performance.now() - V.last > 350) { try { out.gain.setTargetAtTime(0, c.currentTime, 0.08); } catch (e) { } } }, 200);   // paused: fall silent
+    return V;
+  }
+  function carStop() {
+    if (!CAR || !E) { CAR = null; return; }
+    const V = CAR; CAR = null; clearInterval(V.watch);
+    const now = E.ctx.currentTime; V.out.gain.cancelScheduledValues(now); V.out.gain.setTargetAtTime(0, now, 0.12);
+    V.nodes.forEach(n => { try { n.stop(now + 0.8); } catch (e) { } });
+    E.later(() => { try { V.out.disconnect(); } catch (e) { } }, 1300);
+  }
+
   // ── Engine: master chain + reverb + music/sfx buses (works on any context) ─
   function makeEngine(ctx, dest, offline) {
     const E = { ctx, offline, mv: [], sv: [], cur: null, loops: {}, fires: {}, stats: { notes: 0, skipped: 0, capped: 0, sfx: 0, sections: [] } };
@@ -1175,6 +1275,28 @@ window.CT = window.CT || {};
       if (lv < 0.004) return;
       E.sfx(name, opts, null, lv, sp.pan, sp.dist);
     },
+    // Iron Stallion engine: o = {on, rpm, load 0..1+, slip 0..1, speed m/s}; call every frame while driving, {on:false} stops it
+    car(o) {
+      o = o || {};
+      if (!E || E.ctx.state === 'closed') return;
+      if (!o.on) { carStop(); return; }
+      if (!CAR) CAR = carVoice(E);
+      const V = CAR, now = performance.now(); V.last = now;
+      if (now - V.sent < 30) return;
+      V.sent = now;
+      const t = E.ctx.currentTime, rpm = clamp(o.rpm || 750, 500, 7000), load = clamp(o.load || 0, 0, 1.3), slip = clamp(o.slip || 0, 0, 1), sp = o.speed || 0, tc = 0.035;
+      const rate = rpm / 1000, lump = 1 - clamp((rpm - 950) / 1300, 0, 1), L1 = Math.min(1, load);
+      V.out.gain.setTargetAtTime(0.8, t, 0.05);
+      V.sL.playbackRate.setTargetAtTime(rate, t, tc); V.sE.playbackRate.setTargetAtTime(rate, t, tc);
+      V.gL.gain.setTargetAtTime(lump, t, 0.08); V.gE.gain.setTargetAtTime(1 - lump, t, 0.08);
+      V.lp.frequency.setTargetAtTime(380 + rpm * 0.2 + load * 2400 * clamp(rpm / 5000, 0.3, 1.2), t, tc);
+      V.eng.gain.setTargetAtTime(0.2 + 0.36 * L1 + 0.2 * rpm / 6500, t, 0.05);
+      V.sub.frequency.setTargetAtTime(rpm / 30, t, tc); V.sg.gain.setTargetAtTime((0.12 + 0.12 * L1) * (1 - clamp((rpm - 3000) / 3000, 0, 0.8)), t, 0.06);
+      V.ib.frequency.setTargetAtTime(300 + rpm * 0.32, t, tc); V.ig.gain.setTargetAtTime(0.02 + 0.16 * L1 * rpm / 6500, t, 0.05);
+      V.wb.frequency.setTargetAtTime(300 + sp * 22, t, 0.1); V.wg.gain.setTargetAtTime(Math.pow(clamp(sp / 45, 0, 1.2), 2) * 0.3, t, 0.1);
+      V.qg.gain.setTargetAtTime(slip * 0.12, t, 0.04);
+    },
+    _carVoice: E2 => carVoice(E2),   // test hook: the engine voice on any engine (offline renders)
     setVolume(master, music, sfx) {
       vol[0] = master == null ? vol[0] : +master; vol[1] = music == null ? vol[1] : +music; vol[2] = sfx == null ? vol[2] : +sfx;
       if (E) E.volume(vol[0], vol[1], vol[2]);

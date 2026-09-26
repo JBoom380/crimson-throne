@@ -3,15 +3,17 @@
   const W = 1280, H = 720, TAU = Math.PI * 2;
   const LS_SENS = 'crimsonThrone.sens', LS_INV = 'crimsonThrone.invertY';
   const HEAVY_MOUSE = 0.22, HEAVY_TOUCH = 0.25, DTAP = 0.25, STICK_R = 110, DEAD = 0.15, TOUCH_SENS = 0.006;
-  const PRESSED = ['jump', 'attack', 'heavyRelease', 'dodge', 'interact', 'torch', 'inventory', 'map', 'pause', 'usePotion', 'offhand1', 'offhand2', 'offhandCycle', 'fire', 'reload'];
+  const PRESSED = ['jump', 'attack', 'heavyRelease', 'dodge', 'interact', 'torch', 'inventory', 'map', 'pause', 'usePotion', 'offhand1', 'offhand2', 'offhandCycle', 'fire', 'reload', 'camToggle', 'horn', 'vehExit'];
   const GAME_CODES = new Set(['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
-    'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyE', 'KeyT', 'KeyI', 'KeyM', 'KeyQ', 'KeyR', 'Escape', 'Digit1', 'Digit2']);
+    'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyE', 'KeyT', 'KeyI', 'KeyM', 'KeyQ', 'KeyR', 'Escape', 'Digit1', 'Digit2', 'KeyV', 'KeyH']);
   const DIR_OF = { KeyW: 'u', ArrowUp: 'u', KeyS: 'd', ArrowDown: 'd', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
   const now = () => performance.now() / 1000;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
   const state = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, sprint: false, jump: false, attack: false, heavy: 0, heavyRelease: false,
-    block: false, dodge: false, interact: false, torch: false, inventory: false, map: false, pause: false, usePotion: false, offhand1: false, offhand2: false, offhandCycle: false, fire: false, reload: false };
+    block: false, dodge: false, interact: false, torch: false, inventory: false, map: false, pause: false, usePotion: false, offhand1: false, offhand2: false, offhandCycle: false, fire: false, reload: false,
+    throttle: 0, brakeAxis: 0, handbrake: false, boost: false, camToggle: false, horn: false, vehExit: false };   // the last row drives the Iron Stallion (vehicle.js)
+  const driving = () => !!(CT.vehicle && CT.vehicle.driving);
   const pend = {}; PRESSED.forEach(k => (pend[k] = false));
   let core = null, stage = null, uiCanvas = null;
   let sens = 0.0022, invertY = false, lockRefused = false, skipMove = 0, pendLost = false, wasLocked = false;
@@ -59,6 +61,8 @@
       case 'Escape': pend.pause = true; break;
       case 'KeyQ': pend.usePotion = true; break;
       case 'KeyR': if (rifle()) pend.reload = true; else pend.usePotion = true; break;
+      case 'KeyV': pend.camToggle = true; break;
+      case 'KeyH': pend.horn = true; break;
     }
   }
   function onKeyUp(e) { keys.delete(e.code); if (inPlay() && GAME_CODES.has(e.code)) e.preventDefault(); }
@@ -101,6 +105,12 @@
     { id: 'menu', label: 'MENU', r: 38, kind: 'press', key: 'pause', tl: 0 },
     { id: 'map', label: 'MAP', r: 38, kind: 'press', key: 'map', tl: 1 },
     { id: 'inv', label: 'PACK', r: 38, kind: 'press', key: 'inventory', tl: 2 },
+    // Iron Stallion (vehicle.js): shown only while driving
+    { id: 'hbrake', label: 'HANDBRAKE', r: 78, kind: 'hold', ring: 0, ang: 0, drive: true },
+    { id: 'dexit', label: 'EXIT', r: 62, kind: 'press', key: 'vehExit', ring: 196, ang: 226, drive: true },
+    { id: 'dboost', label: 'FLOOR IT', r: 54, kind: 'hold', ring: 186, ang: 170, drive: true },
+    { id: 'dcam', label: 'VIEW', r: 40, kind: 'press', key: 'camToggle', ring: 196, ang: 278, drive: true },
+    { id: 'dhorn', label: 'HORN', r: 40, kind: 'press', key: 'horn', ring: 330, ang: 200, drive: true },
   ];
   BTN.forEach(b => { b.x = 0; b.y = 0; b.rr = b.r; b.down = 0; b.flash = 0; });
   const B = {}; BTN.forEach(b => (B[b.id] = b));
@@ -121,7 +131,7 @@
       else { const a = b.ang * Math.PI / 180; b.x = ax + Math.cos(a) * b.ring * k; b.y = ay + Math.sin(a) * b.ring * k; }
     });
   }
-  const visible = b => (b.id !== 'use' || showUse) && (b.id !== 'reload' || rifle());
+  const visible = b => (driving() ? !!b.drive || b.tl != null : !b.drive) && (b.id !== 'use' || showUse) && (b.id !== 'reload' || rifle());
   function toUI(cx, cy) {
     const r = uiCanvas ? uiCanvas.getBoundingClientRect() : { left: 0, top: 0, width: W, height: H };
     return { x: (cx - r.left) / r.width * W, y: (cy - r.top) / r.height * H, s: r.width / W };
@@ -196,10 +206,10 @@
 
   // ── Gamepad (standard mapping) ──
   const padPrev = [];
-  const pad = { mx: 0, my: 0, lx: 0, ly: 0, block: false, sprint: false };
+  const pad = { mx: 0, my: 0, lx: 0, ly: 0, block: false, sprint: false, thr: 0, brk: 0, hand: false, boost: false };
   function dz(v) { const a = Math.abs(v); return a < DEAD ? 0 : Math.sign(v) * (a - DEAD) / (1 - DEAD); }
   function pollPad(dt, play) {
-    pad.mx = pad.my = pad.lx = pad.ly = 0; pad.block = pad.sprint = false;
+    pad.mx = pad.my = pad.lx = pad.ly = 0; pad.block = pad.sprint = false; pad.thr = pad.brk = 0; pad.hand = pad.boost = false;
     let gp = null;
     try { const l = navigator.getGamepads ? navigator.getGamepads() : []; for (const g of l) if (g && g.connected) { gp = g; break; } } catch (e) {}
     if (!gp) { if (ch.pad.down) resetChan(ch.pad); return; }
@@ -222,6 +232,9 @@
       if (edge(9)) pend.pause = true;
       if (edge(8)) pend.map = true;
       if (edge(12)) pend.inventory = true;
+      // Iron Stallion: RT/LT are analog throttle and brake, A the handbrake, LB floor it, RB the view, R3 the horn
+      pad.thr = gp.buttons[7] ? +gp.buttons[7].value || 0 : 0; pad.brk = gp.buttons[6] ? +gp.buttons[6].value || 0 : 0; pad.hand = bt(0); pad.boost = bt(4);
+      if (driving()) { if (edge(5)) pend.camToggle = true; if (edge(11)) pend.horn = true; }
     }
     for (let i = 0; i < gp.buttons.length; i++) padPrev[i] = bt(i);
   }
@@ -287,7 +300,40 @@
     state.attack = state.attack || atk; state.heavyRelease = rel; state.heavy = heavy;
     state.block = rmb || pad.block || B.block.down > 0;
     M.lostLock = pendLost; pendLost = false;
+    // Iron Stallion (vehicle.js): the driving inputs; while driving, E/USE leaves the car instead of talking or looting
+    state.throttle = pad.thr; state.brakeAxis = pad.brk;
+    state.handbrake = keys.has('Space') || pad.hand || B.hbrake.down > 0;
+    state.boost = kd('ShiftLeft', 'ShiftRight') || pad.boost || B.dboost.down > 0 || (driving() && stick.sprint);
+    if (driving()) { state.vehExit = state.vehExit || state.interact; state.interact = false; } else state.vehExit = false;
   }
+
+  // ── Iron Stallion touch icons ──
+  const DRIVE_ICONS = {
+    hbrake(ctx) {
+      ctx.fillStyle = '#2a2622'; ctx.fillRect(-7, -6, 14, 38); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(-7, -6, 14, 38);
+      ctx.save(); ctx.rotate(-0.35); ctx.fillStyle = BONE; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-4, -34); ctx.quadraticCurveTo(0, -40, 4, -34); ctx.lineTo(6, 0); ctx.closePath(); ctx.fill(); stroke(ctx, 2.5);
+      ctx.fillStyle = '#b8321a'; ctx.beginPath(); ctx.arc(0, -36, 5, 0, TAU); ctx.fill(); stroke(ctx, 2); ctx.restore();
+      ctx.strokeStyle = BONE; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 8, 30, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+    },
+    dexit(ctx) {
+      ctx.fillStyle = '#3a3a40'; ctx.beginPath(); ctx.moveTo(-26, 26); ctx.lineTo(-26, -20); ctx.quadraticCurveTo(-26, -28, -12, -28); ctx.lineTo(10, -28); ctx.lineTo(10, 26); ctx.closePath(); ctx.fill(); stroke(ctx, 2.5);
+      ctx.fillStyle = '#8ecae6'; ctx.fillRect(-20, -22, 24, 18); ctx.strokeRect(-20, -22, 24, 18);
+      ctx.strokeStyle = BONE; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(4, 8); ctx.lineTo(32, 8); ctx.moveTo(24, -2); ctx.lineTo(34, 8); ctx.lineTo(24, 18); ctx.stroke();
+    },
+    dboost(ctx, t) {
+      ctx.fillStyle = BONE;
+      for (let i = 0; i < 3; i++) { const o = i * 13 - 16; ctx.beginPath(); ctx.moveTo(o - 8, -18); ctx.lineTo(o + 8, 0); ctx.lineTo(o - 8, 18); ctx.lineTo(o - 2, 18); ctx.lineTo(o + 14, 0); ctx.lineTo(o - 2, -18); ctx.closePath(); ctx.fill(); stroke(ctx, 2); }
+      ctx.fillStyle = `rgba(255,${120 + 60 * Math.sin(t * 20)},40,0.9)`; ctx.beginPath(); ctx.arc(-30, 0, 6, 0, TAU); ctx.fill();
+    },
+    dcam(ctx) {
+      ctx.fillStyle = BONE; ctx.beginPath(); ctx.ellipse(0, 0, 30, 18, 0, 0, TAU); ctx.fill(); stroke(ctx, 2.5);
+      ctx.fillStyle = '#1a3a4a'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.fill(); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, TAU); ctx.fill();
+    },
+    dhorn(ctx) {
+      ctx.fillStyle = '#c9974f'; ctx.beginPath(); ctx.moveTo(-26, -8); ctx.lineTo(-10, -8); ctx.lineTo(18, -22); ctx.lineTo(18, 22); ctx.lineTo(-10, 8); ctx.lineTo(-26, 8); ctx.closePath(); ctx.fill(); stroke(ctx, 2.5);
+      ctx.strokeStyle = BONE; ctx.lineWidth = 3; ctx.lineCap = 'round'; for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.arc(20, 0, 10 + i * 9, -0.7, 0.7); ctx.stroke(); }
+    },
+  };
 
   // ── Drawing helpers (bronze and iron) ──
   function bronze(ctx, x, y, r) {
@@ -421,6 +467,7 @@
       ctx.beginPath(); ctx.arc(0, 0, 36, -0.4, 0.9); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(24, 30); ctx.lineTo(29, 22); ctx.lineTo(33, 31); ctx.stroke();
     },
+    hbrake(ctx, t) { DRIVE_ICONS.hbrake(ctx, t); }, dexit(ctx, t) { DRIVE_ICONS.dexit(ctx, t); }, dboost(ctx, t) { DRIVE_ICONS.dboost(ctx, t); }, dcam(ctx, t) { DRIVE_ICONS.dcam(ctx, t); }, dhorn(ctx, t) { DRIVE_ICONS.dhorn(ctx, t); },
     reload(ctx) {
       ctx.save(); ctx.rotate(0.25);
       ctx.fillStyle = '#2a2c30'; ctx.beginPath(); ctx.moveTo(-10, -22); ctx.lineTo(8, -22); ctx.quadraticCurveTo(12, 6, 16, 26); ctx.lineTo(-2, 30); ctx.quadraticCurveTo(-6, 4, -10, -22); ctx.closePath(); ctx.fill(); stroke(ctx, 2.5);
@@ -486,7 +533,7 @@
     ctx.beginPath(); ctx.arc(kx, ky, kr * 0.62, 0, TAU); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(40,20,8,0.7)'; ctx.stroke();
     ctx.beginPath(); ctx.arc(kx, ky, kr * 0.22, 0, TAU); ctx.fillStyle = hot ? '#d8301a' : '#6a3a14'; ctx.fill(); ctx.stroke();
     ctx.restore();
-    if (!active) label(ctx, 'MOVE', bx, by - R - 18, 16, 'rgba(232,200,140,0.5)');
+    if (!active) label(ctx, driving() ? 'STEER + GAS' : 'MOVE', bx, by - R - 18, 16, 'rgba(232,200,140,0.5)');
     else if (hot) label(ctx, 'SPRINT', bx, by - R - 18, 16, 'rgba(255,120,80,0.95)');
   }
 

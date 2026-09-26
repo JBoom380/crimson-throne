@@ -602,7 +602,7 @@
   function compUpdate(n, dt, c, pp, live) {
     const st = comp(), R = n.R;
     const dx0 = pp.x - n.pos.x, dz0 = pp.z - n.pos.z; n.dist = Math.hypot(dx0, dz0);
-    if (!st || !st.owned) { R.root.visible = false; return; }
+    if (!st || !st.owned) { R.root.visible = false; if (n.spr) n.spr.root.visible = false; return; }
     if (live) { st.reviveCD = Math.max(0, st.reviveCD - dt); st.healCD = Math.max(0, st.healCD - dt); }
     let speed = 0;
     if (st.following) speed = compFollow(n, dt, pp);
@@ -618,8 +618,13 @@
     COMP.walkAmt += (clamp(speed / 4.5, 0, 1.25) - COMP.walkAmt) * Math.min(1, dt * 8);
     COMP.walkPh += dt * speed * 4.2;
     const ud = R.root.userData;
-    if (ud.walk) ud.walk(COMP.walkAmt < 0.03 ? 0 : COMP.walkAmt, COMP.walkPh);
-    if (ud.update) ud.update(dt, time);
+    if (n.spr) {   // painted billboard; the hidden 3D root still carries the hand/head anchors for the fx and the bubble
+      n.spr.root.visible = R.root.visible; R.root.visible = false;
+      if (n.spr.root.visible) spriteUpdate(n, dt, c, { amt: COMP.walkAmt, ph: COMP.walkPh, vx: COMP.vel.x, vz: COMP.vel.z });
+    } else {
+      if (ud.walk) ud.walk(COMP.walkAmt < 0.03 ? 0 : COMP.walkAmt, COMP.walkPh);
+      if (ud.update) ud.update(dt, time);
+    }
     if (st.following && live) { compHeal(n, dt, st); compBanterTick(n, dt, pp); }
     compIdleFx(n, dt, speed);
     fxTick(dt); bubbleTick(n, dt);
@@ -782,7 +787,11 @@
   // A camera-facing plane (turns around Y only) with the painted frame chosen by the angle between her facing and the
   // camera: a0, a35 (for about 45), a90, a180; the 35 and 90 frames mirror for the other side. The 3D model stays as the
   // fallback and is hidden while the sprite is active. alphaTest keeps it in the opaque pass (no sorting with fire/fog).
-  const SPRITE_IDS = ['kaela'];   // the other heroines get painted frames later
+  // Any npc with CT.sprites[id] gets the billboard (the four heroines now). Vesna's frames are body-relative; with the sprite
+  // active her facing logic turns her BODY (yawNow) toward the target, so her front frame shows when she faces you and the
+  // 135 degree rig offset of the 3D sculpt does not apply.
+  const hasSprite = id => !!(CT.sprites && CT.sprites[id] && CT.sprites[id].frames && CT.sprites[id].frames.a0);
+  function attachSprite(n) { if (!n || !hasSprite(n.id)) return; try { n.spr = spriteRig(n.id); } catch (e) { console.warn('[npcs] sprite failed', n.id, e); n.spr = null; } }
   function spriteRig(id) {
     const SP = CT.sprites && CT.sprites[id]; if (!SP || !SP.frames || !SP.frames.a0) return null;
     const tex = {};
@@ -799,18 +808,24 @@
     group.add(root);
     return { root, mesh, mat, tex, frames: SP.frames, H: SP.height || 1.83, key: null, mir: 1, bob: 0, ph: (hash(id) % 100) / 17 };
   }
-  function spriteFrame(rel) {
-    const a = Math.abs(rel) * 180 / PI;
+  const SPR_RANGE = { a0: [0, 20], a35: [20, 62], a90: [62, 125], a180: [125, 181] };
+  function spriteFrame(rel, cur) {
+    const a = Math.abs(rel) * 180 / PI, sg = rel < 0 ? -1 : 1;
+    // hysteresis: keep the current frame until the view is 6 degrees past its edge (no flicker while she turns)
+    if (cur && cur.key && SPR_RANGE[cur.key]) {
+      const [lo, hi] = SPR_RANGE[cur.key], mirOk = cur.key === 'a0' || cur.key === 'a180' || cur.mir === (sg < 0 ? -1 : 1) || a < 8 || a > 172;
+      if (a >= lo - 6 && a < hi + 6 && mirOk) return cur;
+    }
     const key = a < 20 ? 'a0' : a < 62 ? 'a35' : a < 125 ? 'a90' : 'a180';
     return { key, mir: (key === 'a35' || key === 'a90') && rel < 0 ? -1 : 1 };
   }
-  function spriteUpdate(n, dt, c) {
+  function spriteUpdate(n, dt, c, walk) {
     const S = n.spr, cam = c.camera.position;
     S.root.position.copy(n.pos);
     const toCam = Math.atan2(cam.x - n.pos.x, cam.z - n.pos.z);
     S.root.rotation.y = toCam;
     let rel = toCam - n.yawNow; while (rel > PI) rel -= TAU; while (rel < -PI) rel += TAU;
-    const F = spriteFrame(rel);
+    const F = spriteFrame(rel, { key: S.key, mir: S.mir });
     if (F.key !== S.key || F.mir !== S.mir) {
       if (S.key) S.bob = 1;
       S.key = F.key; S.mir = F.mir; S.mat.map = S.mat.emissiveMap = S.tex[F.key];
@@ -818,8 +833,16 @@
     const m = S.frames[S.key], Hw = S.H / Math.max(0.1, m.bottom - m.top), Ww = Hw * m.w / m.h, t = time + S.ph;
     S.bob = Math.max(0, S.bob - dt * 3.5);
     S.mesh.scale.set(Ww * S.mir, Hw * (1 + Math.sin(t * 1.7) * 0.01), 1);
-    S.mesh.position.set((0.5 - m.ax) * Ww * S.mir, -(1 - m.bottom) * Hw + Math.sin(S.bob * PI) * 0.025, 0);
-    S.mesh.rotation.z = Math.sin(t * 0.42) * 0.008;
+    // walking (the companion): a step bob and a lean into the direction of travel as seen from the camera
+    let wb = 0, lean = 0;
+    if (walk && walk.amt > 0.03) {
+      wb = Math.abs(Math.sin(walk.ph)) * 0.035 * Math.min(1, walk.amt);
+      const rx = Math.cos(toCam), rz = -Math.sin(toCam), sp = Math.hypot(walk.vx, walk.vz) || 1;   // the plane's right axis
+      lean = -((walk.vx * rx + walk.vz * rz) / sp) * 0.06 * Math.min(1, walk.amt);
+      S.mesh.scale.y *= 1 + Math.sin(walk.ph * 2) * 0.012;
+    }
+    S.mesh.position.set((0.5 - m.ax) * Ww * S.mir, -(1 - m.bottom) * Hw + Math.sin(S.bob * PI) * 0.025 + wb, 0);
+    S.mesh.rotation.z = Math.sin(t * 0.42) * 0.008 + lean;
   }
   npcs.spriteFrame = spriteFrame;
 
@@ -842,16 +865,17 @@
     };
     if (CT.humanoid && CT.humanoid.prewarm) { try { CT.humanoid.prewarm(npcs.kitSpecs()); } catch (e) { console.warn('[npcs] prewarm', e); } }
     CAST.forEach(d => npcs.list.push(mk(d, heroRig(d.id) || (d.kind === 'trader' && kitRig(d.id)) || BUILD[d.id]())));
-    SPRITE_IDS.forEach(id => { const n = npcs.find(id); if (n) { try { n.spr = spriteRig(id); } catch (e) { console.warn('[npcs] sprite failed', id, e); n.spr = null; } } });
+    npcs.list.forEach(attachSprite);
     VILLAGERS.forEach((v, i) => {
       v.seed = hash(v.id); v.scale = v.scale || (v.fem ? 0.93 : 1.0) + (v.seed % 5) * 0.012;
       npcs.list.push(mk(Object.assign({ kind: 'villager', tags: v.task === 'spear' ? ['guard', 'villager'] : ['villager', 'merchant', 'guard'] }, v), kitRig(v.id, v) || buildVillager(v), { dlg: 'villager', lines: v.lines, task: v.task, portrait: v.id }));
     });
     // Selene the Moonbound: built once at init (hidden) so she never streams in with a shader-compile hitch
     const sel = mk({ id: 'selene', name: 'Selene the Moonbound', kind: 'companion', poi: 'fen', tags: [], off: [97, -106], yaw: 0 }, heroRig('selene') || seleneFallback());
-    sel.R.root.visible = false; npcs.list.push(sel); COMP.n = sel;
+    sel.R.root.visible = false; npcs.list.push(sel); COMP.n = sel; attachSprite(sel); if (sel.spr) sel.spr.root.visible = false;
     placeAll();
     placedFromSpots = npcs.list.some(n => n.fromSpot);
+    npcs.list.forEach(n => npcs.portrait(n.portrait));
     compInit();
   };
 
@@ -1637,9 +1661,26 @@
     return { rim: '#ffb060', rimSide: 1, top: '#ffc080', outline: '#120604' };
   };
 
+  // Painted portraits (portraits.js, 256x320): drawn into the portrait canvas when the image loads; the procedural painting
+  // shows until then and stays the fallback for anyone without art.
+  const ART_ID = { mag: 'oldmag', v_dorran: 'militia', v_oss: 'pilgrim', v_tam: 'merchant' };
+  function artFor(id) {
+    const A = CT.portraitArt; if (!A) return null;
+    if (A[id]) return A[id];
+    if (ART_ID[id] && A[ART_ID[id]]) return A[ART_ID[id]];
+    const v = VILLAGERS.find(v => v.id === id);
+    if (v) return A[v.fem ? 'villager_f' : 'villager_m'] || null;
+    return null;
+  }
+  const _procPortrait = id => procPortrait(id);
   npcs.portrait = function (id) {
     id = id || 'villager';
     if (PCACHE[id]) return PCACHE[id];
+    const cv = _procPortrait(id), src = artFor(id);
+    if (src) { const img = new Image(); img.onload = () => { const g = cv.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, cv.width, cv.height); cv.painted = true; }; img.src = src; }
+    return (PCACHE[id] = cv);
+  };
+  function procPortrait(id) {
     const bg = canvas(PW, PH), fg = canvas(PW, PH), det = canvas(PW, PH);
     const b = bg.getContext('2d'), f = fg.getContext('2d'), d = det.getContext('2d');
     const rnd = CT.rng ? CT.rng(hash(id)) : Math.random;
@@ -1651,6 +1692,6 @@
     f.fillStyle = lin(f, 0, 0, PW, 0, k < 0 ? [[0, lit], [0.45, 'rgba(0,0,0,0)'], [1, dark]] : [[0, dark], [0.55, 'rgba(0,0,0,0)'], [1, lit]]); f.fillRect(0, 0, PW, PH);
     f.fillStyle = lin(f, 0, 56, 0, PH, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(12,2,6,0.5)']]); f.fillRect(0, 0, PW, PH);
     f.globalCompositeOperation = 'source-over';
-    return (PCACHE[id] = finish(bg, fg, det, o));
-  };
+    return finish(bg, fg, det, o);
+  }
 })();

@@ -1035,6 +1035,7 @@
 
   PL.hurt = function (amount, dir, source) {
     if (!PL.alive || !(amount > 0)) return 0;
+    if (CT.vehicle && CT.vehicle.driving && typeof CT.vehicle.absorb === 'function') { const a = CT.vehicle.absorb(amount, dir, source); if (typeof a === 'number') amount = a; }   // Iron Stallion: the car takes most of it
     if (dodgeT >= 0 && dodgeT < 0.35) { sfx('dodge', { evade: true }); return 0; }
     let amt = amount;
     if (PL.blocking && guardBreakT <= 0 && fromFront(dir, source)) {
@@ -1132,6 +1133,7 @@
       if (d.overkill > 50) { CORE.hitStop(0.12); CORE.shake(1, 0.45); ownHands = Math.min(1, ownHands + 0.2); }
       else if (d.overkill > 0) CORE.shake(0.9, 0.35);
     });
+    if (CT.vehicle && typeof CT.vehicle.init === 'function') CT.vehicle.init(core);   // Iron Stallion (vehicle.js is not a core module)
     ready = true;
   };
 
@@ -1146,6 +1148,8 @@
     const rifleNow = !!(curW && (curW.style === 'rifle' || curW.ranged));
     if (rifleNow !== PL.rifle) { PL.rifle = rifleNow; reloadT = -1; aiming = false; dragT = -1; charging = false; atk = 0; }
     vaultUpdate(dt);
+    // ── Iron Stallion (vehicle.js): while driving, the car owns movement and the camera ──
+    if (CT.vehicle && typeof CT.vehicle.tick === 'function' && CT.vehicle.tick(dt, core)) { PL.blocking = PL.dodging = false; charging = false; atk = 0; hspeed = 0; sprinting = false; aiming = false; return; }
     if (PL.rifle && PL.alive) rifleUpdate(dt, core, cam); else aiming = false;
     PL.prompt = null;
     const sm = stMax();
@@ -1265,6 +1269,7 @@
     PL.pos.x += (v.x + kbx) * dt; PL.pos.z += (v.z + kbz) * dt; PL.pos.y += v.y * dt;
     const kd = Math.exp(-7 * dt); kbx *= kd; kbz *= kd;
     if (has('world', 'collide')) { const r = CT.world.collide(PL.pos, P.radius); if (r && r !== PL.pos && typeof r.x === 'number') { PL.pos.x = r.x; PL.pos.z = r.z; } PL.pos.y = oy + v.y * dt; }
+    if (CT.vehicle && typeof CT.vehicle.pushOut === 'function') CT.vehicle.pushOut(PL.pos, P.radius);   // Iron Stallion: barn walls and the parked car
     const lim = C.ISLAND - 5; PL.pos.x = clamp(PL.pos.x, -lim, lim); PL.pos.z = clamp(PL.pos.z, -lim, lim);
     let ground = hAt(PL.pos.x, PL.pos.z);
     const wd = wAt(PL.pos.x, PL.pos.z); if (wd > 1.35) ground = Math.max(ground, ground + wd - 1.35);   // wade/swim: keep the head above water
@@ -1705,6 +1710,7 @@
 
   PL.drawHands = function (ctx, t) {
     if (!ready || !K) return;
+    if (CT.vehicle && CT.vehicle.driving) return;   // Iron Stallion: both hands on the wheel
     const t0 = performance.now();
     let dt = lastT < 0 ? 0.016 : t - lastT; lastT = t;
     if (!(dt > 0)) dt = 0; else if (dt > 0.1) dt = 0.1;

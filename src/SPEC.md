@@ -212,3 +212,9 @@ Dark, epic synthesised score: low brass drones, war drums (taiko-like), a male c
 - `CT.interactables` (core): `add({x, z, radius, label, onUse(o), disabled})` / `remove(o)` / `nearest(pos)`. The core shows "E  <label>" (touch: USE) and calls `onUse` when the player presses interact and no NPC is nearer. Use it for chests, shrines, corpses, travellers and event triggers.
 - `CT.life` (life.js, loaded after monsters.js and before npcs.js): ambient wildlife, road travellers and random encounters. See the file header.
 - Roaming monster density was raised (monsters.js BIOME table). Over half of the roaming spawns appear 70 to 120 m ahead in view.
+
+## Addendum (painted update, 9/26/26)
+- `CT.vehicle` (vehicle.js): the Iron Stallion drivable car; player.js starts and updates it. E to enter or exit, V for the cockpit view.
+- `CT.sprites` / `CT.portraits` (sprites.js, portraits.js): painted billboard frames and dialog portraits, built by tools/make_sprites.py from art/.
+- `CT.tex` (textures.js), `CT.skies` (skies.js), `CT.horizon` (horizon.js): painted textures, skies and horizon layers, built by tools/make_*.py.
+- Render modes (game.js): painted (default; 1280x720 desktop, 960x540 touch) or retro (`?render=retro`, 640x360 pixel).

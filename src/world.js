@@ -1,4 +1,4 @@
-// â”€â”€â”€ WORLD: the cursed isle of Vael â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── WORLD: the cursed isle of Vael ──────────────────────────────────────────
 // A cached 4 m heightfield (+ analytic detail), a warped far LOD so the peaks and
 // the citadel show from anywhere, a sea to the horizon, a road network, streamed
 // 64 m terrain chunks with instanced vegetation, and hand-built points of interest.
@@ -6,12 +6,12 @@ window.CT = window.CT || {};
 (function () {
   const T = THREE, C = CT.config;
   const U = { time: { value: 0 } };
-  const WU = { uNearR: { value: 300 }, uExag: { value: 0.4 } };
+  const WU = { uNearR: { value: 300 }, uExag: { value: 0.4 }, uKeep: { value: 0 } };
   let core = null, scene = null, mats = null, viewR = 300, fineR = 110, lowQ = false;
   const POIS = C.POIS, P = {};
   POIS.forEach(p => (P[p.id] = p));
 
-  // â”€â”€ Math + noise â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Math + noise ───────────────────────────────────────────────────────────
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -43,7 +43,7 @@ window.CT = window.CT || {};
   const bell = (x, z, cx, cz, R, A) => { const d2 = ((x - cx) * (x - cx) + (z - cz) * (z - cz)) / (R * R); return d2 < 1 ? A * (1 - d2) * (1 - d2) : 0; };
   const terr = (h, s) => { const k = h / s, f = k - Math.floor(k); return (Math.floor(k) + sstep(0.5, 0.92, f)) * s; };
 
-  // â”€â”€ Island shape + regions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Island shape + regions ─────────────────────────────────────────────────
   // coastline radius and cliffiness depend only on the direction: tabulate them
   const CT_N = 4096, COAST_R = new Float32Array(CT_N + 1), COAST_K = new Float32Array(CT_N + 1);
   for (let i = 0; i <= CT_N; i++) {
@@ -75,7 +75,7 @@ window.CT = window.CT || {};
   }
   const cragMask = (x, z) => sstep(0.56, 0.72, vnoise(x * 0.0045 + 91, z * 0.0045 + 17));
 
-  // â”€â”€ Raw height by biome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Raw height by biome ────────────────────────────────────────────────────
   const hMeadow = (x, z) => 3 + 18 * (fbm(x * 0.0042 + 11, z * 0.0042 + 3, 4) - 0.25) + 2.5 * vnoise(x * 0.025, z * 0.025);
   const hForest = (x, z) => 10 + 52 * (fbm(x * 0.0038 + 7, z * 0.0038 + 1, 4) - 0.25) + 26 * Math.pow(ridged(x * 0.008, z * 0.008, 2), 2);
   const hHills = (x, z) => 12 + 58 * (fbm(x * 0.0036 + 3, z * 0.0036 + 5, 5) - 0.28) + 50 * Math.pow(ridged(x * 0.0062 + 2, z * 0.0062 + 9, 3), 3);
@@ -132,7 +132,7 @@ window.CT = window.CT || {};
     return lerp(-1.6 + c * 0.045, h, sstep(0, L, c));
   }
 
-  // â”€â”€ Cached heightfield (4 m) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Cached heightfield (4 m) ───────────────────────────────────────────────
   const GS = 4, GN = 801, G0 = -1600;
   let HG = null, FL = null, RD = null;
   function samp(A, x, z) {
@@ -183,7 +183,7 @@ window.CT = window.CT || {};
     buildRoads();
   }
 
-  // â”€â”€ Roads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Roads ──────────────────────────────────────────────────────────────────
   // Control points: POI ids or [x, z]. m = meander amplitude.
   const ROADDEF = [
     { p: ['shore', [30, 1130], 'harrowby'], m: 6 },
@@ -262,7 +262,7 @@ window.CT = window.CT || {};
     return false;
   }
 
-  // â”€â”€ Canvas textures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Canvas textures ────────────────────────────────────────────────────────
   function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
   function tex(c, rep, nearest) {
     const t = new T.CanvasTexture(c);
@@ -338,7 +338,7 @@ window.CT = window.CT || {};
     const t = tex(c, false, true); t.generateMipmaps = false; return t;
   }
 
-  // â”€â”€ Geometry batching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Geometry batching ──────────────────────────────────────────────────────
   const _M = new T.Matrix4(), _Q = new T.Quaternion(), _E = new T.Euler(0, 0, 0, 'YXZ'), _P = new T.Vector3(), _S = new T.Vector3();
   const _a = new T.Vector3(), _b = new T.Vector3(), _n = new T.Vector3(), _col = new T.Color(), UP = new T.Vector3(0, 1, 0);
   let rnd = CT.rng(1);
@@ -352,11 +352,25 @@ window.CT = window.CT || {};
     return _M.compose(_P, _Q, _S);
   }
   class Batch {
-    constructor() { this.p = []; this.c = []; }
+    constructor(tile, name) { this.p = []; this.c = []; this.uv = []; this.tile = tile || 0; this.name = name || ''; }
     add(g0, m, col, jit, R) {
       const g = g0.index ? g0.toNonIndexed() : g0, src = g.attributes.position.array, e = m ? m.elements : null;
       const p = this.p, o = p.length, cnt = src.length / 3, fn = typeof col === 'function';
       R = R || rnd;
+      if (this.tile) { // box-projected UVs in the part's own (scaled) frame, so the texture follows walls and roofs
+        const sx = e ? Math.hypot(e[0], e[1], e[2]) : 1, sy = e ? Math.hypot(e[4], e[5], e[6]) : 1, sz = e ? Math.hypot(e[8], e[9], e[10]) : 1;
+        const t = 1 / this.tile, ou = R(), ov = R(), U = this.uv;
+        for (let f = 0; f < cnt; f += 3) {
+          const i = f * 3;
+          const ax = (src[i + 3] - src[i]) * sx, ay = (src[i + 4] - src[i + 1]) * sy, az = (src[i + 5] - src[i + 2]) * sz;
+          const bx2 = (src[i + 6] - src[i]) * sx, by2 = (src[i + 7] - src[i + 1]) * sy, bz2 = (src[i + 8] - src[i + 2]) * sz;
+          const nx = Math.abs(ay * bz2 - az * by2), ny = Math.abs(az * bx2 - ax * bz2), nz = Math.abs(ax * by2 - ay * bx2);
+          for (let v = 0; v < 3; v++) {
+            const X = src[i + v * 3] * sx, Y = src[i + v * 3 + 1] * sy, Z = src[i + v * 3 + 2] * sz;
+            if (ny >= nx && ny >= nz) U.push(X * t + ou, Z * t + ov); else if (nx >= nz) U.push(Z * t + ou, Y * t); else U.push(X * t + ou, Y * t);
+          }
+        }
+      }
       for (let i = 0; i < cnt; i++) {
         const x = src[i * 3], y = src[i * 3 + 1], z = src[i * 3 + 2];
         if (e) p.push(e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]);
@@ -382,18 +396,28 @@ window.CT = window.CT || {};
         this.p.push(e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]);
       }
       for (let i = 0; i < b.c.length; i++) this.c.push(b.c[i]);
+      if (this.tile) { if (b.tile) for (let i = 0; i < b.uv.length; i++) this.uv.push(b.uv[i]); else for (let i = 0; i < s.length / 3; i++) this.uv.push(0, 0); }
     }
     get empty() { return this.p.length === 0; }
     geo() {
       const g = new T.BufferGeometry();
       g.setAttribute('position', new T.BufferAttribute(new Float32Array(this.p), 3));
       g.setAttribute('color', new T.BufferAttribute(new Float32Array(this.c), 3));
+      if (this.tile) g.setAttribute('uv', new T.BufferAttribute(new Float32Array(this.uv), 2));
       g.computeVertexNormals();
       return g;
     }
   }
-  const kit = () => ({ f: new Batch(), d: new Batch(), g: new Batch() });
-  function placeKit(K, k, m) { K.f.merge(k.f, m); K.d.merge(k.d, m); K.g.merge(k.g, m); }
+  const kit = () => ({ f: new Batch(), d: new Batch(), g: new Batch(), t: {} });
+  // painted-texture batches (metres per tile); only used when CT.tex (textures.js) is present
+  const TSZ = { wall: 3.4, thatch: 2.4, tiles: 2.2, planks: 2.0, bark: 1.6, rock: 4, stone: 5 };
+  let TX = false;
+  const tb = (K, n) => K.t[n] || (K.t[n] = new Batch(TSZ[n], n));
+  const txb = (K, n) => (TX ? tb(K, n) : K.f); // textured batch when painting, else the flat one
+  function placeKit(K, k, m) {
+    K.f.merge(k.f, m); if (k.d !== k.f) K.d.merge(k.d, m); K.g.merge(k.g, m);
+    for (const n in k.t) if (k.t[n] !== k.f && k.t[n] !== k.d) tb(K, n).merge(k.t[n], m);
+  }
   function lumpy(g0, amt, seed) {
     const g = g0.index ? g0.toNonIndexed() : g0, p = g.attributes.position;
     for (let i = 0; i < p.count; i++) {
@@ -421,12 +445,12 @@ window.CT = window.CT || {};
   // shorthand box on the batch: centre x,y,z
   const bx = (b, x, y, z, w, h, d, col, ry = 0, rx = 0, rz = 0, jit = 0.1) => b.add(BOX, M(x, y, z, ry, w, h, d, rx, rz), col, jit);
 
-  // â”€â”€ Palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Palette ────────────────────────────────────────────────────────────────
   const WOOD = 0x3e2a1a, WOOD2 = 0x55392a, DWOOD = 0x21160e, PLASTER = 0x8a7a60, STONE = 0x5f5a54, STONE2 = 0x47433f;
   const THATCH = 0x4a3a20, SLATE = 0x2c2a30, TILE = 0x5a2a1c, IRON = 0x28282c, BONE = 0xd6ccb4, HIDE = 0x6e5238;
   const BLACK = 0x1f1c22, BLACK2 = 0x2b2630, WHITE = 0xbfb8a8, MOSS = 0x4e5a34, CLOTH = 0x5e1a14;
 
-  // â”€â”€ Materials with wind / fire / warp shaders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Materials with wind / fire / warp shaders ─────────────────────────────
   function sway(mat, amp, y0, key) {
     mat.onBeforeCompile = sh => {
       sh.uniforms.uTime = U.time; sh.uniforms.uAmp = { value: amp }; sh.uniforms.uY0 = { value: y0 };
@@ -462,7 +486,7 @@ window.CT = window.CT || {};
     vec4 wp = modelMatrix * vec4(transformed, 1.0);
     float dh = length(wp.xz - cameraPosition.xz);
     wp.y -= uDip * (1.0 - smoothstep(uNearR, uNearR + 120.0, dh));
-    vWY = wp.y; vRealD = dh;
+    vWY = wp.y; vRealD = dh; vWZ = wp.z;
     float ex = smoothstep(700.0, 2400.0, dh);
     wp.y = wp.y * (1.0 + uExag * ex) + max(0.0, wp.y - uBase) * uEx2 * ex;
     vec3 dv = wp.xyz - cameraPosition; float D = length(dv);
@@ -471,6 +495,11 @@ window.CT = window.CT || {};
     vec4 mvPosition = viewMatrix * wp;
     gl_Position = projectionMatrix * mvPosition;`;
   const WARP_F = `
+    if (uFade > 0.5) { // fade out 450-700 m so the painted horizon layers show; keep the north near the citadel when close
+      float fk = max(1.0 - smoothstep(450.0, 700.0, vRealD), uKeep * (1.0 - smoothstep(-950.0, -850.0, vWZ)));
+      if (fk < 0.02) discard;
+      gl_FragColor.a *= fk;
+    }
     #ifdef USE_FOG
       #ifdef FOG_EXP2
         float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
@@ -482,29 +511,88 @@ window.CT = window.CT || {};
     #endif`;
   function warpify(mat, o) {
     mat.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, { uNearR: WU.uNearR, uExag: WU.uExag, uDip: { value: o.dip || 0 }, uEx2: { value: o.ex2 || 0 }, uBase: { value: o.base || 1e5 }, uFogMax: { value: o.fogMax || 0.8 }, uFog0: { value: o.fog0 || 0.8 }, uFog1: { value: o.fog1 || 2.0 }, uTime: U.time });
-      sh.vertexShader = 'uniform float uNearR, uExag, uDip, uEx2, uBase, uTime;\nvarying float vRealD; varying float vWY;\n' + sh.vertexShader.replace('#include <project_vertex>', WARP_V);
-      sh.fragmentShader = 'uniform float uNearR, uFogMax, uFog0, uFog1, uTime;\nvarying float vRealD; varying float vWY;\n' + sh.fragmentShader.replace('#include <fog_fragment>', WARP_F);
+      Object.assign(sh.uniforms, { uNearR: WU.uNearR, uExag: WU.uExag, uDip: { value: o.dip || 0 }, uEx2: { value: o.ex2 || 0 }, uBase: { value: o.base || 1e5 }, uFogMax: { value: o.fogMax || 0.8 }, uFog0: { value: o.fog0 || 0.8 }, uFog1: { value: o.fog1 || 2.0 }, uFade: { value: o.fade ? 1 : 0 }, uKeep: WU.uKeep, uTime: U.time });
+      sh.vertexShader = 'uniform float uNearR, uExag, uDip, uEx2, uBase, uTime;\nvarying float vRealD; varying float vWY; varying float vWZ;\n' + sh.vertexShader.replace('#include <project_vertex>', WARP_V);
+      sh.fragmentShader = 'uniform float uNearR, uFogMax, uFog0, uFog1, uFade, uKeep, uTime;\nvarying float vRealD; varying float vWY; varying float vWZ;\n' + sh.fragmentShader.replace('#include <fog_fragment>', WARP_F);
       if (o.extra) o.extra(sh);
       mat.userData.sh = sh;
     };
     mat.customProgramCacheKey = () => 'ct-warp-' + o.key;
     return mat;
   }
+  // Painterly flame: a camera-facing quad per fire, scrolling fbm inside a teardrop, white core -> orange -> deep red, additive.
   function fireMat() {
-    const m = new T.MeshBasicMaterial({ vertexColors: true });
-    m.onBeforeCompile = sh => {
-      sh.uniforms.uTime = U.time;
-      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-        vec3 ip = instanceMatrix[3].xyz;
-        float ph = uTime * 11.0 + ip.x * 3.1 + ip.z * 1.7;
-        float k = max(position.y, 0.0);
-        transformed.x += sin(ph + position.y * 5.0) * 0.14 * k;
-        transformed.z += cos(ph * 0.83 + position.y * 4.0) * 0.14 * k;
-        transformed.y *= 0.82 + 0.22 * sin(ph * 0.7) + 0.1 * sin(ph * 2.3);`);
-    };
-    m.customProgramCacheKey = () => 'ct-fire';
-    return m;
+    return new T.ShaderMaterial({
+      uniforms: { uTime: U.time },
+      vertexShader: `varying vec2 vUv; varying vec3 vTint; varying float vSeed;
+        void main(){
+          vUv = uv; vec3 ip = instanceMatrix[3].xyz;
+          float sx = length(instanceMatrix[0].xyz), sy = length(instanceMatrix[1].xyz);
+          #ifdef USE_INSTANCING_COLOR
+            vTint = instanceColor;
+          #else
+            vTint = vec3(1.0);
+          #endif
+          vSeed = fract(sin(dot(ip.xz, vec2(12.9898, 78.233))) * 43758.5453);
+          vec4 mv = modelViewMatrix * vec4(ip, 1.0);
+          mv.xy += vec2(position.x * sx, position.y * sy);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `uniform float uTime; varying vec2 vUv; varying vec3 vTint; varying float vSeed;
+        float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
+        float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * vn(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
+        void main(){
+          float t = uTime + vSeed * 20.0, y = vUv.y, x = (vUv.x - 0.5) * 2.0;
+          float n = fbm(vec2(x * 2.2 + vSeed * 9.0, y * 2.6 - t * 2.4));
+          float n2 = fbm(vec2(x * 4.5 - 3.0, y * 5.0 - t * 3.6));
+          x += (n2 - 0.5) * 0.55 * y;                                         // licking sideways
+          float w = mix(0.62, 0.02, pow(y, 0.85)) * (0.7 + 0.6 * n);            // teardrop
+          float shape = (1.0 - smoothstep(w * 0.3, w, abs(x))) * smoothstep(0.0, 0.1, y);
+          shape *= 1.0 - smoothstep(0.45, 0.95, y + (n - 0.5) * 0.8);
+          shape *= smoothstep(0.2, 0.5, n2 + (1.0 - y) * 0.55);                  // tongues and gaps           // ragged tongue tips
+          float fl = 0.85 + 0.15 * sin(t * 13.0) * sin(t * 7.7 + 1.3);
+          float heat = clamp(shape * (0.55 + 1.0 * n) * fl * (1.3 - y * 0.7), 0.0, 1.25);
+          vec3 c = mix(vec3(0.45, 0.02, 0.0), vec3(1.0, 0.32, 0.03), smoothstep(0.05, 0.4, heat));
+          c = mix(c, vec3(1.0, 0.78, 0.3), smoothstep(0.4, 0.8, heat));
+          c = mix(c, vec3(1.0, 0.97, 0.82), smoothstep(0.85, 1.15, heat));
+          gl_FragColor = vec4(c * vTint * heat * 1.7, 1.0);
+        }`,
+      transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    });
+  }
+  // Rising embers: one pooled Points cloud, 32 sparks for each of the 8 nearest fires (positions in a uniform array).
+  const EMB_N = 8, EMB_PER = 32, embF = [], embC = [];
+  function emberMat() {
+    for (let i = 0; i < EMB_N; i++) { embF.push(new T.Vector4()); embC.push(new T.Vector3(1, 1, 1)); }
+    return new T.ShaderMaterial({
+      uniforms: { uTime: U.time, uF: { value: embF }, uC: { value: embC }, uN: { value: 0 }, uH: { value: 720 } },
+      vertexShader: `uniform float uTime, uN, uH; uniform vec4 uF[${EMB_N}]; uniform vec3 uC[${EMB_N}];
+        attribute float aSlot; attribute vec3 aRnd; varying float vA; varying vec3 vC;
+        void main(){
+          int si = int(aSlot); vec4 f = uF[si]; float s = f.w;
+          float life = fract(uTime * (0.3 + aRnd.x * 0.35) + aRnd.y);
+          vec3 p = f.xyz + vec3((aRnd.z - 0.5) * 0.7 * s + sin(uTime * 2.1 + aRnd.y * 20.0) * 0.35 * life * s,
+                                life * (2.2 + aRnd.x * 2.0) * s,
+                                (fract(aRnd.z * 7.13) - 0.5) * 0.7 * s + cos(uTime * 1.7 + aRnd.x * 15.0) * 0.35 * life * s);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          float on = step(aSlot + 0.5, uN);
+          vA = on * (1.0 - life) * smoothstep(0.0, 0.08, life); vC = mix(vec3(1.0, 0.75, 0.3), vec3(0.9, 0.18, 0.03), life) * uC[si];
+          gl_PointSize = on * max(1.5, uH * projectionMatrix[1][1] * 0.5 * 0.07 * (1.0 - life * 0.5) / max(-mv.z, 0.5));
+        }`,
+      fragmentShader: `varying float vA; varying vec3 vC;
+        void main(){ float a = 1.0 - smoothstep(0.1, 0.5, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(vC * a * vA * 1.6, 1.0); }`,
+      transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    });
+  }
+  function emberGeo() {
+    const n = EMB_N * EMB_PER, P = new Float32Array(n * 3), S = new Float32Array(n), Rn = new Float32Array(n * 3), R = CT.rng(777);
+    for (let i = 0; i < n; i++) { S[i] = Math.floor(i / EMB_PER); Rn[i * 3] = R(); Rn[i * 3 + 1] = R(); Rn[i * 3 + 2] = R(); }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(P, 3)); g.setAttribute('aSlot', new T.BufferAttribute(S, 1)); g.setAttribute('aRnd', new T.BufferAttribute(Rn, 3));
+    return g;
   }
   function haloMat(map) {
     return new T.ShaderMaterial({
@@ -526,7 +614,7 @@ window.CT = window.CT || {};
     });
   }
 
-  // â”€â”€ Vegetation + prop prototypes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Vegetation + prop prototypes ───────────────────────────────────────────
   function geoPine(snow, far) {
     const b = new Batch(), R = CT.rng(snow ? 77 : 55);
     b.add(cyl(0.16, 0.32, 3.4, far ? 4 : 5, far), M(0, 1.5, 0), 0x3a2a1c);
@@ -634,13 +722,8 @@ window.CT = window.CT || {};
     for (let k = 0; k < 3; k++) { const a = k * 2.1; b.add(cyl(0.05, 0.2, 1.2, 4, true), limbM(0, 0.4, 0, Math.sin(a) * 1.0, -0.2, Math.cos(a) * 1.0), 0x2e241a); }
     return b.geo();
   }
-  function geoFire() {
-    const b = new Batch();
-    const c = (ny, cy) => (cy > 0.2 ? 0xff5010 : cy > -0.1 ? 0xff9a20 : 0xffc040);
-    for (let k = 0; k < 3; k++) b.add(cone(0.36, 1, 4), M(Math.sin(k * 2.1) * 0.1, 0.5, Math.cos(k * 2.1) * 0.1, k * 0.8, 1, 1 - k * 0.12, 1), c);
-    b.add(cone(0.2, 0.7, 4), M(0, 0.33, 0, 0.4), 0xffe070);
-    return b.geo();
-  }
+  function geoFire() { const g = new T.PlaneGeometry(0.9, 1); g.translate(0, 0.5, 0); return g; }
+
   function flagGeo(cell, hang) {
     const g = hang ? new T.PlaneGeometry(1.6, 4, 2, 8) : new T.PlaneGeometry(2.2, 1.4, 8, 2);
     g.translate(hang ? 0 : 1.1, hang ? -2 : 0, 0);
@@ -648,7 +731,7 @@ window.CT = window.CT || {};
     return g;
   }
 
-  // â”€â”€ Instance pools (one draw call per kind; chunks keep their own lists) â”€â”€
+  // ── Instance pools (one draw call per kind; chunks keep their own lists) ──
   const pools = {}, poolNames = [];
   const _m = new T.Matrix4(), _p = new T.Vector3(), _q = new T.Quaternion(), _s = new T.Vector3(), _e = new T.Euler(0, 0, 0, 'YXZ');
   function pool(name, geo, mat, per, cap) {
@@ -683,7 +766,7 @@ window.CT = window.CT || {};
     }
   }
 
-  // â”€â”€ Static colliders (POIs) in an 8 m hash â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Static colliders (POIs) in an 8 m hash ────────────────────────────────
   const SH = new Map(), QM = 2.5, interiors = [];
   const skey = (ix, iz) => (ix + 500) * 2000 + (iz + 500);
   function addStatic(o, ext) {
@@ -698,14 +781,14 @@ window.CT = window.CT || {};
   }
   const inBox = (o, x, z) => { const dx = x - o.x, dz = z - o.z, lx = dx * o.c - dz * o.s, lz = dx * o.s + dz * o.c; return Math.abs(lx) <= o.hw && Math.abs(lz) <= o.hd; };
 
-  // â”€â”€ Fires (instanced flames + halos + a few real lights) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Fires (instanced flames + halos + a few real lights) ───────────────────
   const fires = [];
-  const FIRE_TINT = [[1, 1, 1], [1.2, 0.2, 0.12], [0.55, 1, 0.8], [0.7, 0.85, 1.2]];
+  const FIRE_TINT = [[1, 1, 1], [1.6, 0.42, 0.22], [0.55, 1, 0.8], [0.7, 0.85, 1.2]];
   function fire(x, y, z, s, tint, light) { fires.push({ x, y, z, s, tint: tint || 0, light: !!light }); }
   let lights = [];
   const LCOL = [new T.Color(0xff8a30), new T.Color(0xff3018), new T.Color(0x80ffb0), new T.Color(0x9ab8ff)];
 
-  // â”€â”€ Common props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Common props ───────────────────────────────────────────────────────────
   function skull(b, x, y, z, ry, s = 1) {
     b.add(ico(0.16 * s, 1), M(x, y, z, ry, 1, 0.92, 1.15), BONE);
     bx(b, x + Math.sin(ry) * 0.1 * s, y - 0.12 * s, z + Math.cos(ry) * 0.1 * s, 0.2 * s, 0.08 * s, 0.14 * s, 0xc4b89c, ry, 0, 0, 0);
@@ -733,14 +816,14 @@ window.CT = window.CT || {};
     for (let k = 0; k < 3; k++) { const a = k * TAU / 3; K.f.add(cyl(0.05 * s, 0.06 * s, 1.5 * s, 4), limbM(x + Math.sin(a) * 0.6 * s, y, z + Math.cos(a) * 0.6 * s, x, y + 1.3 * s, z), IRON); }
     K.f.add(cyl(0.6 * s, 0.3 * s, 0.45 * s, 8), M(x, y + 1.35 * s, z), IRON);
     K.g.add(cyl(0.5 * s, 0.5 * s, 0.05, 8), M(x, y + 1.56 * s, z), tint === 1 ? 0xff3010 : 0xff8a20);
-    fire(x, y + 1.55 * s, z, 1.0 * s, tint, light);
+    fire(x, y + 1.5 * s, z, 0.5 * s, tint, light);
   }
   function bonfire(K, x, z, s, tint, light) {
     const y = heightAt(x, z);
     for (let k = 0; k < 10; k++) { const a = k / 10 * TAU; K.f.add(lumpy(ico(0.3 * s, 0), 0.1, k), M(x + Math.sin(a) * 1.5 * s, y + 0.1, z + Math.cos(a) * 1.5 * s, a, 1, 0.7, 1), STONE2); }
     for (let k = 0; k < 7; k++) { const a = k / 7 * TAU; K.f.add(cyl(0.1 * s, 0.14 * s, 2.2 * s, 5), limbM(x + Math.sin(a) * 1.0 * s, y, z + Math.cos(a) * 1.0 * s, x + Math.sin(a) * 0.1, y + 1.7 * s, z + Math.cos(a) * 0.1), k % 2 ? 0x2a1c12 : 0x1a120c); }
     K.g.add(cyl(0.9 * s, 1.0 * s, 0.1, 8), M(x, y + 0.08, z), 0xff5a10);
-    fire(x, y + 0.2, z, 2.3 * s, tint, light);
+    fire(x, y + 0.2, z, 2.6 * s, tint, light);
     colCircle(x, z, 1.6 * s, y + 1.5);
   }
   function signpost(K, x, z, targets) {
@@ -769,17 +852,23 @@ window.CT = window.CT || {};
   const flags = []; // {pool, x, y, z, ry, s, r, g, b}
   function flag(pool, x, y, z, ry, s = 1, tint) { flags.push({ pool, x, y, z, ry, s, t: tint || 1 }); }
 
-  // â”€â”€ Houses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Houses ─────────────────────────────────────────────────────────────────
   // Built at the origin: front faces +z, sits on y = 0 (a stone plinth sinks below).
   function house(R, o) {
     const k = kit(), Wd = o.W, D = o.D, H = o.H, RH = o.RH || D * 0.85;
-    const wall = o.stone ? [0x5a5652, 0x4e4a46, 0x625c56][(R() * 3) | 0] : [PLASTER, 0x7a6a52, 0x857056, 0x6e6250][(R() * 4) | 0];
+    let wall = o.stone ? [0x5a5652, 0x4e4a46, 0x625c56][(R() * 3) | 0] : [PLASTER, 0x7a6a52, 0x857056, 0x6e6250][(R() * 4) | 0];
     const rc = o.roofCol || [THATCH, SLATE, TILE, 0x3a2e22][(R() * 4) | 0];
-    bx(k.f, 0, 0.2, 0, Wd + 0.3, 1.4, D + 0.3, STONE2, 0, 0, 0, 0.2);
-    bx(k.f, 0, H / 2, 0, Wd, H, D, wall, 0, 0, 0, 0.12);
-    k.f.add(prism(Wd, D, RH), M(0, H, 0), wall, 0.1);
-    roof(k.f, Wd, D, RH, H, rc);
-    if (!o.stone) {
+    let WB = k.f, RB = k.f, rcol = rc;
+    if (TX) { // painted: timber-plaster or rock walls, thatch or clay tiles on the roof (by variety)
+      WB = tb(k, o.stone ? 'rock' : 'wall'); wall = o.stone ? [0xd8d0c8, 0xc0b8b0, 0xe0d8d0][(R() * 3) | 0] : [0xffffff, 0xf0e2cc, 0xe4d6c0, 0xd8ccb8][(R() * 4) | 0];
+      RB = tb(k, rc === TILE || rc === SLATE ? 'tiles' : 'thatch'); rcol = rc === SLATE ? 0x8a8494 : rc === 0x3a2e22 ? 0xb0a090 : 0xffffff;
+    }
+    bx(txb(k, 'rock'), 0, 0.2, 0, Wd + 0.3, 1.4, D + 0.3, TX ? 0x9a948c : STONE2, 0, 0, 0, 0.2);
+    bx(WB, 0, H / 2, 0, Wd, H, D, wall, 0, 0, 0, 0.12);
+    WB.add(prism(Wd, D, RH), M(0, H, 0), wall, 0.1);
+    roof(RB, Wd, D, RH, H, rcol);
+    if (TX && !o.stone) for (const sx of [-1, 1]) for (const sz of [-1, 1]) bx(k.f, sx * Wd / 2, H / 2, sz * D / 2, 0.3, H, 0.3, DWOOD, 0, 0, 0, 0);
+    if (!o.stone && !TX) {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) bx(k.f, sx * Wd / 2, H / 2, sz * D / 2, 0.3, H, 0.3, DWOOD, 0, 0, 0, 0);
       for (const sz of [-1, 1]) { bx(k.f, 0, H - 0.1, sz * (D / 2 + 0.04), Wd, 0.24, 0.12, DWOOD, 0, 0, 0, 0); bx(k.f, 0, H * 0.5, sz * (D / 2 + 0.04), Wd, 0.2, 0.12, DWOOD, 0, 0, 0, 0); }
       for (const sx of [-1, 1]) { bx(k.f, sx * (Wd / 2 + 0.04), H - 0.1, 0, 0.12, 0.24, D, DWOOD, 0, 0, 0, 0); bx(k.f, sx * (Wd / 2 + 0.04), H * 0.5, 0, 0.12, 0.2, D, DWOOD, 0, 0, 0, 0); }
@@ -802,7 +891,7 @@ window.CT = window.CT || {};
     win(Wd / 2 + 0.06, H * 0.6, 0, Math.PI / 2); win(-Wd / 2 - 0.06, H * 0.6, 0, -Math.PI / 2);
     if (R() < 0.8 || o.chimney) {
       const cxp = (R() < 0.5 ? -1 : 1) * Wd * 0.3;
-      bx(k.f, cxp, H + RH * 0.6, -D * 0.15, 0.8, RH * 1.3 + 1.2, 0.8, STONE, 0, 0, 0, 0.2);
+      bx(txb(k, 'rock'), cxp, H + RH * 0.6, -D * 0.15, 0.8, RH * 1.3 + 1.2, 0.8, TX ? 0xb0a8a0 : STONE, 0, 0, 0, 0.2);
       o.smoke = [cxp, H + RH * 1.3 + 0.6, -D * 0.15];
     }
     return k;
@@ -825,8 +914,8 @@ window.CT = window.CT || {};
       const a = i / n * TAU;
       if (gaps.some(g => Math.abs(Math.atan2(Math.sin(a - g), Math.cos(a - g))) * rad < gapW)) continue;
       const x = cx + Math.sin(a) * rad, z = cz + Math.cos(a) * rad, y = heightAt(x, z), hh = h + R() * 1.4;
-      K.f.add(protos.log, M(x, y - 0.6 + hh / 2, z, R() * 6, 1, hh, 1, (R() - 0.5) * 0.08, (R() - 0.5) * 0.08), R() < 0.3 ? 0x3a2818 : 0x4a3422, 0.2);
-      K.f.add(protos.logTip, M(x, y - 0.6 + hh + 0.3, z, R() * 6), 0x5a4230, 0.2);
+      txb(K, 'bark').add(protos.log, M(x, y - 0.6 + hh / 2, z, R() * 6, 1, hh, 1, (R() - 0.5) * 0.08, (R() - 0.5) * 0.08), TX ? (R() < 0.3 ? 0x9a8a7a : 0xd0c0b0) : R() < 0.3 ? 0x3a2818 : 0x4a3422, 0.2);
+      txb(K, 'bark').add(protos.logTip, M(x, y - 0.6 + hh + 0.3, z, R() * 6), TX ? 0xe0d0c0 : 0x5a4230, 0.2);
       if (i % 2 === 0) colCircle(x, z, 0.55, y + hh);
       if (i % 3 === 0) bx(K.f, x, y + hh * 0.55, z, 0.7, 0.14, 0.14, DWOOD, a + Math.PI / 2, 0, 0, 0);
     }
@@ -849,7 +938,7 @@ window.CT = window.CT || {};
   }
   const angFar = (a, list, m) => list.every(g => Math.abs(Math.atan2(Math.sin(a - g), Math.cos(a - g))) > m);
 
-  // â”€â”€ POI builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── POI builders ───────────────────────────────────────────────────────────
   const spots = {}, avoid = [];
   const smokes = [];
   function spot(id, x, z, yaw, tag) { (spots[id] = spots[id] || []).push({ x: +x.toFixed(1), z: +z.toFixed(1), yaw: +yaw.toFixed(2), tag }); }
@@ -978,7 +1067,7 @@ window.CT = window.CT || {};
       const a = R() * TAU, x = p.x + Math.sin(a) * (12 + R() * 5), z = p.z + Math.cos(a) * (12 + R() * 5);
       if (!free(x, z, 2)) continue;
       const rot = faceTo(x, z, p.x, p.z), k = kit(), cl = STALL[sI % 4];
-      bx(k.f, 0, 0.45, 0, 2.6, 0.9, 1.1, WOOD2); bx(k.f, 0, 0.93, 0, 2.7, 0.08, 1.2, 0x6a4a2c);
+      bx(txb(k, 'planks'), 0, 0.45, 0, 2.6, 0.9, 1.1, TX ? 0xd0c0b0 : WOOD2); bx(txb(k, 'planks'), 0, 0.93, 0, 2.7, 0.08, 1.2, TX ? 0xffffff : 0x6a4a2c);
       for (const q of [[-1.25, 0.55, 2.2], [1.25, 0.55, 2.2], [-1.25, -0.55, 2.6], [1.25, -0.55, 2.6]]) bx(k.f, q[0], q[2] / 2, q[1], 0.1, q[2], 0.1, DWOOD, 0, 0, 0, 0);
       bx(k.d, 0, 2.45, 0, 2.9, 0.05, 1.6, cl, 0, -0.32, 0, 0.1);
       for (let j = 0; j < 7; j++) bx(k.d, -1.2 + j * 0.4, 2.06, 0.78, 0.38, 0.3, 0.03, j % 2 ? cl : 0x8a7a5a, 0, 0, 0, 0);
@@ -1054,7 +1143,7 @@ window.CT = window.CT || {};
     bx(k.f, 0, 0.1, 0, Wd + 0.4, 0.6, D + 0.4, STONE2);
     for (let i = 0; i < 8; i++) {
       const y = 0.25 + i * 0.42, c = i % 2 ? 0x4a3422 : 0x3e2a1a;
-      for (const sz of [-1, 1]) k.f.add(cyl(0.22, 0.22, Wd + 0.8, 6), M(0, y, sz * D / 2, 0, 1, 1, 1, 0, Math.PI / 2), c, 0.1);
+      for (const sz of [-1, 1]) txb(k, 'planks').add(cyl(0.22, 0.22, Wd + 0.8, 6), M(0, y, sz * D / 2, 0, 1, 1, 1, 0, Math.PI / 2), TX ? (i % 2 ? 0xe0d0c0 : 0xc0b0a0) : c, 0.1);
       for (const sx of [-1, 1]) k.f.add(cyl(0.22, 0.22, D + 0.8, 6), M(sx * Wd / 2, y + 0.21, 0, 0, 1, 1, 1, Math.PI / 2, 0), c, 0.1);
     }
     k.f.add(prism(Wd, D, 3.6), M(0, H, 0), 0x3a2818);
@@ -1252,6 +1341,7 @@ window.CT = window.CT || {};
 
   function buildRuins(p) {
     const K = kit(), R = CT.rng(88), y0 = heightAt(p.x, p.z);
+    if (TX) K.f = K.d = tb(K, 'stone'); // painted rock on every ruin surface
     const pale = (ny, cy, R2) => (ny > 0.7 && R2() < 0.35 ? MOSS : [0xbdb6a6, 0xaaa394, 0xc8c2b4, 0x9e988a][(R2() * 4) | 0]);
     // ring of broken columns around the 30 m arena (kept clear)
     for (let i = 0; i < 14; i++) {
@@ -1288,6 +1378,7 @@ window.CT = window.CT || {};
     // arches, one broken
     for (let i = 0; i < 3; i++) {
       const a = i * 2.1 + 1.1, r = 30 + i * 3, x = p.x + Math.sin(a) * r, z = p.z + Math.cos(a) * r, y = heightAt(x, z), rot = a + Math.PI / 2, ak = kit();
+      if (TX) ak.f = ak.d = tb(ak, 'stone');
       for (const s of [-1, 1]) { bx(ak.f, s * 3, 3.5, 0, 1.4, 7, 1.4, 0xbdb6a6, 0, 0, 0, 0.1); }
       const segs = i === 2 ? 5 : 9;
       for (let sI = 0; sI < segs; sI++) { const t = (sI + 0.5) / 9 * Math.PI; bx(ak.f, -Math.cos(t) * 3, 7 + Math.sin(t) * 2.6, 0, 1.2, 0.9, 1.3, 0xc8c2b4, 0, 0, -Math.cos(t) * 0.9, 0.05); }
@@ -1507,7 +1598,7 @@ window.CT = window.CT || {};
     }
   }
 
-  // â”€â”€ Road ribbon (one mesh) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Road ribbon (one mesh) ─────────────────────────────────────────────────
   function roadMesh() {
     const P2 = [], UV = [], N = [], I = [];
     let base = 0;
@@ -1532,7 +1623,7 @@ window.CT = window.CT || {};
     const m = new T.Mesh(g, mats.road); m.frustumCulled = false; return m;
   }
 
-  // â”€â”€ Terrain colour â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Terrain colour ─────────────────────────────────────────────────────────
   const COL = {};
   function colors() {
     const hex = { grassA: 0x4c5424, grassB: 0x6e6a30, grassD: 0x353c1c, floor: 0x2c2e1a, needles: 0x3e3020, hillA: 0x4e5028, hillB: 0x64563a,
@@ -1580,7 +1671,7 @@ window.CT = window.CT || {};
     return _tc;
   }
 
-  // â”€â”€ Terrain chunks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Terrain chunks ─────────────────────────────────────────────────────────
   const CH = 64, NF = 33, NCs = 17;
   const chunks = new Map(), active = [], spare = [];
   let idxFine = null, idxCoarse = null;
@@ -1601,6 +1692,7 @@ window.CT = window.CT || {};
     g.setAttribute('normal', new T.BufferAttribute(new Float32Array(nv * 3), 3));
     g.setAttribute('color', new T.BufferAttribute(new Float32Array(nv * 3), 3));
     g.setAttribute('uv', new T.BufferAttribute(new Float32Array(nv * 2), 2));
+    g.setAttribute('splat', new T.BufferAttribute(new Float32Array(nv * 4), 4));
     g.boundingSphere = new T.Sphere(new T.Vector3(), 50);
     const mesh = new T.Mesh(g, mats.terrain); mesh.matrixAutoUpdate = false; mesh.visible = false; scene.add(mesh);
     const cells = []; for (let i = 0; i < 100; i++) cells.push([]);
@@ -1616,7 +1708,7 @@ window.CT = window.CT || {};
   }
   function buildTerrain(ch) {
     const n = ch.lod ? NF : NCs, st = CH / (n - 1), x0 = ch.cx * CH, z0 = ch.cz * CH, g = ch.g;
-    const Pp = g.attributes.position.array, Nn = g.attributes.normal.array, Cc = g.attributes.color.array, UVv = g.attributes.uv.array;
+    const Pp = g.attributes.position.array, Nn = g.attributes.normal.array, Cc = g.attributes.color.array, UVv = g.attributes.uv.array, Sp = g.attributes.splat.array;
     let hmin = 1e9, hmax = -1e9;
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
       const x = x0 + c * st, z = z0 + r * st, j = r * n + c, h = heightAt(x, z);
@@ -1626,6 +1718,7 @@ window.CT = window.CT || {};
       const col = tcol(x, z, h, ny / l, false);
       Cc[j * 3] = col.r * 1.12; Cc[j * 3 + 1] = col.g * 1.12; Cc[j * 3 + 2] = col.b * 1.12;
       UVv[j * 2] = x / 8; UVv[j * 2 + 1] = z / 8;
+      splatAt(x, z, h, Sp, j * 4);
       if (h < hmin) hmin = h; if (h > hmax) hmax = h;
     }
     const edge = [i => i, i => (n - 1) * n + i, i => i * n, i => i * n + n - 1], sd = ch.lod ? 3 : 7;
@@ -1634,12 +1727,25 @@ window.CT = window.CT || {};
       Pp[b * 3] = Pp[a * 3]; Pp[b * 3 + 1] = Pp[a * 3 + 1] - sd; Pp[b * 3 + 2] = Pp[a * 3 + 2];
       for (let k = 0; k < 3; k++) { Nn[b * 3 + k] = Nn[a * 3 + k]; Cc[b * 3 + k] = Cc[a * 3 + k]; }
       UVv[b * 2] = UVv[a * 2]; UVv[b * 2 + 1] = UVv[a * 2 + 1];
+      for (let k = 0; k < 4; k++) Sp[b * 4 + k] = Sp[a * 4 + k];
     }
     g.setIndex(ch.lod ? idxFine : idxCoarse);
-    for (const k of ['position', 'normal', 'color', 'uv']) g.attributes[k].needsUpdate = true;
+    for (const k of ['position', 'normal', 'color', 'uv', 'splat']) g.attributes[k].needsUpdate = true;
     g.boundingSphere.center.set(x0 + 32, (hmin + hmax) / 2, z0 + 32); g.boundingSphere.radius = Math.hypot(46, (hmax - hmin) / 2 + sd);
     ch.mesh.visible = hmax > -4;
     return hmax;
+  }
+  // Painted-terrain blend weights per vertex: road, village cobble, natural meadow grass, (spare). W holds this vertex's biome weights (set by tcol).
+  function splatAt(x, z, h, S, o) {
+    const n = vnoise(x * 0.21 + 3, z * 0.21), rd = samp(RD, x, z);
+    S[o] = 1 - sstep(2.3, 4.8, rd + (n - 0.5) * 1.8);
+    let cb = 0;
+    for (const id of ['harrowby', 'crossing']) { const q = P[id], d = Math.hypot(x - q.x, z - q.z); if (d < 22) cb = Math.max(cb, 1 - sstep(12, 18, d + (n - 0.5) * 5)); }
+    S[o + 1] = cb;
+    let open = clamp((W.meadow + W.hills * 0.85) * 1.1, 0, 1) * sstep(1.5, 5, h) * sstep(330, 450, Math.hypot(x, z + 1250));
+    if (open > 0 && (Math.abs(x) > 950 || Math.abs(z) > 950)) open *= 1 - sstep(80, 30, coastC(x, z)) * (1 - cliffK(x, z) * 0.8); // beaches keep their sand tint
+    for (const id of ['harrowby', 'crossing', 'camp']) { const q = P[id], fr = FLAT[id][0], d = Math.hypot(x - q.x, z - q.z); if (d < fr) open *= 0.55 + 0.45 * sstep(fr * 0.3, fr, d); }
+    S[o + 2] = open; S[o + 3] = 0;
   }
   const CLEAR = { shore: 16, harrowby: 84, lodge: 32, wolfden: 34, camp: 56, stones: 32, fen: 0, ruins: 64, crossing: 70, pass: 0, citadel: 170 };
   const extraClear = [];
@@ -1660,7 +1766,7 @@ window.CT = window.CT || {};
       weights(x, z, W);
       const ny = gridNy(x, z); if (ny < 0.78) continue;
       const rc = Math.hypot(x, z + 1250);
-      let dens = W.forest * 0.6 + W.hills * 0.09 + W.meadow * 0.03 + W.snow * 0.24 * sstep(215, 170, h) + W.swamp * 0.11;
+      let dens = W.forest * 0.6 + W.hills * 0.09 + W.meadow * (FOL ? 0.045 : 0.03) + W.snow * 0.24 * sstep(215, 170, h) + W.swamp * 0.11;
       dens *= 0.35 + 1.3 * sstep(0.3, 0.7, vnoise(x * 0.018 + 3, z * 0.018));
       if (r1 > dens || (lowQ && !fine && r5 < 0.3)) continue;
       let kind, s = 0.8 + r3 * 0.55 + (r3 > 0.93 ? 0.5 : 0), tr = 0.85 + r5 * 0.3, tg = tr, tb = tr;
@@ -1672,6 +1778,11 @@ window.CT = window.CT || {};
       if (rc < 420) { tr *= 0.45; tg *= 0.4; tb *= 0.42; }
       if (W.swamp > 0.5) { tr *= 0.75; tg *= 0.8; tb *= 0.7; }
       if (kind === 'stump') { put(ch, 'stump', x, h - 0.15, z, r4 * TAU, s, s, s, tr, tg, tb); addCol(ch, x, z, 0.5 * s, h + 1.2 * s); continue; }
+      if (FOL && kind === 'oak') { // painted cut-outs (the same billboard at every LOD)
+        const bir = W.meadow > 0.4 && r5 < 0.35, sc = s * (0.85 + r2 * 0.3);
+        put(ch, bir ? 'fBirch' : 'fOak', x, h - 0.3, z, r4 * TAU, sc, sc * (0.9 + r1 * 0.25), sc, 0.8 + r5 * 0.3, 0.8 + r5 * 0.3, 0.8 + r5 * 0.25);
+        addCol(ch, x, z, 0.5 * s, h + 9 * s); continue;
+      }
       const pool2 = kind + sfx, tilt = kind === 'dead' && W.swamp > 0.5 ? (r4 - 0.5) * 0.5 : 0;
       put(ch, pool2, x, h - (kind === 'dead' && W.swamp > 0.5 ? 0.9 : 0.25), z, r4 * TAU, s * (0.9 + r5 * 0.2), s * (0.85 + r1 * 0.4), s * (0.9 + r2 * 0.2), tr, tg, tb, tilt, -tilt * 0.6);
       addCol(ch, x, z, (kind === 'oak' ? 0.55 : 0.35) * s, h + 9 * s);
@@ -1686,6 +1797,7 @@ window.CT = window.CT || {};
       const s = 0.6 + r2 * 0.7;
       if (W.swamp > 0.5 && h < 0.8) { if (fine) put(ch, 'reed', x, h - 0.1, z, r3 * TAU, s, s * (0.8 + r1 * 0.5), s, 1, 1, 1); }
       else if (W.forest > 0.5 && r3 < 0.5) { if (fine) put(ch, 'fern', x, h - 0.05, z, r3 * TAU * 5, s * 1.3, s, s * 1.3, 0.9 + r1 * 0.3, 0.9 + r1 * 0.3, 0.9); }
+      else if (FOL && W.meadow + W.hills > 0.5) { if (fine || r3 < 0.5) put(ch, 'fBush', x, h - 0.2, z, r3 * TAU * 7, s, s * (0.85 + r1 * 0.3), s, 0.8 + r1 * 0.35, 0.8 + r1 * 0.35, 0.75 + r2 * 0.25); }
       else if (fine || r3 < 0.4) put(ch, 'bush', x, h - 0.15, z, r3 * TAU * 7, s * 1.3, s, s * 1.3, 0.8 + r1 * 0.4, 0.8 + r1 * 0.4, 0.8 + r2 * 0.2);
     }
     // rocks, boulders, crags
@@ -1727,9 +1839,9 @@ window.CT = window.CT || {};
         const rc = Math.hypot(x, z + 1250);
         let dens = W.meadow * 0.9 + W.hills * 0.65 + W.forest * 0.22 + W.swamp * 0.4 + W.snow * 0.06 * sstep(90, 50, h);
         if (rc < 120) dens = 0;
-        if (r1 > dens || gridNy(x, z) < 0.72) continue;
-        const s = 0.6 + r2 * 0.7, dry = sstep(0.3, 0.7, vnoise(x * 0.02, z * 0.02));
-        put(ch, 'grass', x, h - 0.05, z, r3 * TAU, s, s * (0.7 + r1 * 0.7), s, 0.85 + dry * 0.35, 0.85 + dry * 0.2, 0.8, 0, 0);
+        if (r1 > dens * (TX ? 0.35 : 1) || gridNy(x, z) < 0.72) continue;
+        const s = 0.6 + r2 * 0.7, dry = sstep(0.3, 0.7, vnoise(x * 0.02, z * 0.02)), L = TX ? 1.9 : 1;
+        put(ch, 'grass', x, h - 0.05, z, r3 * TAU, s, s * (0.7 + r1 * 0.7), s, (0.85 + dry * 0.35) * L, (0.85 + dry * 0.2) * L * 1.1, 0.8 * L * 0.8, 0, 0);
       }
     }
   }
@@ -1741,7 +1853,7 @@ window.CT = window.CT || {};
     lootChunk(ch);
   }
 
-  // â”€â”€ Streaming â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Streaming ──────────────────────────────────────────────────────────────
   function stream(budgetMs) {
     const cam = core.camera.position, ccx = Math.floor(cam.x / CH), ccz = Math.floor(cam.z / CH), nr = Math.ceil((viewR + 45) / CH);
     // unload far chunks
@@ -1779,7 +1891,7 @@ window.CT = window.CT || {};
     return built;
   }
 
-  // â”€â”€ Far LOD + sea â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Far LOD + sea ──────────────────────────────────────────────────────────
   function farMesh() {
     const n = 161, st = 3200 / (n - 1), P2 = new Float32Array(n * n * 3), Cc = new Float32Array(n * n * 3), N = new Float32Array(n * n * 3);
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
@@ -1850,12 +1962,13 @@ window.CT = window.CT || {};
     const m = new T.Mesh(g, mat); m.frustumCulled = false; mats.sea = mat; return m;
   }
 
-  // â”€â”€ Static POI meshes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Static POI meshes ──────────────────────────────────────────────────────
   const poiMeshes = []; // {group, x, z, r, always}
   function addPoiMeshes(K, x, z, r, always, warp) {
     const grp = new T.Group();
-    if (!K.f.empty) grp.add(new T.Mesh(K.f.geo(), warp ? mats.cflat : mats.flat));
-    if (!K.d.empty) grp.add(new T.Mesh(K.d.geo(), mats.flat2));
+    if (!K.f.empty) grp.add(new T.Mesh(K.f.geo(), K.f.tile ? mats.tx[K.f.name] : warp ? mats.cflat : mats.flat));
+    if (!K.d.empty && K.d !== K.f) grp.add(new T.Mesh(K.d.geo(), mats.flat2));
+    for (const n in K.t) if (K.t[n] !== K.f && K.t[n] !== K.d && !K.t[n].empty) grp.add(new T.Mesh(K.t[n].geo(), mats.tx[n]));
     if (!K.g.empty) grp.add(new T.Mesh(K.g.geo(), warp ? mats.cglow : mats.glow));
     if (warp) grp.children.forEach(m => { m.frustumCulled = false; m.renderOrder = 6; });
     grp.children.forEach(m => { m.matrixAutoUpdate = false; });
@@ -1863,7 +1976,7 @@ window.CT = window.CT || {};
     poiMeshes.push({ grp, x, z, r, always });
   }
 
-  // â”€â”€ Minor landmarks ("sites") and loot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Minor landmarks ("sites") and loot ─────────────────────────────────────
   // About 56 small places between the POIs, chosen by a seeded dart throw at init
   // (spacing >= 175 m, off the roads, outside every POI). Each one is built lazily
   // when the player comes near (one merged mesh + one glow mesh per site). Loot
@@ -2073,7 +2186,7 @@ window.CT = window.CT || {};
     return tex(c, true, true);
   }
 
-  // â”€â”€ Site types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Site types ─────────────────────────────────────────────────────────────
   // b: biome, names, loot: [lx, lz, kind, ry, forceBlood], guard, tall/silR (far silhouette), clear (vegetation), noFlat
   const TYPES = {
     tower: { b: 'meadow', tall: 14, silR: 3.2, names: ['The Broken Sentinel', "Warden's Stump", 'Oathwatch Tower', 'Crowcall Tower'], loot: [[2.4, 4.8, 'chest', 0.3], [-2.6, 4.2, 'urn']],
@@ -2604,7 +2717,7 @@ window.CT = window.CT || {};
   const BIOME_TYPES = { meadow: [], coast: [], forest: [], swamp: [], hills: [], snow: [] };
   for (const k in TYPES) if (BIOME_TYPES[TYPES[k].b]) BIOME_TYPES[TYPES[k].b].push(k);
 
-  // â”€â”€ Waterfalls (scenic sites on the steepest crag steps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Waterfalls (scenic sites on the steepest crag steps) ───────────────────
   function buildFalls(K, R, s) {
     const P3 = s.path, n = P3.length / 2, pos = [], uv = [], col = [], idx = [], f = K.f;
     let acc = 0, px = P3[0], pz = P3[1], ph = heightAt(px, pz);
@@ -2682,7 +2795,7 @@ window.CT = window.CT || {};
     return out;
   }
 
-  // â”€â”€ Planning (init, after the heightfield bake) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Planning (init, after the heightfield bake) ────────────────────────────
   function poiFar(x, z, m) {
     for (const p of POIS) { const r = Math.max(p.radius, CLEAR[p.id] || 0) + m; if ((x - p.x) * (x - p.x) + (z - p.z) * (z - p.z) < r * r) return false; }
     return Math.hypot(x, z + 1250) > 300 + m;
@@ -2786,7 +2899,7 @@ window.CT = window.CT || {};
     }
   }
 
-  // â”€â”€ Loot in the chunks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Loot in the chunks ─────────────────────────────────────────────────────
   const LABEL = { chest: 'Open Chest', urn: 'Smash Urn', corpse: 'Search the Fallen', rack: 'Take from the Weapon Rack', bag: 'Search the Saddlebags' };
   let pendReg = false;
   function putI(ch, name, x, y, z, ry, sx, sy, sz, cr, cg, cb, rx, rz) {
@@ -2903,7 +3016,7 @@ window.CT = window.CT || {};
     for (const ch of active) if (LOOTB.has(ch.key)) buildChunk(ch);
   }
 
-  // â”€â”€ Site meshes, lazily built; shared instanced fires, crows and banners â”€â”€â”€
+  // ── Site meshes, lazily built; shared instanced fires, crows and banners ───
   const SF_CAP = 256, CROW_CAP = 96, FLAG_CAP = 48;
   let sfMesh = null, shMesh = null, crowMesh = null, silMesh = null;
   const sflagMesh = {}, FLAGDEF = { flagV: [2, false], flagHand: [1, false], hangSkull: [0, true] }, _fc = { flagV: 0, flagHand: 0, hangSkull: 0 };
@@ -2918,6 +3031,7 @@ window.CT = window.CT || {};
     const grp = new T.Group();
     if (!K.f.empty) grp.add(new T.Mesh(K.f.geo(), mats.flat2));
     if (!K.g.empty) grp.add(new T.Mesh(K.g.geo(), mats.glow));
+    for (const n in K.t) if (!K.t[n].empty) grp.add(new T.Mesh(K.t[n].geo(), mats.tx[n]));
     if (s.xm) grp.add(s.xm);
     grp.position.set(s.x, s.y, s.z); grp.rotation.y = s.rot; grp.updateMatrix(); grp.matrixAutoUpdate = false;
     grp.children.forEach(m => { m.matrixAutoUpdate = false; });
@@ -2932,7 +3046,7 @@ window.CT = window.CT || {};
       for (const f of s.fr) {
         if (nf >= SF_CAP) break;
         const t = FIRE_TINT[f.tint];
-        _e.set(0, nf, 0); _q.setFromEuler(_e); _p.set(f.x, f.y, f.z); _s.set(f.s, f.s * 1.25, f.s); _m.compose(_p, _q, _s); sfMesh.setMatrixAt(nf, _m);
+        _e.set(0, nf, 0); _q.setFromEuler(_e); _p.set(f.x, f.y, f.z); _s.set(f.s, f.s * 1.6, f.s); _m.compose(_p, _q, _s); sfMesh.setMatrixAt(nf, _m);
         sfMesh.setColorAt(nf, _col.setRGB(t[0], t[1], t[2]));
         _p.set(f.x, f.y + f.s * 0.5, f.z); _s.setScalar(f.s * 4.2); _q.identity(); _m.compose(_p, _q, _s); shMesh.setMatrixAt(nf, _m);
         shMesh.setColorAt(nf, _col.setRGB(t[0], t[1] * 0.55, t[2] * 0.3));
@@ -2953,7 +3067,7 @@ window.CT = window.CT || {};
   function initSiteMeshes() {
     const fg = geoFire(), hg = new T.PlaneGeometry(1, 1);
     sfMesh = new T.InstancedMesh(fg, mats.fire, SF_CAP); shMesh = new T.InstancedMesh(hg, mats.halo, SF_CAP);
-    for (const m of [sfMesh, shMesh]) { m.instanceColor = new T.InstancedBufferAttribute(new Float32Array(SF_CAP * 3).fill(1), 3); m.count = 0; m.visible = false; m.frustumCulled = false; m.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(m); }
+    for (const m of [sfMesh, shMesh]) { m.instanceColor = new T.InstancedBufferAttribute(new Float32Array(SF_CAP * 3).fill(1), 3); m.count = 0; m.visible = false; m.frustumCulled = false; m.instanceMatrix.setUsage(T.DynamicDrawUsage); fx.add(m); }
     shMesh.renderOrder = 6;
     crowMesh = new T.InstancedMesh(geoCrow(), crowMat(), CROW_CAP); crowMesh.count = 0; crowMesh.visible = false; crowMesh.frustumCulled = false; scene.add(crowMesh);
     for (const k in FLAGDEF) { const d = FLAGDEF[k], m = new T.InstancedMesh(flagGeo(d[0], d[1]), d[1] ? mats.hang : mats.flag, FLAG_CAP); m.count = 0; m.visible = false; m.frustumCulled = false; scene.add(m); sflagMesh[k] = m; }
@@ -3034,9 +3148,71 @@ window.CT = window.CT || {};
   }
   let fallTex = null;
 
-  // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Painted textures (CT.tex from textures.js): terrain splat, props, foliage cut-outs ──
+  let FOL = false;
+  function ptex(name, aniso) {
+    const t = new T.TextureLoader().load(CT.tex[name]);
+    t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = aniso || 4;
+    return t;
+  }
+  function paintTerrain(mat) {
+    const tg = ptex('grass'), tk = ptex('rock'), tr = ptex('road'), tc = ptex('cobble');
+    mat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, { tGrass: { value: tg }, tRock: { value: tk }, tRoad: { value: tr }, tCob: { value: tc } });
+      sh.vertexShader = 'attribute vec4 splat;\nvarying vec4 vSplat; varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        vSplat = splat; vWP = (modelMatrix * vec4(position, 1.0)).xyz; vWN = normal;`);
+      sh.fragmentShader = 'uniform sampler2D tGrass, tRock, tRoad, tCob;\nvarying vec4 vSplat; varying vec3 vWP; varying vec3 vWN;\n' + sh.fragmentShader.replace('#include <color_fragment>', `
+        vec3 tint = vColor.rgb;
+        vec2 wp = vWP.xz;
+        vec3 g1 = texture2D(tGrass, wp / 8.0).rgb;
+        vec3 g2 = texture2D(tGrass, mat2(0.8, -0.6, 0.6, 0.8) * wp / 27.0 + 0.37).rgb;
+        vec3 gm = texture2D(tGrass, wp / 190.0 + 0.11).rgb;
+        vec3 grass = mix(g1, g2, 0.38);
+        float lum = dot(grass, vec3(0.3, 0.59, 0.11));
+        float mac = 0.72 + 0.56 * clamp(dot(gm, vec3(0.3, 0.59, 0.11)) * 3.2, 0.0, 1.0);
+        // non-meadow biomes keep their colour and take the brushwork of the grass (luminance only)
+        vec3 base = mix(tint * clamp(lum * 3.6, 0.45, 1.6), grass * mac * 0.92, vSplat.z);
+        vec3 n = normalize(vWN), bw = pow(abs(n), vec3(4.0)); bw /= bw.x + bw.y + bw.z;
+        vec3 rk = texture2D(tRock, vWP.zy / 9.0).rgb * bw.x + texture2D(tRock, wp / 9.0).rgb * bw.y + texture2D(tRock, vWP.xy / 9.0).rgb * bw.z;
+        float rockW = 1.0 - smoothstep(0.64, 0.84, n.y + (lum - 0.25) * 0.25);
+        base = mix(base, rk * mix(vec3(1.0), clamp(tint * 3.0, 0.4, 1.4), 0.45), rockW);
+        vec3 rdc = texture2D(tRoad, mat2(0.8, 0.6, -0.6, 0.8) * wp / 4.0).rgb;
+        base = mix(base, mix(rdc, vec3(dot(rdc, vec3(0.3, 0.59, 0.11))), 0.3) * 0.8, vSplat.x * (1.0 - rockW * 0.7));
+        base = mix(base, texture2D(tCob, wp / 3.0).rgb, vSplat.y);
+        diffuseColor.rgb *= base;`);
+    };
+    mat.customProgramCacheKey = () => 'ct-paint-terrain';
+    return mat;
+  }
+  // crossed-quad cut-out from the foliage atlas (2x2: 0 oak, 1 pine, 2 bush, 3 birch); both windings, normals up
+  function geoCutout(q, w, h, planes) {
+    const u0 = (q % 2) * 0.5, u1 = u0 + 0.5, v1 = 1 - Math.floor(q / 2) * 0.5, v0 = v1 - 0.5;
+    const P2 = [], UV = [], N = [];
+    for (let k = 0; k < planes; k++) {
+      const a = k / planes * Math.PI, cx = Math.cos(a) * w / 2, cz = Math.sin(a) * w / 2;
+      const A = [-cx, 0, -cz, u0, v0], B = [cx, 0, cz, u1, v0], Cq = [cx, h, cz, u1, v1], D = [-cx, h, -cz, u0, v1];
+      for (const tri of [[A, B, Cq], [A, Cq, D], [B, A, D], [B, D, Cq]]) for (const v of tri) { P2.push(v[0], v[1], v[2]); UV.push(v[3], v[4]); N.push(0, 1, 0); }
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(P2, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(UV, 2)); g.setAttribute('normal', new T.Float32BufferAttribute(N, 3));
+    return g;
+  }
+  function initPaint() {
+    TX = !!(CT.tex && CT.tex.grass && CT.tex.rock); FOL = !!(TX && CT.tex.foliage);
+    mats.tx = {};
+    if (!TX) return;
+    mats.terrain = paintTerrain(new T.MeshLambertMaterial({ vertexColors: true }));
+    const TM = { wall: ['wall'], thatch: ['thatch'], tiles: ['tiles'], planks: ['planks'], bark: ['bark'], rock: ['rock'], stone: ['rock', 0xf2ece0, true] };
+    for (const k in TM) mats.tx[k] = new T.MeshLambertMaterial({ map: ptex(TM[k][0]), vertexColors: true, color: TM[k][1] || 0xffffff, side: TM[k][2] ? T.DoubleSide : T.FrontSide });
+    mats.tx.stone.color.setRGB(1, 1, 1); // pale weathered stone: the rock brushwork, desaturated and lifted
+    mats.tx.stone.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n float sl = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = vec3(1.5, 1.45, 1.35) * clamp(0.5 + sl * 3.0, 0.35, 1.5);'); };
+    mats.tx.stone.customProgramCacheKey = () => 'ct-stone';
+    if (FOL) mats.foliage = sway(new T.MeshLambertMaterial({ map: ptex('foliage'), alphaTest: 0.45 }), 0.01, 2.5, 'fol');
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
   const protos = {};
-  let fireMesh = null, haloMesh = null, smokeMesh = null, road = null, far = null, late = null;
+  let fx = null, emberPts = null, fireMesh = null, haloMesh = null, smokeMesh = null, road = null, far = null, late = null;
   function loadFound() {
     try { const s = JSON.parse(localStorage.getItem('crimsonThrone.pois') || '{}'); POIS.forEach(p => (p.found = !!s[p.id])); } catch (e) { POIS.forEach(p => (p.found = !!p.found)); }
   }
@@ -3049,6 +3225,7 @@ window.CT = window.CT || {};
     const t0 = performance.now();
     // far LOD + citadel sort after the sky's storm crown (three sorts by group renderOrder first)
     late = new T.Group(); late.renderOrder = 6; scene.add(late);
+    fx = new T.Group(); fx.renderOrder = 7; scene.add(fx); // additive fire, glow and embers draw after everything opaque-looking
     colors(); bake();
     const tBake = performance.now() - t0;
     planSites();
@@ -3057,13 +3234,13 @@ window.CT = window.CT || {};
     const detail = detailTex();
     mats = {
       terrain: new T.MeshLambertMaterial({ vertexColors: true, map: detail }),
-      far: warpify(new T.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }), { dip: 10, key: "far", fogMax: 0.58 }),
+      far: warpify(new T.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }), { dip: 10, key: "far", fogMax: 0.58, fade: true }),
       road: new T.MeshLambertMaterial({ map: rutTex(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
       flat: new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
       flat2: new T.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: T.DoubleSide }),
       glow: new T.MeshBasicMaterial({ vertexColors: true }),
-      cflat: warpify(new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }), { key: "cit", ex2: 3.2, base: 226, fogMax: 0.12, fog0: 0.15, fog1: 0.9 }),
-      cglow: warpify(new T.MeshBasicMaterial({ vertexColors: true }), { key: "citg", ex2: 3.2, base: 226, fogMax: 0.1, fog0: 0.15, fog1: 0.9 }),
+      cflat: warpify(new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }), { key: "cit", fade: true, ex2: 3.2, base: 226, fogMax: 0.12, fog0: 0.15, fog1: 0.9 }),
+      cglow: warpify(new T.MeshBasicMaterial({ vertexColors: true }), { key: "citg", fade: true, ex2: 3.2, base: 226, fogMax: 0.1, fog0: 0.15, fog1: 0.9 }),
       tree: sway(new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 0.012, 3, 'tree'),
       bush: sway(new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 0.05, 0.2, 'bush'),
       grass: sway(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide }), 0.22, 0, 'grass'),
@@ -3073,8 +3250,9 @@ window.CT = window.CT || {};
       mist: new T.MeshBasicMaterial({ map: fogTex(), color: 0x7a806e, transparent: true, opacity: 0.5, depthWrite: false }),
       smoke: new T.MeshLambertMaterial({ color: 0x3a3634, flatShading: true, transparent: true, opacity: 0.55, depthWrite: false }),
       glint: haloMat(glowTex()),
-      sil: warpify(new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }), { dip: 45, key: 'sil', fogMax: 0.3, fog0: 0.6, fog1: 1.7 }),
+      sil: warpify(new T.MeshLambertMaterial({ vertexColors: true, flatShading: true }), { dip: 45, key: 'sil', fade: true, fogMax: 0.3, fog0: 0.6, fog1: 1.7 }),
     };
+    initPaint();
     fallTex = fallTexture();
     mats.fall = new T.MeshLambertMaterial({ map: fallTex, vertexColors: true, color: 0xc8d8e0, emissive: 0x1a2a32, side: T.DoubleSide });
     // far LOD + citadel draw in the transparent pass (opaque look) so they sit in front of the sky's storm crown
@@ -3102,6 +3280,11 @@ window.CT = window.CT || {};
     pool('boulder', geoBoulder(), mats.rock, 20, 1500);
     pool('crag', geoCrag(), mats.rock, 5, 500);
     pool('stump', geoStump(), mats.rock, 30, 1500);
+    if (FOL) {
+      pool('fOak', geoCutout(0, 10.5, 10.5, 3), mats.foliage, 60, 5000);
+      pool('fBirch', geoCutout(3, 9, 10, 3), mats.foliage, 60, 3000);
+      pool('fBush', geoCutout(2, 3.2, 3.2, 2), mats.foliage, 70, 7000);
+    }
     const mg = new T.PlaneGeometry(1, 1); mg.rotateX(-Math.PI / 2);
     pool('mist', mg, mats.mist, 4, 300);
     pools.mist.m.renderOrder = 5;
@@ -3134,19 +3317,21 @@ window.CT = window.CT || {};
     fireMesh = new T.InstancedMesh(fg, mats.fire, vis.length); haloMesh = new T.InstancedMesh(hg, mats.halo, vis.length);
     vis.forEach((f, i) => {
       const t = FIRE_TINT[f.tint];
-      _e.set(0, i, 0); _q.setFromEuler(_e); _p.set(f.x, f.y, f.z); _s.set(f.s, f.s * 1.25, f.s); _m.compose(_p, _q, _s); fireMesh.setMatrixAt(i, _m);
+      _e.set(0, i, 0); _q.setFromEuler(_e); _p.set(f.x, f.y, f.z); _s.set(f.s, f.s * 1.6, f.s); _m.compose(_p, _q, _s); fireMesh.setMatrixAt(i, _m);
       fireMesh.setColorAt(i, _col.setRGB(t[0], t[1], t[2]));
       _p.set(f.x, f.y + f.s * 0.5, f.z); _s.setScalar(f.s * 4.2); _q.identity(); _m.compose(_p, _q, _s); haloMesh.setMatrixAt(i, _m);
       haloMesh.setColorAt(i, _col.setRGB(t[0] * 1.0, t[1] * 0.55, t[2] * 0.3));
     });
-    fireMesh.frustumCulled = haloMesh.frustumCulled = false; haloMesh.renderOrder = 6;
-    scene.add(fireMesh); scene.add(haloMesh);
+    fireMesh.frustumCulled = haloMesh.frustumCulled = false; haloMesh.renderOrder = 6; fireMesh.renderOrder = 7;
+    emberPts = new T.Points(emberGeo(), emberMat()); emberPts.frustumCulled = false; emberPts.renderOrder = 7; fx.add(emberPts);
+    fx.add(fireMesh); fx.add(haloMesh);
     for (let i = 0; i < 4; i++) { const l = new T.PointLight(0xff8a30, 0, 26, 1.6); l.userData.f = null; scene.add(l); lights.push(l); }
     // chimney smoke
     smokeMesh = new T.InstancedMesh(new T.IcosahedronGeometry(0.6, 0), mats.smoke, 120); smokeMesh.count = 0; smokeMesh.frustumCulled = false; smokeMesh.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(smokeMesh);
     initSiteMeshes();
     // road, far LOD, sea
     road = roadMesh(); scene.add(road);
+    if (TX) road.visible = false; // the painted road is splatted into the terrain
     far = farMesh(); late.add(far);
     sea = seaMesh(); scene.add(sea);
     // chunks
@@ -3157,13 +3342,14 @@ window.CT = window.CT || {};
     lastCam.copy(core.camera.position);
   }
 
-  // â”€â”€ Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Update ─────────────────────────────────────────────────────────────────
   const lastCam = new T.Vector3();
   let poiT = 0, lightT = 0, sitesBroken = false;
-  const near4 = [null, null, null, null], nearD = [0, 0, 0, 0];
+  const near4 = [null, null, null, null], nearD = [0, 0, 0, 0], nearE = [], nearED = [], _v2e = new T.Vector2();
   function update(dt, c) {
     core = c; U.time.value += dt;
     const cam = c.camera.position;
+    WU.uKeep.value = sstep(-350, -450, cam.z); // within ~500 m of the citadel region: keep the real mountain + fortress
     const jump = cam.distanceTo(lastCam) > 120; lastCam.copy(cam);
     stream(jump ? 60 : 3.5);
     sea.position.set(cam.x, 0, cam.z); sea.updateMatrixWorld();
@@ -3178,6 +3364,16 @@ window.CT = window.CT || {};
         const d = (f.x - cam.x) * (f.x - cam.x) + (f.z - cam.z) * (f.z - cam.z);
         for (let k = 0; k < 4; k++) if (d < nearD[k]) { for (let m = 3; m > k; m--) { nearD[m] = nearD[m - 1]; near4[m] = near4[m - 1]; } nearD[k] = d; near4[k] = f; break; }
       }
+      // embers follow the nearest big fires in view range
+      let ne = 0;
+      for (let k = 0; k < EMB_N; k++) { nearE[k] = null; nearED[k] = 80 * 80; }
+      for (const f of fires) {
+        if (f.s < 0.3) continue;
+        const d = (f.x - cam.x) * (f.x - cam.x) + (f.z - cam.z) * (f.z - cam.z);
+        for (let k = 0; k < EMB_N; k++) if (d < nearED[k]) { for (let m = EMB_N - 1; m > k; m--) { nearED[m] = nearED[m - 1]; nearE[m] = nearE[m - 1]; } nearED[k] = d; nearE[k] = f; break; }
+      }
+      for (let k = 0; k < EMB_N; k++) { const f = nearE[k]; if (!f) continue; const t = FIRE_TINT[f.tint]; embF[ne].set(f.x, f.y + f.s * 0.15, f.z, f.s); embC[ne].set(t[0], t[1], t[2]); ne++; }
+      if (emberPts) { emberPts.material.uniforms.uN.value = ne; c.renderer.getDrawingBufferSize(_v2e); emberPts.material.uniforms.uH.value = _v2e.y; }
       for (let k = 0; k < 4; k++) { const l = lights[k], f = near4[k]; l.userData.f = f; if (f) { l.position.set(f.x, f.y + 0.9, f.z); l.color.copy(LCOL[f.tint]); } }
     }
     const t = U.time.value;
@@ -3208,7 +3404,7 @@ window.CT = window.CT || {};
     }
   }
 
-  // â”€â”€ Collision + queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Collision + queries ────────────────────────────────────────────────────
   function pushCircle(pos, rad, x, z, r) {
     const dx = pos.x - x, dz = pos.z - z, d2 = dx * dx + dz * dz, rr = r + rad;
     if (d2 >= rr * rr) return;
